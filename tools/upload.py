@@ -188,61 +188,118 @@ def upload_with_mpremote(src_dir, port):
                     remote_file = f"{remote_dir}/{file}".replace("\\", "/")
                     print(f"  {remote_file}")
                     
-                    # Add retry logic for file uploads
+                    # Read file content
+                    with open(local_file, 'rb') as f:
+                        content = f.read()
+                    
+                    # Write file using exec command with binary data
                     max_retries = 3
                     for attempt in range(max_retries):
                         try:
-                            cmd = ["mpremote", "connect", port, "fs", "cp", str(local_file), remote_file]
-                            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                            chunk_size = 512
+                            
+                            # Create/truncate the file
+                            create_cmd = f"f = open('{remote_file}', 'wb')"
+                            result = subprocess.run(
+                                ["mpremote", "connect", port, "exec", create_cmd],
+                                capture_output=True, text=True, timeout=10
+                            )
+                            
                             if result.returncode != 0:
                                 if attempt < max_retries - 1:
                                     print(f"    Retry {attempt + 1}/{max_retries}...")
                                     time.sleep(1)
                                     continue
                                 print(f"    Error: {result.stderr.strip()}")
-                                raise subprocess.CalledProcessError(result.returncode, cmd)
+                                raise subprocess.CalledProcessError(result.returncode, ["mpremote"])
+                            
+                            # Write content in chunks
+                            for i in range(0, len(content), chunk_size):
+                                chunk = content[i:i+chunk_size]
+                                byte_list = ','.join(str(b) for b in chunk)
+                                write_cmd = f"f.write(bytes([{byte_list}]))"
+                                result = subprocess.run(
+                                    ["mpremote", "connect", port, "exec", write_cmd],
+                                    capture_output=True, text=True, timeout=10
+                                )
+                                if result.returncode != 0:
+                                    raise subprocess.CalledProcessError(result.returncode, ["mpremote"])
+                            
+                            # Close the file
+                            close_cmd = "f.close()"
+                            subprocess.run(
+                                ["mpremote", "connect", port, "exec", close_cmd],
+                                capture_output=True, timeout=5
+                            )
                             break
+                            
                         except subprocess.TimeoutExpired:
                             if attempt < max_retries - 1:
                                 print(f"    Timeout, retry {attempt + 1}/{max_retries}...")
                                 time.sleep(1)
                                 continue
                             raise
+                        except subprocess.CalledProcessError:
+                            if attempt < max_retries - 1:
+                                print(f"    Error, retry {attempt + 1}/{max_retries}...")
+                                time.sleep(1)
+                                continue
+                            raise
                     
-                    time.sleep(0.2)  # Small delay between files
+                    time.sleep(0.1)  # Small delay between files
         else:
-            # For single files, use fs cp command
+            # For single files, write directly using exec command
             remote_file = f"/{item}"
             
-            # Add retry logic for file uploads
+            # Read file content
+            with open(src_path, 'rb') as f:
+                content = f.read()
+            
+            # Write file using exec command with binary data
             max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    cmd = ["mpremote", "connect", port, "fs", "cp", str(src_path), remote_file]
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                    # Write file in chunks to avoid command line length limits
+                    chunk_size = 512
+                    
+                    # First, create/truncate the file
+                    create_cmd = f"f = open('{remote_file}', 'wb')"
+                    result = subprocess.run(
+                        ["mpremote", "connect", port, "exec", create_cmd],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    
                     if result.returncode != 0:
                         if attempt < max_retries - 1:
                             print(f"Retry {attempt + 1}/{max_retries}...")
                             time.sleep(1)
                             continue
-                        print(f"Error: {result.stderr.strip()}")
-                        # Try alternative syntax
-                        if attempt == max_retries - 1:
-                            print(f"Trying alternative copy method...")
-                            # Read file and write it using exec
-                            with open(src_path, 'r') as f:
-                                content = f.read()
-                            # Escape content for Python string
-                            content_escaped = content.replace('\\', '\\\\').replace("'", "\\'").replace('\n', '\\n')
-                            write_cmd = f"with open('{remote_file}', 'w') as f: f.write('''{content}''')"
-                            result = subprocess.run(
-                                ["mpremote", "connect", port, "exec", write_cmd],
-                                capture_output=True, text=True, timeout=15
-                            )
-                            if result.returncode == 0:
-                                break
-                        raise subprocess.CalledProcessError(result.returncode, cmd)
+                        print(f"Error creating file: {result.stderr.strip()}")
+                        raise subprocess.CalledProcessError(result.returncode, ["mpremote"])
+                    
+                    # Write content in chunks
+                    for i in range(0, len(content), chunk_size):
+                        chunk = content[i:i+chunk_size]
+                        # Convert bytes to list of integers
+                        byte_list = ','.join(str(b) for b in chunk)
+                        write_cmd = f"f.write(bytes([{byte_list}]))"
+                        result = subprocess.run(
+                            ["mpremote", "connect", port, "exec", write_cmd],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        if result.returncode != 0:
+                            raise subprocess.CalledProcessError(result.returncode, ["mpremote"])
+                    
+                    # Close the file
+                    close_cmd = "f.close()"
+                    subprocess.run(
+                        ["mpremote", "connect", port, "exec", close_cmd],
+                        capture_output=True, timeout=5
+                    )
+                    
+                    print(f"✓ Uploaded {item}")
                     break
+                    
                 except subprocess.TimeoutExpired:
                     if attempt < max_retries - 1:
                         print(f"Timeout, retry {attempt + 1}/{max_retries}...")
