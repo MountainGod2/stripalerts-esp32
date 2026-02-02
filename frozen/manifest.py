@@ -4,4 +4,4 @@ Modules listed here will be compiled into the firmware.
 """
 
 # Freeze the stripalerts package
-freeze("stripalerts", opt=3)  # noqa: F821
+freeze("stripalerts", opt=3)

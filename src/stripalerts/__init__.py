@@ -7,6 +7,7 @@ from stripalerts.led import deg_to_rgb
 pin = machine.Pin.board.D48
 neopixel = neopixel.NeoPixel(pin, 1)
 
+
 def main():
     while True:
         for deg in range(0, 360, 10):
