@@ -2,14 +2,14 @@
 
 # Configuration - adjust these for your setup
 PORT ?= /dev/ttyACM0
-UPLOAD_METHOD ?= rshell
+UPLOAD_METHOD ?= mpremote
 
 help:
 	@echo "StripAlerts ESP32 Makefile"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  build     - Build MicroPython firmware with frozen modules"
-	@echo "  upload    - Upload runtime code to ESP32 (default: rshell for ESP32-S3)"
+	@echo "  upload    - Upload runtime code to ESP32 (default: mpremote for ESP32-S3)"
 	@echo "  monitor   - Connect to ESP32 serial monitor"
 	@echo "  flash     - Flash firmware to ESP32"
 	@echo "  clean     - Clean build artifacts"

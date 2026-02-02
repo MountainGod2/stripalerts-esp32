@@ -29,6 +29,8 @@ def upload_files(port="/dev/ttyACM0", method="ampy"):
         upload_with_ampy(src_dir, port)
     elif method == "rshell":
         upload_with_rshell(src_dir, port)
+    elif method == "mpremote":
+        upload_with_mpremote(src_dir, port)
     else:
         print(f"Unknown upload method: {method}")
         return 1
@@ -90,13 +92,66 @@ def upload_with_rshell(src_dir, port):
         raise
 
 
+def upload_with_mpremote(src_dir, port):
+    """Upload using mpremote (official MicroPython tool)."""
+    import subprocess
+    import os
+
+    files_to_upload = ["boot.py", "main.py", "stripalerts/"]
+
+    for item in files_to_upload:
+        src_path = src_dir / item
+        if not src_path.exists():
+            print(f"Skipping {item} (not found)")
+            continue
+
+        print(f"Uploading {item}...")
+
+        if src_path.is_dir():
+            # For directories, upload all files recursively
+            for root, dirs, files in os.walk(src_path):
+                root_path = Path(root)
+                rel_dir = root_path.relative_to(src_dir)
+                
+                # Create directory on device
+                remote_dir = f"/{rel_dir}".replace("\\", "/")
+                if remote_dir != "/":
+                    try:
+                        cmd = ["mpremote", "connect", port, "mkdir", remote_dir]
+                        subprocess.run(cmd, check=False, capture_output=True)  # Ignore if exists
+                    except subprocess.CalledProcessError:
+                        pass
+                
+                # Upload files in this directory
+                for file in files:
+                    if file.endswith('.pyc') or file == '__pycache__':
+                        continue
+                    local_file = root_path / file
+                    remote_file = f"{remote_dir}/{file}".replace("\\", "/")
+                    try:
+                        cmd = ["mpremote", "connect", port, "cp", str(local_file), f":{remote_file}"]
+                        subprocess.run(cmd, check=True, capture_output=True)
+                    except subprocess.CalledProcessError as e:
+                        print(f"  Failed to upload {local_file}: {e}")
+                        raise
+        else:
+            # For single files
+            remote_file = f":/{item}"
+            try:
+                cmd = ["mpremote", "connect", port, "cp", str(src_path), remote_file]
+                subprocess.run(cmd, check=True, capture_output=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to upload {item}: {e}")
+                raise
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Upload StripAlerts runtime code")
     parser.add_argument("--port", default="/dev/ttyACM0", help="Serial port")
     parser.add_argument(
-        "--method", default="ampy", choices=["ampy", "rshell"], help="Upload method"
+        "--method", default="ampy", choices=["ampy", "rshell", "mpremote"], help="Upload method"
     )
 
     args = parser.parse_args()
