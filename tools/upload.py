@@ -97,6 +97,34 @@ def upload_with_mpremote(src_dir, port):
     import subprocess
     import os
 
+    # Test connection first
+    print("Testing connection...")
+    try:
+        result = subprocess.run(
+            ["mpremote", "connect", port, "exec", "print('Connected')"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode != 0:
+            print(f"Connection test failed:")
+            print(f"stdout: {result.stdout}")
+            print(f"stderr: {result.stderr}")
+            print("\nTroubleshooting tips:")
+            print("1. Check if device is connected: ls -l /dev/ttyACM*")
+            print("2. Reset the ESP32 (press RESET button)")
+            print("3. Check permissions: sudo usermod -a -G dialout $USER")
+            print("4. Try a different upload method: make upload UPLOAD_METHOD=ampy")
+            return 1
+        print("✓ Connection successful")
+    except subprocess.TimeoutExpired:
+        print("Connection timeout - device not responding")
+        print("Try resetting the ESP32 and running again")
+        return 1
+    except FileNotFoundError:
+        print("Error: mpremote not found. Install with: uv sync")
+        return 1
+
     files_to_upload = ["boot.py", "main.py", "stripalerts/"]
 
     for item in files_to_upload:
@@ -128,21 +156,30 @@ def upload_with_mpremote(src_dir, port):
                         continue
                     local_file = root_path / file
                     remote_file = f"{remote_dir}/{file}".replace("\\", "/")
+                    print(f"  {remote_file}")
                     try:
                         cmd = ["mpremote", "connect", port, "cp", str(local_file), f":{remote_file}"]
-                        subprocess.run(cmd, check=True, capture_output=True)
+                        result = subprocess.run(cmd, capture_output=True, text=True)
+                        if result.returncode != 0:
+                            print(f"    Error: {result.stderr}")
+                            raise subprocess.CalledProcessError(result.returncode, cmd)
                     except subprocess.CalledProcessError as e:
-                        print(f"  Failed to upload {local_file}: {e}")
+                        print(f"  Failed to upload {local_file}")
                         raise
         else:
             # For single files
             remote_file = f":/{item}"
             try:
                 cmd = ["mpremote", "connect", port, "cp", str(src_path), remote_file]
-                subprocess.run(cmd, check=True, capture_output=True)
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    print(f"Error: {result.stderr}")
+                    raise subprocess.CalledProcessError(result.returncode, cmd)
             except subprocess.CalledProcessError as e:
-                print(f"Failed to upload {item}: {e}")
+                print(f"Failed to upload {item}")
                 raise
+    
+    return 0
 
 
 if __name__ == "__main__":
