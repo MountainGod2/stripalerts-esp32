@@ -4,8 +4,10 @@ import time
 
 from stripalerts.led import deg_to_rgb
 
-pin = machine.Pin.board.D48
-neopixel = neopixel.NeoPixel(pin, 1)
+pin_num = 48
+num_pixels = 1
+pin = machine.Pin(pin_num, machine.Pin.OUT)
+np = neopixel.NeoPixel(pin, num_pixels)
 
 
 def main():
