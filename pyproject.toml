@@ -15,3 +15,11 @@ stripalerts = "stripalerts:main"
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "adafruit-ampy>=1.1.0",
+    "pyserial>=3.5",
+    "rshell>=0.0.36",
+    "ruff>=0.14.14",
+]
