@@ -126,38 +126,9 @@ def upload_with_mpremote(src_dir, port):
         print("Error: mpremote not found. Install with: uv sync")
         return 1
 
-    # Soft reset the device to ensure clean state
-    print("Resetting device...")
-    try:
-        subprocess.run(
-            ["mpremote", "connect", port, "soft-reset"],
-            capture_output=True,
-            timeout=5
-        )
-        time.sleep(2)  # Wait for reset to complete
-        
-        # Wait for device to be ready again
-        print("Waiting for device to be ready...")
-        for i in range(5):
-            try:
-                result = subprocess.run(
-                    ["mpremote", "connect", port, "exec", "print('ready')"],
-                    capture_output=True,
-                    text=True,
-                    timeout=3
-                )
-                if result.returncode == 0:
-                    print("✓ Device ready")
-                    break
-                time.sleep(1)
-            except:
-                if i < 4:
-                    time.sleep(1)
-                else:
-                    print("Warning: Device may not be fully ready, continuing...")
-    except Exception as e:
-        print(f"Warning: Soft reset failed (continuing anyway): {e}")
-
+    # Note: Skipping soft reset as it can cause USB serial connection issues
+    # The device will be reset after upload completes
+    
     files_to_upload = ["boot.py", "main.py", "stripalerts/"]
 
     for item in files_to_upload:
@@ -249,6 +220,19 @@ def upload_with_mpremote(src_dir, port):
                     raise
             
             time.sleep(0.2)
+    
+    # Reset device after upload to run new code
+    print("\nResetting device to run new code...")
+    try:
+        subprocess.run(
+            ["mpremote", "connect", port, "soft-reset"],
+            capture_output=True,
+            timeout=5
+        )
+        print("✓ Device reset")
+    except Exception as e:
+        print(f"Warning: Failed to reset device: {e}")
+        print("You may need to manually reset the device")
     
     return 0
 
