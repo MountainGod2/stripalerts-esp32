@@ -134,7 +134,27 @@ def upload_with_mpremote(src_dir, port):
             capture_output=True,
             timeout=5
         )
-        time.sleep(1)  # Wait for reset to complete
+        time.sleep(2)  # Wait for reset to complete
+        
+        # Wait for device to be ready again
+        print("Waiting for device to be ready...")
+        for i in range(5):
+            try:
+                result = subprocess.run(
+                    ["mpremote", "connect", port, "exec", "print('ready')"],
+                    capture_output=True,
+                    text=True,
+                    timeout=3
+                )
+                if result.returncode == 0:
+                    print("✓ Device ready")
+                    break
+                time.sleep(1)
+            except:
+                if i < 4:
+                    time.sleep(1)
+                else:
+                    print("Warning: Device may not be fully ready, continuing...")
     except Exception as e:
         print(f"Warning: Soft reset failed (continuing anyway): {e}")
 
