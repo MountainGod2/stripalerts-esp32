@@ -13,7 +13,7 @@ help:
 
 build:
 	@echo "Building firmware..."
-	uv run python tools/build.py
+	python3 tools/build.py
 
 upload:
 	@echo "Uploading runtime code..."
