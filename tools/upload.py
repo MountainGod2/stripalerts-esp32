@@ -96,6 +96,7 @@ def upload_with_mpremote(src_dir, port):
     """Upload using mpremote (official MicroPython tool)."""
     import subprocess
     import os
+    import time
 
     # Test connection first
     print("Testing connection...")
@@ -104,10 +105,10 @@ def upload_with_mpremote(src_dir, port):
             ["mpremote", "connect", port, "exec", "print('Connected')"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=10
         )
         if result.returncode != 0:
-            print(f"Connection test failed:")
+            print("Connection test failed:")
             print(f"stdout: {result.stdout}")
             print(f"stderr: {result.stderr}")
             print("\nTroubleshooting tips:")
@@ -124,6 +125,18 @@ def upload_with_mpremote(src_dir, port):
     except FileNotFoundError:
         print("Error: mpremote not found. Install with: uv sync")
         return 1
+
+    # Mount filesystem to ensure it's ready
+    print("Preparing filesystem...")
+    try:
+        result = subprocess.run(
+            ["mpremote", "connect", port, "mount", "."],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+    except Exception as e:
+        print(f"Warning: Filesystem mount failed (continuing anyway): {e}")
 
     files_to_upload = ["boot.py", "main.py", "stripalerts/"]
 
@@ -145,7 +158,8 @@ def upload_with_mpremote(src_dir, port):
                 remote_dir = f"/{rel_dir}".replace("\\", "/")
                 if remote_dir != "/":
                     try:
-                        cmd = ["mpremote", "connect", port, "mkdir", remote_dir]
+                        # Use fs command to create directory
+                        cmd = ["mpremote", "connect", port, "fs", "mkdir", remote_dir]
                         subprocess.run(cmd, check=False, capture_output=True)  # Ignore if exists
                     except subprocess.CalledProcessError:
                         pass
@@ -157,27 +171,63 @@ def upload_with_mpremote(src_dir, port):
                     local_file = root_path / file
                     remote_file = f"{remote_dir}/{file}".replace("\\", "/")
                     print(f"  {remote_file}")
-                    try:
-                        cmd = ["mpremote", "connect", port, "cp", str(local_file), f":{remote_file}"]
-                        result = subprocess.run(cmd, capture_output=True, text=True)
-                        if result.returncode != 0:
-                            print(f"    Error: {result.stderr}")
-                            raise subprocess.CalledProcessError(result.returncode, cmd)
-                    except subprocess.CalledProcessError as e:
-                        print(f"  Failed to upload {local_file}")
-                        raise
+                    
+                    # Add retry logic for file uploads
+                    max_retries = 3
+                    for attempt in range(max_retries):
+                        try:
+                            cmd = ["mpremote", "connect", port, "fs", "cp", str(local_file), f":{remote_file}"]
+                            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                            if result.returncode != 0:
+                                if attempt < max_retries - 1:
+                                    print(f"    Retry {attempt + 1}/{max_retries}...")
+                                    time.sleep(0.5)
+                                    continue
+                                print(f"    Error: {result.stderr}")
+                                raise subprocess.CalledProcessError(result.returncode, cmd)
+                            break
+                        except subprocess.TimeoutExpired:
+                            if attempt < max_retries - 1:
+                                print(f"    Timeout, retry {attempt + 1}/{max_retries}...")
+                                time.sleep(0.5)
+                                continue
+                            raise
+                    
+                    time.sleep(0.1)  # Small delay between files
         else:
             # For single files
             remote_file = f":/{item}"
-            try:
-                cmd = ["mpremote", "connect", port, "cp", str(src_path), remote_file]
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode != 0:
-                    print(f"Error: {result.stderr}")
-                    raise subprocess.CalledProcessError(result.returncode, cmd)
-            except subprocess.CalledProcessError as e:
-                print(f"Failed to upload {item}")
-                raise
+            
+            # Add retry logic for file uploads
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    cmd = ["mpremote", "connect", port, "fs", "cp", str(src_path), remote_file]
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                    if result.returncode != 0:
+                        if attempt < max_retries - 1:
+                            print(f"Retry {attempt + 1}/{max_retries}...")
+                            time.sleep(0.5)
+                            continue
+                        print(f"Error: {result.stderr}")
+                        raise subprocess.CalledProcessError(result.returncode, cmd)
+                    break
+                except subprocess.TimeoutExpired:
+                    if attempt < max_retries - 1:
+                        print(f"Timeout, retry {attempt + 1}/{max_retries}...")
+                        time.sleep(0.5)
+                        continue
+                    print(f"Failed to upload {item}")
+                    raise
+                except subprocess.CalledProcessError:
+                    if attempt < max_retries - 1:
+                        print(f"Error, retry {attempt + 1}/{max_retries}...")
+                        time.sleep(0.5)
+                        continue
+                    print(f"Failed to upload {item}")
+                    raise
+            
+            time.sleep(0.1)  # Small delay between files
     
     return 0
 
