@@ -97,6 +97,7 @@ def upload_with_mpremote(src_dir, port):
     import subprocess
     import os
     import time
+    import tempfile
 
     # Test connection first
     print("Testing connection...")
@@ -125,6 +126,29 @@ def upload_with_mpremote(src_dir, port):
     except FileNotFoundError:
         print("Error: mpremote not found. Install with: uv sync")
         return 1
+
+    # Try to create a simple test file to verify filesystem access
+    print("Verifying filesystem access...")
+    try:
+        test_cmd = "with open('/.test', 'w') as f: f.write('test')"
+        result = subprocess.run(
+            ["mpremote", "connect", port, "exec", test_cmd],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0:
+            # Clean up test file
+            subprocess.run(
+                ["mpremote", "connect", port, "exec", "import os; os.remove('/.test')"],
+                capture_output=True,
+                timeout=5
+            )
+            print("✓ Filesystem accessible")
+        else:
+            print("Warning: Filesystem test failed, but continuing...")
+    except Exception as e:
+        print(f"Warning: Filesystem test failed: {e}")
 
     # Note: Skipping soft reset as it can cause USB serial connection issues
     # The device will be reset after upload completes
@@ -187,14 +211,14 @@ def upload_with_mpremote(src_dir, port):
                     
                     time.sleep(0.2)  # Small delay between files
         else:
-            # For single files
-            remote_file = f":/{item}"
+            # For single files, use fs cp command
+            remote_file = f"/{item}"
             
             # Add retry logic for file uploads
             max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    cmd = ["mpremote", "connect", port, "cp", str(src_path), remote_file]
+                    cmd = ["mpremote", "connect", port, "fs", "cp", str(src_path), remote_file]
                     result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
                     if result.returncode != 0:
                         if attempt < max_retries - 1:
@@ -202,6 +226,21 @@ def upload_with_mpremote(src_dir, port):
                             time.sleep(1)
                             continue
                         print(f"Error: {result.stderr.strip()}")
+                        # Try alternative syntax
+                        if attempt == max_retries - 1:
+                            print(f"Trying alternative copy method...")
+                            # Read file and write it using exec
+                            with open(src_path, 'r') as f:
+                                content = f.read()
+                            # Escape content for Python string
+                            content_escaped = content.replace('\\', '\\\\').replace("'", "\\'").replace('\n', '\\n')
+                            write_cmd = f"with open('{remote_file}', 'w') as f: f.write('''{content}''')"
+                            result = subprocess.run(
+                                ["mpremote", "connect", port, "exec", write_cmd],
+                                capture_output=True, text=True, timeout=15
+                            )
+                            if result.returncode == 0:
+                                break
                         raise subprocess.CalledProcessError(result.returncode, cmd)
                     break
                 except subprocess.TimeoutExpired:
