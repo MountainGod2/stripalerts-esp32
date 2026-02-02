@@ -13,15 +13,15 @@ help:
 
 build:
 	@echo "Building firmware..."
-	python3 tools/build.py
+	uv run python tools/build.py
 
 upload:
 	@echo "Uploading runtime code..."
-	python3 tools/upload.py
+	uv run python tools/upload.py
 
 monitor:
 	@echo "Starting monitor..."
-	python3 tools/monitor.py
+	uv run python tools/monitor.py
 
 flash: build
 	@echo "Flashing firmware..."
