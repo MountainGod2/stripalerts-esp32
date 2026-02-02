@@ -126,17 +126,17 @@ def upload_with_mpremote(src_dir, port):
         print("Error: mpremote not found. Install with: uv sync")
         return 1
 
-    # Mount filesystem to ensure it's ready
-    print("Preparing filesystem...")
+    # Soft reset the device to ensure clean state
+    print("Resetting device...")
     try:
-        result = subprocess.run(
-            ["mpremote", "connect", port, "mount", "."],
+        subprocess.run(
+            ["mpremote", "connect", port, "soft-reset"],
             capture_output=True,
-            text=True,
             timeout=5
         )
+        time.sleep(1)  # Wait for reset to complete
     except Exception as e:
-        print(f"Warning: Filesystem mount failed (continuing anyway): {e}")
+        print(f"Warning: Soft reset failed (continuing anyway): {e}")
 
     files_to_upload = ["boot.py", "main.py", "stripalerts/"]
 
@@ -158,8 +158,9 @@ def upload_with_mpremote(src_dir, port):
                 remote_dir = f"/{rel_dir}".replace("\\", "/")
                 if remote_dir != "/":
                     try:
-                        # Use fs command to create directory
-                        cmd = ["mpremote", "connect", port, "fs", "mkdir", remote_dir]
+                        # Create directory using exec command
+                        mkdir_cmd = f"import os; os.mkdir('{remote_dir}')"
+                        cmd = ["mpremote", "connect", port, "exec", mkdir_cmd]
                         subprocess.run(cmd, check=False, capture_output=True)  # Ignore if exists
                     except subprocess.CalledProcessError:
                         pass
@@ -176,24 +177,24 @@ def upload_with_mpremote(src_dir, port):
                     max_retries = 3
                     for attempt in range(max_retries):
                         try:
-                            cmd = ["mpremote", "connect", port, "fs", "cp", str(local_file), f":{remote_file}"]
-                            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                            cmd = ["mpremote", "connect", port, "cp", str(local_file), f":{remote_file}"]
+                            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
                             if result.returncode != 0:
                                 if attempt < max_retries - 1:
                                     print(f"    Retry {attempt + 1}/{max_retries}...")
-                                    time.sleep(0.5)
+                                    time.sleep(1)
                                     continue
-                                print(f"    Error: {result.stderr}")
+                                print(f"    Error: {result.stderr.strip()}")
                                 raise subprocess.CalledProcessError(result.returncode, cmd)
                             break
                         except subprocess.TimeoutExpired:
                             if attempt < max_retries - 1:
                                 print(f"    Timeout, retry {attempt + 1}/{max_retries}...")
-                                time.sleep(0.5)
+                                time.sleep(1)
                                 continue
                             raise
                     
-                    time.sleep(0.1)  # Small delay between files
+                    time.sleep(0.2)  # Small delay between files
         else:
             # For single files
             remote_file = f":/{item}"
@@ -202,32 +203,32 @@ def upload_with_mpremote(src_dir, port):
             max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    cmd = ["mpremote", "connect", port, "fs", "cp", str(src_path), remote_file]
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                    cmd = ["mpremote", "connect", port, "cp", str(src_path), remote_file]
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
                     if result.returncode != 0:
                         if attempt < max_retries - 1:
                             print(f"Retry {attempt + 1}/{max_retries}...")
-                            time.sleep(0.5)
+                            time.sleep(1)
                             continue
-                        print(f"Error: {result.stderr}")
+                        print(f"Error: {result.stderr.strip()}")
                         raise subprocess.CalledProcessError(result.returncode, cmd)
                     break
                 except subprocess.TimeoutExpired:
                     if attempt < max_retries - 1:
                         print(f"Timeout, retry {attempt + 1}/{max_retries}...")
-                        time.sleep(0.5)
+                        time.sleep(1)
                         continue
                     print(f"Failed to upload {item}")
                     raise
                 except subprocess.CalledProcessError:
                     if attempt < max_retries - 1:
                         print(f"Error, retry {attempt + 1}/{max_retries}...")
-                        time.sleep(0.5)
+                        time.sleep(1)
                         continue
                     print(f"Failed to upload {item}")
                     raise
             
-            time.sleep(0.1)  # Small delay between files
+            time.sleep(0.2)
     
     return 0
 
