@@ -192,7 +192,7 @@ def upload_with_mpremote(src_dir, port):
                     max_retries = 3
                     for attempt in range(max_retries):
                         try:
-                            cmd = ["mpremote", "connect", port, "cp", str(local_file), f":{remote_file}"]
+                            cmd = ["mpremote", "connect", port, "fs", "cp", str(local_file), remote_file]
                             result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
                             if result.returncode != 0:
                                 if attempt < max_retries - 1:
