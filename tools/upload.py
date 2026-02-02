@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-def upload_files(port="/dev/ttyUSB0", method="ampy"):
+def upload_files(port="/dev/ttyACM0", method="ampy"):
     """Upload runtime files to ESP32."""
 
     project_root = Path(__file__).parent.parent
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Upload StripAlerts runtime code")
-    parser.add_argument("--port", default="/dev/ttyUSB0", help="Serial port")
+    parser.add_argument("--port", default="/dev/ttyACM0", help="Serial port")
     parser.add_argument(
         "--method", default="ampy", choices=["ampy", "rshell"], help="Upload method"
     )

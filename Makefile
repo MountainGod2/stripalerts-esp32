@@ -26,7 +26,7 @@ monitor:
 flash: build
 	@echo "Flashing firmware..."
 	@echo "Note: Using ESP32-S3 configuration"
-	esptool.py --chip esp32s3 --port /dev/ttyUSB0 --baud 460800 write_flash -z 0x0 firmware/build/firmware.bin
+	esptool.py --chip esp32s3 --port /dev/ttyACM0 --baud 460800 write_flash -z 0x0 firmware/build/firmware.bin
 
 clean:
 	@echo "Cleaning build artifacts..."

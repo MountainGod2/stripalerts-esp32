@@ -8,7 +8,7 @@ import serial
 import argparse
 
 
-def monitor(port="/dev/ttyUSB0", baud=115200):
+def monitor(port="/dev/ttyACM0", baud=115200):
     """Monitor serial output from ESP32."""
 
     print("=" * 60)
@@ -43,7 +43,7 @@ def monitor(port="/dev/ttyUSB0", baud=115200):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Monitor StripAlerts ESP32")
-    parser.add_argument("--port", default="/dev/ttyUSB0", help="Serial port")
+    parser.add_argument("--port", default="/dev/ttyACM0", help="Serial port")
     parser.add_argument("--baud", type=int, default=115200, help="Baud rate")
 
     args = parser.parse_args()
