@@ -17,11 +17,11 @@ build:
 
 upload:
 	@echo "Uploading runtime code..."
-	uv run python tools/upload.py
+	python3 tools/upload.py
 
 monitor:
 	@echo "Starting monitor..."
-	uv run python tools/monitor.py
+	python3 tools/monitor.py
 
 flash: build
 	@echo "Flashing firmware..."
