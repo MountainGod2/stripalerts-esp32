@@ -69,10 +69,10 @@ def build_firmware():
         import shutil
 
         shutil.copy(built_firmware, build_dir / "firmware.bin")
-        print("\n✓ Firmware built successfully!")
+        print("\nFirmware built successfully!")
         print(f"  Output: {build_dir / 'firmware.bin'}")
     else:
-        print("\n✗ Build failed - firmware.bin not found")
+        print("\nBuild failed - firmware.bin not found")
         return 1
 
     print("\n" + "=" * 60)
