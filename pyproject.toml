@@ -23,3 +23,8 @@ dev = [
     "rshell>=0.0.36",
     "ruff>=0.14.14",
 ]
+
+[tool.ruff]
+format.exclude = ["firmware/*"]
+lint.exclude = ["firmware/*"]
+lint.per-file-ignores = { "frozen/manifest.py" = ["F821"] }
