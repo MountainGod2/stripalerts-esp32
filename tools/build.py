@@ -219,7 +219,7 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
         board_build_dir = self.esp32_port_dir / f"build-{self.board}"
 
         firmware_files = {
-            "firmware.bin": "firmware.bin",
+            "micropython.bin": "firmware.bin",
             "bootloader/bootloader.bin": "bootloader.bin",
             "partition_table/partition-table.bin": "partition-table.bin",
         }
@@ -231,8 +231,8 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
                 shutil.copy2(src, dest)
                 print(f"[OK] Copied {dest_name} to {build_dir}")
 
-        firmware_bin = board_build_dir / "firmware.bin"
-        if firmware_bin.exists():
+        micropython_bin = board_build_dir / "micropython.bin"
+        if micropython_bin.exists():
             version = "dev"
             pyproject_path = self.root_dir / "pyproject.toml"
             if pyproject_path.exists():
@@ -245,7 +245,7 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
 
             versioned_name = f"stripalerts-{version}-{self.board}.bin"
             dest = build_dir / versioned_name
-            shutil.copy2(firmware_bin, dest)
+            shutil.copy2(micropython_bin, dest)
             print(f"[OK] Created versioned firmware: {versioned_name}")
 
     def build(self) -> bool:
