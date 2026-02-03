@@ -1,59 +1,156 @@
+---
 name: CI
-
 on:
   push:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [ main, develop ]
-
+    branches:
+      - main
+      - develop
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
 jobs:
   lint:
+    name: Lint / Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      
+          python-version: "3.11"
+      - name: Install uv
+        run: |
+          set -euo pipefail
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
       - name: Install dependencies
-        run: pip install -e .
-      
-      - name: Lint with ruff
-        run: python -m ruff check .
-      
-      - name: Format check with ruff
-        run: python -m ruff format --check .
-
+        run: |
+          set -euo pipefail
+          uv sync --frozen
+      - name: Ruff lint
+        run: |
+          set -euo pipefail
+          uv run ruff check .
+      - name: Ruff format check
+        run: |
+          set -euo pipefail
+          uv run ruff format --check .
   build-firmware:
+    name: Build firmware
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            git \
+            build-essential \
+            cmake \
+            ninja-build \
+            flex \
+            bison \
+            gperf \
+            ccache \
+            libffi-dev \
+            libssl-dev \
+            dfu-util \
+            libusb-1.0-0
+      - name: Set up Python (repo tooling)
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      
+          python-version: "3.11"
+      - name: Install uv
+        run: |
+          set -euo pipefail
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential git
-          pip install -e .
-      
+          set -euo pipefail
+          uv sync --frozen
+      - name: Cache ESP-IDF tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.espressif
+          key: ${{ runner.os }}-espressif-idf-v5_5
+          restore-keys: |
+            ${{ runner.os }}-espressif-idf-
+      - name: Install ESP-IDF
+        uses: espressif/install-esp-idf-action@v1
+        with:
+          idf-version: v5.5
+          target: esp32,esp32s3
+          python-version: "3.12"
       - name: Clone MicroPython
-        run: |
+        run: >
+          set -euo pipefail
+
           cd firmware
-          git clone https://github.com/micropython/micropython.git
-      
-      - name: Build firmware
+
+          # If you later pin MicroPython, switch to a tag/commit instead of "master/main".
+
+          git clone --depth 1 https://github.com/micropython/micropython.git
+      - name: Sanity check ESP-IDF environment
+        shell: bash
         run: |
-          python tools/build.py
-      
+          set -euo pipefail
+          command -v idf.py
+          idf.py --version || true
+      - name: Build firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Your build script triggers "make submodules" which calls idf.py.
+          # With ESP-IDF installed via the action, idf.py is available here.
+          uv run python tools/build.py
+      - name: Collect build artifacts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+
+          # Common MicroPython ESP32 output locations:
+          # ports/esp32/build-<BOARD>/firmware.bin (and other .bin/.elf)
+          find firmware/micropython/ports/esp32 -type f \( \
+            -name "firmware.bin" -o \
+            -name "*.bin" -o \
+            -name "*.elf" \
+          \) -print -exec cp -v {} artifacts/ \; || true
+
+          echo "Artifacts collected:"
+          ls -la artifacts || true
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v6
         with:
           name: firmware
-          path: firmware/build/firmware.bin
+          path: artifacts/*
+          if-no-files-found: error
