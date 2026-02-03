@@ -26,6 +26,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install uv
+        shell: bash
         run: |
           set -euo pipefail
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -39,14 +40,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-uv-
       - name: Install dependencies
+        shell: bash
         run: |
           set -euo pipefail
           uv sync --frozen
       - name: Ruff lint
+        shell: bash
         run: |
           set -euo pipefail
           uv run ruff check .
       - name: Ruff format check
+        shell: bash
         run: |
           set -euo pipefail
           uv run ruff format --check .
@@ -54,10 +58,14 @@ jobs:
     name: Build firmware
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    env:
+      ESP_IDF_PATH: /tmp/esp/idf
+      ESP_TOOLS_PATH: /tmp/esp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install system dependencies
+        shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -74,11 +82,12 @@ jobs:
             libssl-dev \
             dfu-util \
             libusb-1.0-0
-      - name: Set up Python (repo tooling)
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install uv
+        shell: bash
         run: |
           set -euo pipefail
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -92,62 +101,55 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-uv-
       - name: Install dependencies
+        shell: bash
         run: |
           set -euo pipefail
           uv sync --frozen
-      - name: Cache ESP-IDF tools
+      - name: Cache ESP-IDF + tools
         uses: actions/cache@v4
         with:
           path: |
-            ~/.espressif
-          key: ${{ runner.os }}-espressif-idf-v5_5
+            /tmp/esp/idf
+            /tmp/esp
+          key: ${{ runner.os }}-esp-idf-v5_5
           restore-keys: |
-            ${{ runner.os }}-espressif-idf-
+            ${{ runner.os }}-esp-idf-v5_5-
+            ${{ runner.os }}-esp-idf-
       - name: Install ESP-IDF
         uses: espressif/install-esp-idf-action@v1
         with:
-          idf-version: v5.5
-          target: esp32,esp32s3
-          python-version: "3.12"
-      - name: Clone MicroPython
-        run: >
-          set -euo pipefail
-
-          cd firmware
-
-          # If you later pin MicroPython, switch to a tag/commit instead of "master/main".
-
-          git clone --depth 1 https://github.com/micropython/micropython.git
-      - name: Sanity check ESP-IDF environment
+          version: v5.5
+          path: /tmp/esp/idf
+          tools-path: /tmp/esp
+      - name: Sanity check idf.py
         shell: bash
         run: |
           set -euo pipefail
           command -v idf.py
           idf.py --version || true
+      - name: Clone MicroPython
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd firmware
+          git clone --depth 1 https://github.com/micropython/micropython.git
       - name: Build firmware
         shell: bash
         run: |
           set -euo pipefail
-          # Your build script triggers "make submodules" which calls idf.py.
-          # With ESP-IDF installed via the action, idf.py is available here.
           uv run python tools/build.py
-      - name: Collect build artifacts
+      - name: Collect build outputs
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts
-
-          # Common MicroPython ESP32 output locations:
-          # ports/esp32/build-<BOARD>/firmware.bin (and other .bin/.elf)
           find firmware/micropython/ports/esp32 -type f \( \
             -name "firmware.bin" -o \
             -name "*.bin" -o \
             -name "*.elf" \
-          \) -print -exec cp -v {} artifacts/ \; || true
-
-          echo "Artifacts collected:"
-          ls -la artifacts || true
+          \) -print -exec cp -v {} artifacts/ \;
+          ls -la artifacts
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v6
         with:
