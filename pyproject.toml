@@ -9,6 +9,9 @@ authors = [
 requires-python = ">=3.9"
 dependencies = []
 
+[tool.setuptools]
+packages = ["tools"]
+
 [project.scripts]
 build = "tools.build:main"
 upload = "tools.upload:main"
