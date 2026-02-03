@@ -7,7 +7,7 @@ from pathlib import Path
 
 class FirmwareUploader:
     FLASH_ADDRESSES = {
-        "bootloader": 0x1000,
+        "bootloader": 0x0,
         "partition-table": 0x8000,
         "firmware": 0x10000,
     }
@@ -83,7 +83,6 @@ class FirmwareUploader:
             return None
 
     def check_firmware_files(self) -> bool:
-        """Check if firmware files exist."""
         print("Checking firmware files...")
 
         if not self.build_dir.exists():
@@ -91,8 +90,7 @@ class FirmwareUploader:
             print("Please run 'build' command first")
             return False
 
-        required_files = ["firmware.bin"]
-        optional_files = ["bootloader.bin", "partition-table.bin"]
+        required_files = ["bootloader.bin", "partition-table.bin", "firmware.bin"]
 
         missing_required = []
         for filename in required_files:
@@ -103,15 +101,10 @@ class FirmwareUploader:
             print(
                 f"[ERROR] Missing required firmware files: {', '.join(missing_required)}"
             )
+            print("Please rebuild firmware")
             return False
 
-        print("[OK] Required firmware files found")
-
-        # Check optional files
-        for filename in optional_files:
-            if (self.build_dir / filename).exists():
-                print(f"[OK] Found {filename}")
-
+        print("[OK] All required firmware files found")
         return True
 
     def erase_flash(self, port: str) -> bool:
@@ -131,6 +124,10 @@ class FirmwareUploader:
     def upload_firmware(self, port: str) -> bool:
         print(f"Uploading firmware to {port} at {self.baud} baud...")
 
+        firmware_bin = self.build_dir / "firmware.bin"
+        bootloader_bin = self.build_dir / "bootloader.bin"
+        partition_bin = self.build_dir / "partition-table.bin"
+
         cmd = [
             "python",
             "-m",
@@ -143,30 +140,13 @@ class FirmwareUploader:
             str(self.baud),
             "write_flash",
             "-z",
+            hex(self.FLASH_ADDRESSES["bootloader"]),
+            str(bootloader_bin),
+            hex(self.FLASH_ADDRESSES["partition-table"]),
+            str(partition_bin),
+            hex(self.FLASH_ADDRESSES["firmware"]),
+            str(firmware_bin),
         ]
-
-        firmware_bin = self.build_dir / "firmware.bin"
-        bootloader_bin = self.build_dir / "bootloader.bin"
-        partition_bin = self.build_dir / "partition-table.bin"
-
-        if bootloader_bin.exists() and partition_bin.exists():
-            cmd.extend(
-                [
-                    hex(self.FLASH_ADDRESSES["bootloader"]),
-                    str(bootloader_bin),
-                    hex(self.FLASH_ADDRESSES["partition-table"]),
-                    str(partition_bin),
-                    hex(self.FLASH_ADDRESSES["firmware"]),
-                    str(firmware_bin),
-                ]
-            )
-        else:
-            cmd.extend(
-                [
-                    hex(self.FLASH_ADDRESSES["firmware"]),
-                    str(firmware_bin),
-                ]
-            )
 
         try:
             subprocess.run(cmd, check=True)
