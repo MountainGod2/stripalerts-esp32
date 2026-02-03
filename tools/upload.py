@@ -53,6 +53,53 @@ def check_filesystem(device):
         raise UploadError("Filesystem check timed out")
 
 
+def initialize_filesystem(device):
+    """Initialize filesystem if not accessible."""
+    print("Initializing filesystem on device...")
+    try:
+        # Try to create basic directory structure
+        result = subprocess.run(
+            ["mpremote", device, "exec", """
+import os
+try:
+    dirs = ['lib', 'src', 'src/stripalerts']
+    created = []
+    exists = []
+    for d in dirs:
+        try:
+            os.mkdir('/' + d)
+            created.append(d)
+        except OSError as e:
+            if 'EEXIST' in str(e):
+                exists.append(d)
+    if created:
+        print(f'Created: {", ".join(created)}')
+    if exists:
+        print(f'Already exists: {", ".join(exists)}')
+    print('[OK] Filesystem ready')
+except Exception as e:
+    print(f'[ERROR] {e}')
+"""],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            if output:
+                for line in output.split('\n'):
+                    print(f"  {line}")
+            return True
+        else:
+            print(f"[WARN] Initialization had errors: {result.stderr.strip()}")
+            return False
+            
+    except subprocess.TimeoutExpired:
+        print("[WARN] Filesystem initialization timed out")
+        return False
+
+
 def upload_directory(src_dir, dst_dir, device, exclude=None):
     """Upload a directory to device."""
     if exclude is None:
@@ -232,8 +279,15 @@ def main():
         # Validate connection
         validate_device(args.device)
 
-        # Check filesystem
-        check_filesystem(args.device)
+        # Check filesystem and initialize if needed
+        try:
+            check_filesystem(args.device)
+        except UploadError:
+            print("[WARN] Filesystem check failed, attempting initialization...")
+            if not initialize_filesystem(args.device):
+                raise UploadError("Filesystem initialization failed")
+            # Recheck after initialization
+            check_filesystem(args.device)
 
         # Upload runtime code
         if not upload_runtime(args.device):

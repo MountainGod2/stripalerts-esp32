@@ -429,8 +429,51 @@ def flash_firmware(
         raise BuildError("Flashing timed out")
 
 
+def initialize_filesystem(port="a0", timeout=30):
+    """Initialize filesystem directories on ESP32."""
+    print("Initializing filesystem...")
+    
+    init_script = """
+import os
+try:
+    dirs = ['lib', 'src', 'src/stripalerts']
+    for d in dirs:
+        try:
+            os.mkdir('/' + d)
+        except OSError:
+            pass  # Directory already exists
+    print('[OK] Directories created')
+except Exception as e:
+    print(f'[WARN] Init error: {e}')
+"""
+    
+    try:
+        result = subprocess.run(
+            ["mpremote", port, "exec", init_script],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            if output:
+                print(f"  {output}")
+            return True
+        else:
+            print(f"[WARN] Initialization had errors: {result.stderr.strip()}")
+            return False
+            
+    except subprocess.TimeoutExpired:
+        print("[WARN] Filesystem initialization timed out")
+        return False
+    except Exception as e:
+        print(f"[WARN] Initialization error: {e}")
+        return False
+
+
 def validate_filesystem(port="a0", timeout=30):
-    """Validate that ESP32 filesystem is working."""
+    """Validate that ESP32 filesystem is working and initialize if needed."""
     print("\n" + "=" * 60)
     print("Validating filesystem...")
     print("=" * 60)
@@ -468,6 +511,9 @@ def validate_filesystem(port="a0", timeout=30):
             return False
 
         print("[OK] Filesystem accessible")
+        
+        # Initialize directory structure
+        initialize_filesystem(port, timeout)
 
         # Test mkdir/rmdir for read-write access
         result = subprocess.run(

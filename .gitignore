@@ -49,6 +49,3 @@ Thumbs.db
 # Environment files
 .env
 secrets.py
-
-# Lock files
-uv.lock
