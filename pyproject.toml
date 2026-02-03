@@ -9,8 +9,9 @@ authors = [
 requires-python = ">=3.9"
 dependencies = []
 
-[tool.setuptools]
-packages = ["tools"]
+[tool.uv.build-backend]
+module-name = "tools"
+module-root = "" 
 
 [project.scripts]
 build = "tools.build:main"
