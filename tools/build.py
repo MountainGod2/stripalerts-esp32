@@ -391,7 +391,7 @@ def validate_filesystem(port="a0", timeout=30):
         return None
 
 
-def build_firmware(flash_device=None, chip="esp32s3", port="/dev/ttyACM0"):
+def build_firmware(flash_device=None, chip="esp32s3", port="/dev/ttyACM0", board="ESP32_GENERIC_S3"):
     """Build MicroPython firmware with frozen modules."""
 
     project_root = Path(__file__).parent.parent
@@ -416,7 +416,7 @@ def build_firmware(flash_device=None, chip="esp32s3", port="/dev/ttyACM0"):
         # Phase 3: Build
         build_mpy_cross(micropython_dir)
         firmware_path = build_esp32_firmware(
-            micropython_dir, frozen_dir, chip, build_dir
+            micropython_dir, frozen_dir, board, build_dir
         )
 
         # Phase 4: Verify
@@ -475,6 +475,11 @@ if __name__ == "__main__":
         help="Chip type (default: esp32s3)",
     )
     parser.add_argument(
+        "--board",
+        default="ESP32_GENERIC_S3",
+        help="Board type (default: ESP32_GENERIC_S3)",
+    )
+    parser.add_argument(
         "--device",
         default="a0",
         help="mpremote device shortcut for validation (default: a0)",
@@ -483,4 +488,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     flash_device = args.device if args.flash else None
-    sys.exit(build_firmware(flash_device=flash_device, chip=args.chip, port=args.port))
+    sys.exit(build_firmware(flash_device=flash_device, chip=args.chip, port=args.port, board=args.board))
