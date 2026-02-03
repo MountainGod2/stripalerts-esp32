@@ -1,202 +1,267 @@
 """
-Upload script for StripAlerts runtime code.
-Uploads src/ directory to ESP32 via serial using mpremote.
+Upload runtime code to ESP32.
+Handles file transfers and validates successful upload.
 """
 
-import sys
+import argparse
 import subprocess
+import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
-def get_files_to_upload(src_dir: Path) -> List[Tuple[Path, str]]:
-    """
-    Get list of files/directories to upload.
-
-    Returns list of (source_path, target_name) tuples.
-    """
-    files = [
-        (src_dir / "boot.py", "boot.py"),
-        (src_dir / "main.py", "main.py"),
-        (src_dir / "stripalerts", "stripalerts"),
-    ]
-
-    # Filter out non-existent paths
-    return [(src, target) for src, target in files if src.exists()]
+class UploadError(Exception):
+    """Custom exception for upload errors."""
+    pass
 
 
-def upload_with_mpremote(src_dir: Path, port: str, clean: bool = False) -> None:
-    """
-    Upload using mpremote in a single connection.
-
-    Args:
-        src_dir: Source directory containing files to upload
-        port: Serial port path (or "auto" for auto-detection)
-        clean: Remove target directories before upload
-
-    Raises:
-        subprocess.CalledProcessError: If upload fails
-    """
-    files_to_upload = get_files_to_upload(src_dir)
-
-    if not files_to_upload:
-        print("Warning: No files found to upload")
-        return
-
-    # Base connect command
-    connect_cmd = ["mpremote", "connect", port]
-
-    # Build chained mpremote commands
-    cmd = connect_cmd.copy()
-
-    for src_path, target_name in files_to_upload:
-        print(f"Preparing upload: {target_name}")
-
-        if clean and src_path.is_dir():
-            # Remove existing directory on device (ignore failure)
-            cmd += ["fs", "rm", "-r", f":{target_name}"]
-
-        if src_path.is_dir():
-            cmd += ["cp", "-r", str(src_path), f":{target_name}"]
-        else:
-            cmd += ["cp", str(src_path), f":{target_name}"]
-
+def validate_device(device):
+    """Check if device is connected and responsive."""
+    print(f"Validating device connection ({device})...")
     try:
         result = subprocess.run(
-            cmd, check=True, capture_output=True, text=True, timeout=120
+            ["mpremote", device, "eval", "1+1"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
-
-        if result.stdout:
-            print(result.stdout)
-
-        if result.stderr:
-            # mpremote often logs info to stderr
-            print(result.stderr)
-
+        if result.returncode != 0:
+            raise UploadError(f"Device not responding: {result.stderr}")
+        print("[OK] Device connected and responsive")
+        return True
+    except FileNotFoundError:
+        raise UploadError("mpremote not found. Install with: pip install mpremote")
     except subprocess.TimeoutExpired:
-        print("Upload timed out")
-        print("Try unplugging and reconnecting the device")
-        raise
-    except subprocess.CalledProcessError as e:
-        print("Upload failed")
-        if e.stderr:
-            print(f"Error: {e.stderr}")
-        print("\nTroubleshooting:")
-        print("- Check device is connected and port is correct")
-        print("- Try resetting the device")
-        print("- Use --port auto for automatic port detection")
-        print("- Verify mpremote is installed: pip install mpremote")
-        raise
+        raise UploadError("Device connection timed out")
 
 
-def soft_reset_device(port: str) -> None:
-    """
-    Perform a soft reset on the device after upload.
-
-    Args:
-        port: Serial port path (or "auto" for auto-detection)
-    """
-    print("\nPerforming soft reset...")
-
-    cmd = ["mpremote", "connect", port, "soft-reset"]
-
+def check_filesystem(device):
+    """Check if device filesystem is writable."""
+    print("Checking device filesystem...")
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=10)
-        print("Device reset successfully")
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-        print("Warning: Soft reset failed (usually not critical)")
-        if hasattr(e, "stderr") and e.stderr:
-            print(f"Error: {e.stderr}")
+        result = subprocess.run(
+            ["mpremote", device, "exec", "import os; os.listdir('/')"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            raise UploadError("Filesystem not accessible")
+        print("[OK] Filesystem accessible")
+        return True
+    except subprocess.TimeoutExpired:
+        raise UploadError("Filesystem check timed out")
 
 
-def upload_files(port: str = "auto", reset: bool = True, clean: bool = False) -> int:
-    """
-    Upload runtime files to ESP32.
+def upload_directory(src_dir, dst_dir, device, exclude=None):
+    """Upload a directory to device."""
+    if exclude is None:
+        exclude = {".pyc", "__pycache__", ".git"}
 
-    Args:
-        port: Serial port path or "auto" for auto-detection
-        reset: Whether to soft reset the device after upload
-        clean: Remove target directories before upload
+    src_path = Path(src_dir)
+    if not src_path.exists():
+        raise UploadError(f"Source directory not found: {src_dir}")
 
-    Returns:
-        0 on success, 1 on failure
-    """
+    print(f"Uploading {src_path.name}/ to {dst_dir}/...")
+
+    # Create destination directory if it doesn't exist
+    try:
+        subprocess.run(
+            ["mpremote", device, "fs", "mkdir", dst_dir],
+            capture_output=True,
+            timeout=10,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"[WARN] Warning: mkdir timed out for {dst_dir}")
+
+    file_count = 0
+    error_count = 0
+
+    for file_path in src_path.rglob("*"):
+        # Skip excluded files/directories
+        if any(exc in file_path.parts for exc in exclude):
+            continue
+
+        if file_path.is_dir():
+            # Create directory on device
+            rel_path = file_path.relative_to(src_path)
+            dst_path = f"{dst_dir}/{rel_path}".replace("\\", "/")
+            try:
+                subprocess.run(
+                    ["mpremote", device, "fs", "mkdir", dst_path],
+                    capture_output=True,
+                    timeout=10,
+                )
+            except subprocess.TimeoutExpired:
+                print(f"[WARN] Warning: mkdir timed out for {dst_path}")
+
+        elif file_path.is_file():
+            # Copy file to device
+            rel_path = file_path.relative_to(src_path)
+            dst_path = f"{dst_dir}/{rel_path}".replace("\\", "/")
+
+            try:
+                result = subprocess.run(
+                    ["mpremote", device, "cp", str(file_path), f":{dst_path}"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+
+                if result.returncode == 0:
+                    file_count += 1
+                    print(f"  [OK] {rel_path}")
+                else:
+                    error_count += 1
+                    print(f"  [FAIL] {rel_path}: {result.stderr.strip()}")
+
+            except subprocess.TimeoutExpired:
+                error_count += 1
+                print(f"  [FAIL] {rel_path}: timeout")
+
+    print(f"Uploaded {file_count} file(s), {error_count} error(s)")
+    return error_count == 0
+
+
+def upload_runtime(device):
+    """Upload runtime code to device."""
     project_root = Path(__file__).parent.parent
     src_dir = project_root / "src"
 
-    print("=" * 60)
-    print("StripAlerts Runtime Upload")
-    print("=" * 60)
+    if not src_dir.exists():
+        print(f"[WARN] Warning: {src_dir} not found, skipping runtime upload")
+        return True
 
-    if not src_dir.is_dir():
-        print(f"Error: Source directory not found or invalid: {src_dir}")
-        return 1
-
-    print(f"\nSource directory: {src_dir}")
-    print(f"Serial port: {port}")
-    print("Using: mpremote")
-    if clean:
-        print("Clean upload: enabled")
-    print()
+    print("\n" + "=" * 60)
+    print("Uploading runtime code...")
+    print("=" * 60)
 
     try:
-        upload_with_mpremote(src_dir, port, clean)
+        success = upload_directory(src_dir, "/src", device)
+        if not success:
+            print("[WARN] Some files failed to upload")
+        print("[OK] Runtime upload complete")
+        return success
+    except UploadError as e:
+        print(f"[FAIL] Upload failed: {e}")
+        return False
 
-        if reset:
-            soft_reset_device(port)
 
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        print("\nUpload failed!")
-        print("=" * 60)
-        return 1
-    except KeyboardInterrupt:
-        print("\nUpload cancelled by user")
-        print("=" * 60)
-        return 1
-    except Exception as e:
-        print(f"\nUnexpected error: {e}")
-        print("=" * 60)
-        return 1
+def upload_frozen_modules(device):
+    """Upload frozen modules if not built-in."""
+    project_root = Path(__file__).parent.parent
+    frozen_dir = project_root / "frozen"
 
-    print("\nUpload complete!")
+    if not frozen_dir.exists():
+        return True
+
+    # Check if modules are already frozen (built into firmware)
+    print("\nNote: Frozen modules are typically built into the firmware.")
+    print("Only upload here if needed at runtime.")
+
+    lib_dir = frozen_dir / "lib"
+    if lib_dir.exists():
+        print("\n" + "=" * 60)
+        print("Uploading additional libraries...")
+        print("=" * 60)
+
+        try:
+            success = upload_directory(lib_dir, "/lib", device)
+            print("[OK] Library upload complete")
+            return success
+        except UploadError as e:
+            print(f"[FAIL] Library upload failed: {e}")
+            return False
+
+    return True
+
+
+def verify_upload(device):
+    """Verify uploaded files are present."""
+    print("\n" + "=" * 60)
+    print("Verifying upload...")
     print("=" * 60)
-    return 0
+
+    try:
+        result = subprocess.run(
+            ["mpremote", device, "fs", "ls", "/src"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if result.returncode == 0:
+            lines = result.stdout.strip().split("\n")
+            file_count = len([line for line in lines if line.strip()])
+            print(f"[OK] Found {file_count} file(s) in /src")
+            return True
+        else:
+            print("[WARN] Could not verify upload")
+            return False
+
+    except subprocess.TimeoutExpired:
+        print("[WARN] Verification timed out")
+        return False
 
 
-def main() -> int:
-    """CLI entry point."""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Upload StripAlerts runtime code to ESP32 using mpremote",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s                          # Auto-detect port
-  %(prog)s --port /dev/ttyUSB0      # Specific port
-  %(prog)s --port COM3              # Windows port
-  %(prog)s --no-reset               # Skip soft reset
-  %(prog)s --clean                  # Remove existing directories first
-        """,
-    )
-
+def main():
+    parser = argparse.ArgumentParser(description="Upload code to ESP32")
     parser.add_argument(
-        "--port", default="auto", help="Serial port (default: auto-detect)"
+        "--port",
+        default="/dev/ttyACM0",
+        help="Serial port (default: /dev/ttyACM0)",
     )
     parser.add_argument(
-        "--no-reset",
-        dest="reset",
-        action="store_false",
-        help="Skip soft reset after upload",
+        "--device",
+        default="a0",
+        help="mpremote device shortcut (default: a0)",
     )
     parser.add_argument(
-        "--clean",
+        "--skip-verify",
         action="store_true",
-        help="Remove target directories before upload",
+        help="Skip verification step",
     )
 
     args = parser.parse_args()
-    return upload_files(args.port, args.reset, args.clean)
+
+    print("\n" + "=" * 60)
+    print("StripAlerts Upload Tool")
+    print("=" * 60)
+
+    try:
+        # Validate connection
+        validate_device(args.device)
+
+        # Check filesystem
+        check_filesystem(args.device)
+
+        # Upload runtime code
+        if not upload_runtime(args.device):
+            raise UploadError("Runtime upload failed")
+
+        # Upload frozen modules
+        if not upload_frozen_modules(args.device):
+            print("[WARN] Library upload had errors")
+
+        # Verify
+        if not args.skip_verify:
+            verify_upload(args.device)
+
+        print("\n" + "=" * 60)
+        print("[OK] UPLOAD SUCCESSFUL")
+        print("=" * 60)
+        return 0
+
+    except UploadError as e:
+        print("\n[FAIL] UPLOAD FAILED")
+        print(f"Error: {e}")
+        print("=" * 60)
+        return 1
+
+    except Exception as e:
+        print("\n[FAIL] UNEXPECTED ERROR")
+        print(f"Error: {e}")
+        print("=" * 60)
+        return 1
 
 
 if __name__ == "__main__":
