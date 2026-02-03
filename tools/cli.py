@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from utils import (
@@ -356,17 +357,40 @@ class FileUploader:
         print("[OK] mpremote found")
         return True
 
-    def upload_file(self, local_path: Path, remote_path: str, port: str) -> bool:
-        """Upload a single file to the device."""
-        print(f"  Uploading {local_path.name} -> {remote_path}")
+    def soft_reset_device(self, port: str) -> bool:
+        """Perform a soft reset on the device to ensure clean REPL state."""
         try:
-            cmd = ["mpremote", "connect", port, "fs", "cp", 
-                   str(local_path), f":{remote_path}"]
-            run_command(cmd)
+            cmd = ["mpremote", "connect", port, "soft-reset"]
+            subprocess.run(cmd, check=True, capture_output=True, timeout=5)
+            time.sleep(2)  # Wait for device to stabilize after reset
             return True
-        except subprocess.CalledProcessError as e:
-            print(f"  [ERROR] Failed to upload {local_path.name}: {e}")
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            # Soft reset might fail if device is not responding, continue anyway
             return False
+
+    def upload_file(self, local_path: Path, remote_path: str, port: str) -> bool:
+        """Upload a single file to the device with retry logic."""
+        print(f"  Uploading {local_path.name} -> {remote_path}")
+        
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                cmd = ["mpremote", "connect", port, "fs", "cp", 
+                       str(local_path), f":{remote_path}"]
+                subprocess.run(cmd, check=True, capture_output=True, timeout=30)
+                return True
+            except subprocess.TimeoutExpired:
+                print(f"  [WARNING] Upload timeout (attempt {attempt + 1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+            except subprocess.CalledProcessError:
+                if attempt < max_retries - 1:
+                    print(f"  [WARNING] Upload failed (attempt {attempt + 1}/{max_retries}), retrying...")
+                    time.sleep(2)
+                else:
+                    print(f"  [ERROR] Failed to upload {local_path.name} after {max_retries} attempts")
+                    return False
+        return False
 
     def create_remote_dir(self, remote_path: str, port: str) -> None:
         """Create a directory on the device (ignore if exists)."""
@@ -393,6 +417,8 @@ class FileUploader:
             return False
 
         print(f"Uploading files from {self.src_dir}...")
+        print("\nPerforming soft reset to ensure clean state...")
+        self.soft_reset_device(port)
 
         # Upload boot.py and main.py
         for filename in ["boot.py", "main.py"]:
@@ -622,6 +648,9 @@ def cmd_deploy(args) -> int:
     # Step 3: Upload application files
     if not args.skip_upload:
         print_header("STEP 3: Uploading Application Files")
+        # Wait for device to stabilize after flashing
+        print("Waiting for device to stabilize...")
+        time.sleep(3)
         file_uploader = FileUploader(root_dir, args.port)
         if not file_uploader.upload_files():
             print("\n[ERROR] File upload failed")
