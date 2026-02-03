@@ -19,7 +19,6 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "mpremote>=1.27.0",
-    "pyserial>=3.5",
     "ruff>=0.14.14",
 ]
 
