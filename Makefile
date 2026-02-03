@@ -1,35 +1,84 @@
-.PHONY: help build upload monitor clean flash test
+.PHONY: help build upload monitor clean flash flash-only test validate
+
+# Configuration
+BOARD ?= esp32s3
+PORT ?= /dev/ttyACM0
+BAUD ?= 460800
+DEVICE ?= a0
 
 help:
 	@echo "StripAlerts ESP32 Makefile"
 	@echo ""
+	@echo "Configuration:"
+	@echo "  BOARD=<board>  - Board type (default: esp32s3)"
+	@echo "  PORT=<port>    - Serial port (default: /dev/ttyACM0)"
+	@echo "  BAUD=<baud>    - Baud rate (default: 460800)"
+	@echo "  DEVICE=<dev>   - mpremote device (default: a0)"
+	@echo ""
 	@echo "Available targets:"
-	@echo "  build     - Build MicroPython firmware with frozen modules"
-	@echo "  upload    - Upload runtime code to ESP32"
-	@echo "  monitor   - Connect to ESP32 serial monitor"
-	@echo "  flash     - Flash firmware to ESP32"
-	@echo "  clean     - Clean build artifacts"
+	@echo "  build         - Build MicroPython firmware with frozen modules"
+	@echo "  flash         - Build and flash firmware to ESP32"
+	@echo "  flash-only    - Flash existing firmware (skip build)"
+	@echo "  upload        - Upload runtime code to ESP32"
+	@echo "  monitor       - Connect to ESP32 serial monitor"
+	@echo "  validate      - Validate ESP32 filesystem"
+	@echo "  clean         - Clean build artifacts"
+	@echo "  test          - Run tests"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make build"
+	@echo "  make flash PORT=/dev/ttyUSB0"
+	@echo "  make upload DEVICE=a1"
+	@echo "  make monitor PORT=/dev/ttyACM0"
 
 build:
-	@echo "Building firmware..."
-	python3 tools/build.py
+	@echo "Building firmware for $(BOARD)..."
+	python3 tools/build.py --chip $(BOARD) --port $(PORT)
+
+flash: build
+	@echo "Flashing firmware to $(PORT)..."
+	python3 tools/build.py --flash --chip $(BOARD) --port $(PORT) --device $(DEVICE)
+
+flash-only:
+	@echo "Flashing existing firmware to $(PORT)..."
+	@if [ ! -f firmware/build/firmware.bin ]; then \
+		echo "Error: firmware/build/firmware.bin not found"; \
+		echo "Run 'make build' first"; \
+		exit 1; \
+	fi
+	esptool.py --chip $(BOARD) --port $(PORT) --baud $(BAUD) erase_flash
+	esptool.py --chip $(BOARD) --port $(PORT) --baud $(BAUD) write_flash -z 0x0 firmware/build/firmware.bin
+	@echo "Flashing complete. Validating filesystem..."
+	@sleep 3
+	mpremote $(DEVICE) eval "1+1" || echo "Device not yet responding"
 
 upload:
 	@echo "Uploading runtime code..."
-	python3 tools/upload.py
+	python3 tools/upload.py --port $(PORT) --device $(DEVICE)
 
 monitor:
-	@echo "Starting monitor..."
-	python3 tools/monitor.py
+	@echo "Starting serial monitor on $(PORT)..."
+	mpremote $(DEVICE) repl
 
-flash: build
-	@echo "Flashing firmware..."
-	@echo "Note: Using ESP32-S3 configuration"
-	esptool.py --chip esp32s3 --port /dev/ttyACM0 --baud 460800 write_flash -z 0x0 firmware/build/firmware.bin
+validate:
+	@echo "Validating ESP32 filesystem..."
+	@mpremote $(DEVICE) eval "1+1" && echo "[OK] Device responding" || (echo "[FAIL] Device not responding"; exit 1)
+	@mpremote $(DEVICE) exec "import os; print('[OK] Filesystem:', len(os.listdir('/')), 'items')" || echo "[FAIL] Filesystem error"
 
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf firmware/build/*.bin
-	find . -type d -name __pycache__ -exec rm -rf {} +
+	rm -rf firmware/build/
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
+	@echo "Clean complete"
 
+test:
+	@echo "Running tests..."
+	@if [ -d "tests" ]; then \
+		python3 -m pytest tests/ -v; \
+	else \
+		echo "No tests directory found"; \
+	fi
+
+.DEFAULT_GOAL := help
