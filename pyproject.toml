@@ -10,7 +10,11 @@ requires-python = ">=3.9"
 dependencies = []
 
 [project.scripts]
-stripalerts = "stripalerts:main"
+build = "tools.build:main"
+upload = "tools.upload:main"
+monitor = "tools.monitor:main"
+clean = "tools.clean:main"
+deploy = "tools.deploy:main"
 
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
@@ -18,7 +22,9 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "esptool>=4.8.1",
     "mpremote>=1.27.0",
+    "pyserial>=3.5",
     "ruff>=0.14.14",
 ]
 
