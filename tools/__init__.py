@@ -1,1 +1,3 @@
-__all__ = ["build", "upload", "monitor", "clean"]
+"""StripAlerts ESP32 Development Tools."""
+
+__all__ = ["cli", "utils"]
