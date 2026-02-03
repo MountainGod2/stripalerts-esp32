@@ -213,30 +213,26 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
             return False
 
     def copy_firmware_artifacts(self) -> None:
-        """Copy built firmware to the project build directory."""
         build_dir = self.root_dir / "firmware" / "build"
         build_dir.mkdir(parents=True, exist_ok=True)
 
-        board_build_dir = self.esp32_port_dir / "build-" / self.board
+        board_build_dir = self.esp32_port_dir / f"build-{self.board}"
 
-        # Find and copy firmware files
-        firmware_files = [
-            "firmware.bin",
-            "bootloader/bootloader.bin",
-            "partition_table/partition-table.bin",
-        ]
+        firmware_files = {
+            "firmware.bin": "firmware.bin",
+            "bootloader/bootloader.bin": "bootloader.bin",
+            "partition_table/partition-table.bin": "partition-table.bin",
+        }
 
-        for firmware_file in firmware_files:
-            src = board_build_dir / firmware_file
+        for src_path, dest_name in firmware_files.items():
+            src = board_build_dir / src_path
             if src.exists():
-                dest = build_dir / src.name
+                dest = build_dir / dest_name
                 shutil.copy2(src, dest)
-                print(f"[OK] Copied {src.name} to {build_dir}")
+                print(f"[OK] Copied {dest_name} to {build_dir}")
 
-        # Also copy the complete firmware.bin to a versioned name
         firmware_bin = board_build_dir / "firmware.bin"
         if firmware_bin.exists():
-            # Get version from pyproject.toml if available
             version = "dev"
             pyproject_path = self.root_dir / "pyproject.toml"
             if pyproject_path.exists():
@@ -253,7 +249,6 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
             print(f"[OK] Created versioned firmware: {versioned_name}")
 
     def build(self) -> bool:
-        """Execute the complete build process."""
         print("=" * 60)
         print("StripAlerts ESP32 Firmware Builder")
         print("=" * 60)

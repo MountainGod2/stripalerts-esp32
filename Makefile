@@ -60,9 +60,9 @@ build: check
 upload:
 	@echo "Uploading firmware..."
 	@if [ -n "$(PORT)" ]; then \
-		$(PYTHON) tools/upload.py --board $(BOARD) --port $(PORT) --baud $(BAUD); \
+		$(PYTHON) tools/upload.py --board $(BOARD) --port $(PORT) --baud $(BAUD) --erase; \
 	else \
-		$(PYTHON) tools/upload.py --board $(BOARD) --baud $(BAUD); \
+		$(PYTHON) tools/upload.py --board $(BOARD) --baud $(BAUD) --erase; \
 	fi
 
 monitor:
