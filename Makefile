@@ -34,8 +34,8 @@ build:
 	@echo "Building firmware for $(BOARD)..."
 	python tools/build.py --chip esp32s3 --board $(BOARD) --port $(PORT)
 
-flash: build
-	@echo "Flashing firmware to $(PORT)..."
+flash:
+	@echo "Building and flashing firmware to $(PORT)..."
 	python tools/build.py --flash --chip esp32s3 --board $(BOARD) --port $(PORT) --device $(DEVICE)
 
 flash-only:
@@ -45,10 +45,16 @@ flash-only:
 		echo "Run 'make build' first"; \
 		exit 1; \
 	fi
-	esptool.py --chip $(BOARD) --port $(PORT) --baud $(BAUD) erase_flash
-	esptool.py --chip $(BOARD) --port $(PORT) --baud $(BAUD) write_flash -z 0x0 firmware/build/firmware.bin
+	esptool.py --chip esp32s3 --port $(PORT) --baud $(BAUD) erase_flash
+	@echo "Flashing firmware (this may take a minute)..."
+	@cd firmware/micropython/ports/esp32/build-$(BOARD) && \
+		esptool.py --chip esp32s3 --port $(PORT) --baud $(BAUD) \
+			write_flash -z \
+			0x0 bootloader/bootloader.bin \
+			0x8000 partition_table/partition-table.bin \
+			0x10000 micropython.bin
 	@echo "Flashing complete. Validating filesystem..."
-	@sleep 3
+	@sleep 5
 	mpremote $(DEVICE) eval "1+1" || echo "Device not yet responding"
 
 upload:
