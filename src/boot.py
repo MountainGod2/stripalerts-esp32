@@ -19,11 +19,11 @@ def initialize_filesystem():
         try:
             # Try to mount/initialize VFS
             import esp32
-            
+
             # For ESP32, the filesystem is typically available by default
             # but we may need to format it on first boot
             print("[BOOT] Attempting filesystem format...")
-            
+
             # Try creating a test directory to verify write access
             try:
                 os.mkdir("/lib")
@@ -35,7 +35,7 @@ def initialize_filesystem():
                     return True
                 print(f"[BOOT] Warning: Filesystem may be read-only: {e}")
                 return False
-                
+
         except Exception as e:
             print(f"[BOOT] Filesystem initialization failed: {e}")
             return False
@@ -47,12 +47,13 @@ def setup_paths():
         # Add src to path if it exists
         if "/src" not in os.listdir("/"):
             os.mkdir("/src")
-        
+
         import sys
+
         if "/src" not in sys.path:
             sys.path.append("/src")
             print("[BOOT] Added /src to path")
-            
+
     except Exception as e:
         print(f"[BOOT] Path setup warning: {e}")
 
@@ -62,15 +63,15 @@ def main():
     print("\n" + "=" * 50)
     print("StripAlerts ESP32 Boot")
     print("=" * 50)
-    
+
     # Initialize filesystem
     fs_ok = initialize_filesystem()
     if not fs_ok:
         print("[BOOT] Warning: Filesystem may not be fully functional")
-    
+
     # Setup paths
     setup_paths()
-    
+
     # Show available space
     try:
         stat = os.statvfs("/")
@@ -80,7 +81,7 @@ def main():
         print(f"[BOOT] Filesystem: {used}/{total} bytes used ({free} bytes free)")
     except Exception as e:
         print(f"[BOOT] Could not get filesystem stats: {e}")
-    
+
     print("[BOOT] Boot sequence complete")
     print("=" * 50 + "\n")
 
