@@ -26,7 +26,7 @@ def check_dependencies():
     required_tools = {
         "git": "git",
         "make": "make",
-        "python3": "python3",
+        "uv": "uv",
         "esptool.py": "esptool.py",
     }
 
