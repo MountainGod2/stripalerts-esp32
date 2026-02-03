@@ -11,6 +11,7 @@ from pathlib import Path
 
 class UploadError(Exception):
     """Custom exception for upload errors."""
+
     pass
 
 

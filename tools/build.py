@@ -14,6 +14,7 @@ import time
 
 class BuildError(Exception):
     """Custom exception for build errors."""
+
     pass
 
 
@@ -33,13 +34,19 @@ def check_dependencies():
     for name, command in required_tools.items():
         try:
             subprocess.run(
-                [command, "--version"] if command != "esptool.py" else [command, "version"],
+                [command, "--version"]
+                if command != "esptool.py"
+                else [command, "version"],
                 capture_output=True,
                 check=True,
                 timeout=5,
             )
             print(f"[OK] {name}")
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            subprocess.TimeoutExpired,
+        ):
             print(f"[FAIL] {name} - NOT FOUND")
             missing.append(name)
 
@@ -80,7 +87,9 @@ def check_compiler():
 
     if not found:
         print("[FAIL] ESP32 cross-compiler not found")
-        print("\nInstall from: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/")
+        print(
+            "\nInstall from: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/"
+        )
         print("Or use: pip install esp-idf")
         raise BuildError("Cross-compiler not found")
 
@@ -137,8 +146,7 @@ def setup_frozen_modules(frozen_dir, esp32_dir):
         print("Creating basic manifest...")
         manifest_src.parent.mkdir(parents=True, exist_ok=True)
         manifest_src.write_text(
-            "# Frozen modules manifest\n"
-            "# Add modules here for freezing\n"
+            "# Frozen modules manifest\n# Add modules here for freezing\n"
         )
 
     print(f"[OK] Frozen modules directory: {frozen_dir}")
@@ -174,26 +182,26 @@ def build_mpy_cross(micropython_dir):
 def configure_board_for_filesystem(micropython_dir, board):
     """Verify and report board filesystem configuration."""
     print("\n[CONFIG] Checking board filesystem configuration...")
-    
+
     boards_dir = micropython_dir / "ports" / "esp32" / "boards"
     board_dir = boards_dir / board
-    
+
     if not board_dir.exists():
         print(f"[WARN] Board directory not found: {board_dir}")
         return False
-    
+
     # Check if mpconfigboard.h exists
     mpconfigboard = board_dir / "mpconfigboard.h"
     if not mpconfigboard.exists():
         print(f"[WARN] mpconfigboard.h not found in {board_dir}")
         return False
-    
+
     content = mpconfigboard.read_text()
-    
+
     # Check for filesystem configuration
     has_vfs = "MICROPY_VFS" in content
     has_spiffs = "MICROPY_VFS_SPIFFS" in content or "SPIFFS" in content
-    
+
     if has_vfs or has_spiffs:
         print(f"[OK] Filesystem configured in board: {board}")
         return True
@@ -216,7 +224,7 @@ def build_esp32_firmware(micropython_dir, frozen_dir, board, build_dir):
 
     # Setup environment with CRITICAL filesystem support variables
     env = os.environ.copy()
-    
+
     # Enable filesystem support - MUST BE SET for proper operation
     env["MICROPY_VFS"] = "1"
     env["MICROPY_VFS_SPIFFS"] = "1"
@@ -307,9 +315,7 @@ def build_esp32_firmware(micropython_dir, frozen_dir, board, build_dir):
                 break
 
     if not built_firmware.exists():
-        raise BuildError(
-            f"Firmware not found at {built_firmware} or alternate paths"
-        )
+        raise BuildError(f"Firmware not found at {built_firmware} or alternate paths")
 
     build_dir.mkdir(parents=True, exist_ok=True)
     output_firmware = build_dir / "firmware.bin"
@@ -338,8 +344,10 @@ def verify_firmware_file(firmware_path):
     print(f"  Size: {size:,} bytes")
 
 
-def flash_firmware(firmware_path, port, chip="esp32s3", baud=460800):
-    """Flash firmware to device."""
+def flash_firmware(
+    firmware_path, port, chip="esp32s3", baud=460800, board="ESP32_GENERIC_S3"
+):
+    """Flash firmware to device with bootloader and partition table."""
     print("\n" + "=" * 60)
     print(f"Flashing firmware to {port}...")
     print("=" * 60)
@@ -347,11 +355,33 @@ def flash_firmware(firmware_path, port, chip="esp32s3", baud=460800):
     if not firmware_path.exists():
         raise BuildError(f"Firmware file not found: {firmware_path}")
 
+    # Locate build directory with all components
+    project_root = Path(__file__).parent.parent
+    micropython_dir = project_root / "firmware" / "micropython"
+    build_dir = micropython_dir / "ports" / "esp32" / f"build-{board}"
+
+    bootloader = build_dir / "bootloader" / "bootloader.bin"
+    partition_table = build_dir / "partition_table" / "partition-table.bin"
+    micropython_bin = build_dir / "micropython.bin"
+
+    # Verify all required files exist
+    if not bootloader.exists():
+        raise BuildError(f"Bootloader not found: {bootloader}")
+    if not partition_table.exists():
+        raise BuildError(f"Partition table not found: {partition_table}")
+    if not micropython_bin.exists():
+        raise BuildError(f"MicroPython binary not found: {micropython_bin}")
+
     print(f"Chip: {chip}")
     print(f"Port: {port}")
     print(f"Baud: {baud}")
+    print("\nFlashing components:")
+    print(f"  Bootloader: {bootloader}")
+    print(f"  Partition table: {partition_table}")
+    print(f"  MicroPython: {micropython_bin}")
 
     try:
+        # Erase flash
         subprocess.run(
             [
                 "esptool.py",
@@ -368,6 +398,8 @@ def flash_firmware(firmware_path, port, chip="esp32s3", baud=460800):
         )
         print("[OK] Flash erased")
 
+        # Flash all components at their correct addresses
+        print("\nFlashing bootloader, partition table, and firmware...")
         subprocess.run(
             [
                 "esptool.py",
@@ -380,10 +412,14 @@ def flash_firmware(firmware_path, port, chip="esp32s3", baud=460800):
                 "write_flash",
                 "-z",
                 "0x0",
-                str(firmware_path),
+                str(bootloader),
+                "0x8000",
+                str(partition_table),
+                "0x10000",
+                str(micropython_bin),
             ],
             check=True,
-            timeout=120,
+            timeout=180,
         )
         print("[OK] Firmware flashed successfully")
 
@@ -435,7 +471,12 @@ def validate_filesystem(port="a0", timeout=30):
 
         # Test mkdir/rmdir for read-write access
         result = subprocess.run(
-            ["mpremote", port, "exec", "import os; os.mkdir('/test'); os.rmdir('/test')"],
+            [
+                "mpremote",
+                port,
+                "exec",
+                "import os; os.mkdir('/test'); os.rmdir('/test')",
+            ],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -461,7 +502,9 @@ def validate_filesystem(port="a0", timeout=30):
         return None
 
 
-def build_firmware(flash_device=None, chip="esp32s3", port="/dev/ttyACM0", board="ESP32_GENERIC_S3"):
+def build_firmware(
+    flash_device=None, chip="esp32s3", port="/dev/ttyACM0", board="ESP32_GENERIC_S3"
+):
     """Build MicroPython firmware with frozen modules and filesystem support."""
 
     project_root = Path(__file__).parent.parent
@@ -481,7 +524,9 @@ def build_firmware(flash_device=None, chip="esp32s3", port="/dev/ttyACM0", board
 
         # Phase 2: Prepare sources
         check_micropython_source(micropython_dir)
-        setup_frozen_modules(frozen_dir, firmware_dir / "micropython" / "ports" / "esp32")
+        setup_frozen_modules(
+            frozen_dir, firmware_dir / "micropython" / "ports" / "esp32"
+        )
 
         # Phase 3: Build
         build_mpy_cross(micropython_dir)
@@ -494,7 +539,7 @@ def build_firmware(flash_device=None, chip="esp32s3", port="/dev/ttyACM0", board
 
         # Phase 5: Flash if requested
         if flash_device:
-            flash_firmware(firmware_path, port, chip)
+            flash_firmware(firmware_path, port, chip, board=board)
             validate_filesystem(flash_device)
 
         print("\n" + "=" * 60)
@@ -508,7 +553,9 @@ def build_firmware(flash_device=None, chip="esp32s3", port="/dev/ttyACM0", board
             print("Device should be ready to use")
         else:
             print("\nTo flash, run:")
-            print(f"  esptool.py --chip {chip} --port {port} write_flash -z 0x0 {firmware_path}")
+            print(
+                f"  esptool.py --chip {chip} --port {port} write_flash -z 0x0 {firmware_path}"
+            )
 
         return 0
 
@@ -558,4 +605,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     flash_device = args.device if args.flash else None
-    sys.exit(build_firmware(flash_device=flash_device, chip=args.chip, port=args.port, board=args.board))
+    sys.exit(
+        build_firmware(
+            flash_device=flash_device, chip=args.chip, port=args.port, board=args.board
+        )
+    )
