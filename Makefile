@@ -1,7 +1,7 @@
 .PHONY: help build upload monitor clean flash flash-only test validate
 
 # Configuration
-BOARD ?= esp32s3
+BOARD ?= ESP32_GENERIC_S3
 PORT ?= /dev/ttyACM0
 BAUD ?= 460800
 DEVICE ?= a0
@@ -33,11 +33,11 @@ help:
 
 build:
 	@echo "Building firmware for $(BOARD)..."
-	python3 tools/build.py --chip $(BOARD) --port $(PORT)
+	python3 tools/build.py --chip esp32s3 --board $(BOARD) --port $(PORT)
 
 flash: build
 	@echo "Flashing firmware to $(PORT)..."
-	python3 tools/build.py --flash --chip $(BOARD) --port $(PORT) --device $(DEVICE)
+	python3 tools/build.py --flash --chip esp32s3 --board $(BOARD) --port $(PORT) --device $(DEVICE)
 
 flash-only:
 	@echo "Flashing existing firmware to $(PORT)..."
