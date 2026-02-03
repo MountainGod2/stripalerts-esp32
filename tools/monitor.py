@@ -1,50 +1,52 @@
 """
-Serial monitor for StripAlerts ESP32.
-Connects to ESP32 and displays serial output.
+Serial monitor for ESP32.
+Provides a simple way to connect to the device's REPL.
 """
 
-import sys
-import serial
 import argparse
+import subprocess
+import sys
 
 
-def monitor(port="/dev/ttyACM0", baud=115200):
-    """Monitor serial output from ESP32."""
+def main():
+    parser = argparse.ArgumentParser(description="Monitor ESP32 serial connection")
+    parser.add_argument(
+        "--port",
+        default="/dev/ttyACM0",
+        help="Serial port (default: /dev/ttyACM0)",
+    )
+    parser.add_argument(
+        "--device",
+        default="a0",
+        help="mpremote device shortcut (default: a0)",
+    )
+    parser.add_argument(
+        "--baud",
+        type=int,
+        default=115200,
+        help="Baud rate (default: 115200)",
+    )
 
-    print("=" * 60)
-    print("StripAlerts Serial Monitor")
-    print("=" * 60)
-    print(f"Port: {port}")
-    print(f"Baud: {baud}")
-    print("Press Ctrl+C to exit")
-    print("=" * 60)
-    print()
+    args = parser.parse_args()
+
+    print(f"Connecting to {args.port} at {args.baud} baud...")
+    print("Press Ctrl+] or Ctrl+X to exit\n")
 
     try:
-        ser = serial.Serial(port, baud, timeout=1)
-
-        while True:
-            if ser.in_waiting > 0:
-                data = ser.readline()
-                try:
-                    print(data.decode("utf-8"), end="")
-                except UnicodeDecodeError:
-                    print(data)
-
+        # Use mpremote REPL
+        subprocess.run(
+            ["mpremote", args.device, "repl"],
+            check=False,
+        )
     except KeyboardInterrupt:
-        print("\n\nMonitor closed.")
-
-    except serial.SerialException as e:
-        print(f"Error: {e}")
+        print("\nDisconnected")
+    except FileNotFoundError:
+        print("Error: mpremote not found")
+        print("Install with: pip install mpremote")
         return 1
 
     return 0
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Monitor StripAlerts ESP32")
-    parser.add_argument("--port", default="/dev/ttyACM0", help="Serial port")
-    parser.add_argument("--baud", type=int, default=115200, help="Baud rate")
-
-    args = parser.parse_args()
-    sys.exit(monitor(args.port, args.baud))
+    sys.exit(main())
