@@ -1,4 +1,4 @@
-.PHONY: help build upload monitor clean flash flash-only test validate
+.PHONY: help build upload monitor clean flash flash-only validate
 
 # Configuration
 BOARD ?= ESP32_GENERIC_S3
@@ -23,7 +23,6 @@ help:
 	@echo "  monitor       - Connect to ESP32 serial monitor"
 	@echo "  validate      - Validate ESP32 filesystem"
 	@echo "  clean         - Clean build artifacts"
-	@echo "  test          - Run tests"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build"
@@ -33,11 +32,11 @@ help:
 
 build:
 	@echo "Building firmware for $(BOARD)..."
-	python3 tools/build.py --chip esp32s3 --board $(BOARD) --port $(PORT)
+	uv run tools/build.py --chip esp32s3 --board $(BOARD) --port $(PORT)
 
 flash: build
 	@echo "Flashing firmware to $(PORT)..."
-	python3 tools/build.py --flash --chip esp32s3 --board $(BOARD) --port $(PORT) --device $(DEVICE)
+	uv run tools/build.py --flash --chip esp32s3 --board $(BOARD) --port $(PORT) --device $(DEVICE)
 
 flash-only:
 	@echo "Flashing existing firmware to $(PORT)..."
@@ -54,7 +53,7 @@ flash-only:
 
 upload:
 	@echo "Uploading runtime code..."
-	python3 tools/upload.py --port $(PORT) --device $(DEVICE)
+	uv run tools/upload.py --port $(PORT) --device $(DEVICE)
 
 monitor:
 	@echo "Starting serial monitor on $(PORT)..."
@@ -72,13 +71,5 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
 	@echo "Clean complete"
-
-test:
-	@echo "Running tests..."
-	@if [ -d "tests" ]; then \
-		python3 -m pytest tests/ -v; \
-	else \
-		echo "No tests directory found"; \
-	fi
 
 .DEFAULT_GOAL := help
