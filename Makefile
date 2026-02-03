@@ -32,11 +32,11 @@ help:
 
 build:
 	@echo "Building firmware for $(BOARD)..."
-	uv run tools/build.py --chip esp32s3 --board $(BOARD) --port $(PORT)
+	python tools/build.py --chip esp32s3 --board $(BOARD) --port $(PORT)
 
 flash: build
 	@echo "Flashing firmware to $(PORT)..."
-	uv run tools/build.py --flash --chip esp32s3 --board $(BOARD) --port $(PORT) --device $(DEVICE)
+	python tools/build.py --flash --chip esp32s3 --board $(BOARD) --port $(PORT) --device $(DEVICE)
 
 flash-only:
 	@echo "Flashing existing firmware to $(PORT)..."
@@ -53,7 +53,7 @@ flash-only:
 
 upload:
 	@echo "Uploading runtime code..."
-	uv run tools/upload.py --port $(PORT) --device $(DEVICE)
+	python tools/upload.py --port $(PORT) --device $(DEVICE)
 
 monitor:
 	@echo "Starting serial monitor on $(PORT)..."

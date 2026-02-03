@@ -17,17 +17,14 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      
       - name: Install dependencies
-        run: uv sync
+        run: pip install -e .
       
       - name: Lint with ruff
-        run: uv run ruff check .
+        run: python -m ruff check .
       
       - name: Format check with ruff
-        run: uv run ruff format --check .
+        run: python -m ruff format --check .
 
   build-firmware:
     runs-on: ubuntu-latest
@@ -40,14 +37,11 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential git
-          uv sync
+          pip install -e .
       
       - name: Clone MicroPython
         run: |
@@ -56,7 +50,7 @@ jobs:
       
       - name: Build firmware
         run: |
-          uv run tools/build.py
+          python tools/build.py
       
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v6
