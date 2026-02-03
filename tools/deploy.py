@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""
-Deploy script for StripAlerts ESP32 firmware.
-
-This script combines build, upload, and monitor operations for a complete
-deployment workflow.
-"""
-
 import argparse
 import sys
 from pathlib import Path
@@ -16,7 +9,6 @@ from tools.monitor import SerialMonitor
 
 
 def main():
-    """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Deploy StripAlerts ESP32 firmware (build + upload + monitor)"
     )
@@ -41,10 +33,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Get the project root directory
     root_dir = Path(__file__).parent.parent.resolve()
 
-    # Build phase
     if not args.skip_build:
         print("\n" + "=" * 60)
         print("STEP 1: Building Firmware")
@@ -58,7 +48,6 @@ def main():
     else:
         print("\nSkipping build step")
 
-    # Upload phase
     if not args.skip_upload:
         print("\n" + "=" * 60)
         print("STEP 2: Uploading Firmware")
@@ -78,16 +67,12 @@ def main():
     else:
         print("\nSkipping upload step")
 
-    # Monitor phase
     if not args.skip_monitor:
         print("\n" + "=" * 60)
         print("STEP 3: Monitoring Device")
         print("=" * 60 + "\n")
 
-        monitor = SerialMonitor(
-            port=args.port,
-            baud=115200,  # Standard monitor baud
-        )
+        monitor = SerialMonitor(port=args.port, baud=115200)
 
         monitor.monitor()
     else:

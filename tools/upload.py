@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-Upload script for StripAlerts ESP32 firmware.
-
-This script flashes the built firmware to an ESP32 device using esptool.
-"""
-
 import argparse
 import subprocess
 import sys
@@ -12,9 +6,6 @@ from pathlib import Path
 
 
 class FirmwareUploader:
-    """Handles uploading firmware to ESP32 devices."""
-
-    # Default flash addresses for ESP32
     FLASH_ADDRESSES = {
         "bootloader": 0x1000,
         "partition-table": 0x8000,
@@ -29,24 +20,27 @@ class FirmwareUploader:
         board: str = "ESP32_GENERIC_S3",
         erase: bool = False,
     ):
-        """Initialize the firmware uploader.
-
-        Args:
-            root_dir: Root directory of the project
-            port: Serial port (auto-detected if None)
-            baud: Baud rate for flashing
-            board: Target ESP32 board variant
-            erase: Whether to erase flash before uploading
-        """
         self.root_dir = root_dir
         self.port = port
         self.baud = baud
         self.board = board
         self.erase = erase
         self.build_dir = root_dir / "firmware" / "build"
+        self.chip = self._get_chip_type()
+
+    def _get_chip_type(self) -> str:
+        if "S3" in self.board:
+            return "esp32s3"
+        elif "S2" in self.board:
+            return "esp32s2"
+        elif "C3" in self.board:
+            return "esp32c3"
+        elif "C6" in self.board:
+            return "esp32c6"
+        else:
+            return "esp32"
 
     def find_port(self) -> str | None:
-        """Auto-detect the ESP32 serial port."""
         print("Auto-detecting ESP32 device...")
 
         try:
@@ -135,31 +129,27 @@ class FirmwareUploader:
             return False
 
     def upload_firmware(self, port: str) -> bool:
-        """Upload the firmware to the device."""
         print(f"Uploading firmware to {port} at {self.baud} baud...")
 
-        # Build the esptool command
         cmd = [
             "python",
             "-m",
             "esptool",
             "--chip",
-            "esp32",
+            self.chip,
             "--port",
             port,
             "--baud",
             str(self.baud),
             "write_flash",
-            "-z",  # Compress for faster upload
+            "-z",
         ]
 
-        # Add firmware files with their addresses
         firmware_bin = self.build_dir / "firmware.bin"
         bootloader_bin = self.build_dir / "bootloader.bin"
         partition_bin = self.build_dir / "partition-table.bin"
 
         if bootloader_bin.exists() and partition_bin.exists():
-            # Flash with bootloader and partition table
             cmd.extend(
                 [
                     hex(self.FLASH_ADDRESSES["bootloader"]),
@@ -171,7 +161,6 @@ class FirmwareUploader:
                 ]
             )
         else:
-            # Flash only firmware (for updates)
             cmd.extend(
                 [
                     hex(self.FLASH_ADDRESSES["firmware"]),
@@ -188,16 +177,13 @@ class FirmwareUploader:
             return False
 
     def upload(self) -> bool:
-        """Execute the complete upload process."""
         print("=" * 60)
         print("StripAlerts ESP32 Firmware Uploader")
         print("=" * 60)
 
-        # Check firmware files
         if not self.check_firmware_files():
             return False
 
-        # Determine port
         port = self.port
         if not port:
             port = self.find_port()
@@ -206,25 +192,21 @@ class FirmwareUploader:
                 print("Please specify port with --port option")
                 return False
 
-        # Erase flash if requested
         if self.erase:
             if not self.erase_flash(port):
                 return False
 
-        # Upload firmware
         if not self.upload_firmware(port):
             return False
 
         print("\n" + "=" * 60)
         print("[SUCCESS] Upload completed successfully")
         print("=" * 60)
-        print("\nYou can now run 'monitor' to view device output")
 
         return True
 
 
 def main():
-    """Main entry point."""
     parser = argparse.ArgumentParser(description="Upload StripAlerts ESP32 firmware")
     parser.add_argument(
         "--port", "-p", help="Serial port (auto-detected if not specified)"
@@ -247,10 +229,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Get the project root directory
     root_dir = Path(__file__).parent.parent.resolve()
 
-    # Create and run the uploader
     uploader = FirmwareUploader(
         root_dir=root_dir,
         port=args.port,
