@@ -135,20 +135,11 @@ jobs:
           cd idf
           ./install.sh esp32s3
 
-      - name: Set up ESP-IDF environment
-        run: |
-          source ~/esp/idf/export.sh
-          # Export all ESP-IDF environment variables to GitHub Actions environment
-          echo "IDF_PATH=$IDF_PATH" >> $GITHUB_ENV
-          echo "IDF_PYTHON_ENV_PATH=$IDF_PYTHON_ENV_PATH" >> $GITHUB_ENV
-          # Capture the modified PATH
-          echo "ESP_PATH=$PATH" >> $GITHUB_ENV
-
       - name: Build firmware
         env:
           MICROPY_MPYCROSS: ${{ github.workspace }}/firmware/micropython/mpy-cross/build/mpy-cross
-          PATH: ${{ env.ESP_PATH }}
         run: |
+          source ~/esp/idf/export.sh
           # Verify environment is set
           echo "IDF_PATH: $IDF_PATH"
           which idf.py
