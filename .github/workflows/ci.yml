@@ -30,27 +30,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'  # Add built-in pip caching
 
       - name: Install uv
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Cache uv
-        uses: actions/cache@v4
+        uses: astral-sh/setup-uv@v4  # Use official action instead of curl
         with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+          enable-cache: true
 
       - name: Install dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          uv sync --frozen
+        run: uv sync --frozen
 
       - name: Ruff check
         run: uv run ruff check .
@@ -62,17 +50,14 @@ jobs:
     name: Build firmware
     runs-on: ubuntu-latest
     env:
-      ESP_IDF_PATH: /tmp/esp/idf
-      ESP_TOOLS_PATH: /tmp/esp
-      MICROPYTHON_VER: master
+      ESP_IDF_VERSION: v5.5.1
+      MICROPYTHON_VER: v1.27.0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install system dependencies
-        shell: bash
         run: |
-          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y \
             git build-essential cmake ninja-build flex bison gperf \
@@ -82,103 +67,109 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
 
       - name: Install uv
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Cache uv
-        uses: actions/cache@v4
+        uses: astral-sh/setup-uv@v4
         with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+          enable-cache: true
 
       - name: Install dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          uv sync --frozen
+        run: uv sync --frozen
 
       - name: Cache MicroPython
         id: cache-micropython
         uses: actions/cache@v4
         with:
           path: firmware/micropython
-          key: ${{ runner.os }}-micropython-${{ env.MICROPYTHON_VER }}
+          key: ${{ runner.os }}-micropython-${{ env.MICROPYTHON_VER }}-${{ hashFiles('.git/modules/firmware/micropython/HEAD') }}
+          restore-keys: |
+            ${{ runner.os }}-micropython-${{ env.MICROPYTHON_VER }}-
 
       - name: Clone MicroPython
         if: steps.cache-micropython.outputs.cache-hit != 'true'
-        shell: bash
         run: |
-          set -euo pipefail
           mkdir -p firmware
-          git clone --depth 1 https://github.com/micropython/micropython.git firmware/micropython
+          git clone --depth 1 --branch ${{ env.MICROPYTHON_VER }} \
+            https://github.com/micropython/micropython.git firmware/micropython
 
       - name: Cache mpy-cross
         id: cache-mpy-cross
         uses: actions/cache@v4
         with:
           path: firmware/micropython/mpy-cross/build/mpy-cross
-          key: ${{ runner.os }}-mpy-cross-${{ hashFiles('firmware/micropython/py/*.[ch]') }}
+          key: ${{ runner.os }}-mpy-cross-${{ hashFiles('firmware/micropython/py/*.[ch]', 'firmware/micropython/mpy-cross/**/*.[ch]') }}
           restore-keys: |
             ${{ runner.os }}-mpy-cross-
 
       - name: Build mpy-cross
         if: steps.cache-mpy-cross.outputs.cache-hit != 'true'
-        shell: bash
         run: |
-          set -euo pipefail
           cd firmware/micropython/mpy-cross
-          make -j$(nproc) CC=gcc
+          make -j$(nproc)
 
-      - name: Cache ESP-IDF + tools
+      - name: Cache ESP-IDF
+        id: cache-esp-idf
         uses: actions/cache@v4
         with:
           path: |
-            /tmp/esp/idf
-            /tmp/esp
-          key: ${{ runner.os }}-esp-idf-v5.5
+            ~/esp/idf
+            ~/.espressif
+          key: ${{ runner.os }}-esp-idf-${{ env.ESP_IDF_VERSION }}
           restore-keys: |
-            ${{ runner.os }}-esp-idf-v5.5-
             ${{ runner.os }}-esp-idf-
 
       - name: Install ESP-IDF
-        uses: espressif/install-esp-idf-action@v1
-        with:
-          version: v5.5
-          path: /tmp/esp/idf
-          tools-path: /tmp/esp
+        if: steps.cache-esp-idf.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/esp
+          cd ~/esp
+          git clone --recursive --branch ${{ env.ESP_IDF_VERSION }} \
+            https://github.com/espressif/esp-idf.git idf
+          cd idf
+          ./install.sh esp32s3
+
+      - name: Set up ESP-IDF environment
+        run: |
+          source ~/esp/idf/export.sh
+          echo "IDF_PATH=$IDF_PATH" >> $GITHUB_ENV
+          echo "$HOME/.espressif/tools/bin" >> $GITHUB_PATH
 
       - name: Build firmware
-        shell: bash
         env:
           MICROPY_MPYCROSS: ${{ github.workspace }}/firmware/micropython/mpy-cross/build/mpy-cross
         run: |
-          set -euo pipefail
+          source ~/esp/idf/export.sh
           uv run make build
 
       - name: Collect build outputs
         if: success()
-        shell: bash
         run: |
-          set -euo pipefail
           mkdir -p artifacts
-          cp -v firmware/build/*.bin artifacts/ || \
-          (echo "Warning: Build artifacts not found in firmware/build, checking fallback..." && \
-           BOARD_BUILD_DIR="firmware/micropython/ports/esp32/build-STRIPALERTS_S3" && \
-           cp -v "$BOARD_BUILD_DIR/micropython.bin" artifacts/firmware.bin && \
-           cp -v "$BOARD_BUILD_DIR/partition_table/partition-table.bin" artifacts/ && \
-           cp -v "$BOARD_BUILD_DIR/bootloader/bootloader.bin" artifacts/)
+          
+          # Try primary location first
+          if [ -d "firmware/build" ] && [ -n "$(ls -A firmware/build/*.bin 2>/dev/null)" ]; then
+            cp -v firmware/build/*.bin artifacts/
+          else
+            # Fallback to board-specific build directory
+            echo "Primary build directory not found, checking fallback..."
+            BOARD_BUILD_DIR="firmware/micropython/ports/esp32/build-STRIPALERTS_S3"
+            if [ -d "$BOARD_BUILD_DIR" ]; then
+              cp -v "$BOARD_BUILD_DIR/micropython.bin" artifacts/firmware.bin
+              cp -v "$BOARD_BUILD_DIR/partition_table/partition-table.bin" artifacts/
+              cp -v "$BOARD_BUILD_DIR/bootloader/bootloader.bin" artifacts/
+            else
+              echo "Error: No build artifacts found"
+              exit 1
+            fi
+          fi
+          
           ls -la artifacts
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firmware
-          path: artifacts/*
+          name: firmware-${{ github.sha }}
+          path: artifacts/*.bin
           if-no-files-found: error
+          retention-days: 30
