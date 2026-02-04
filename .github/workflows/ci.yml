@@ -30,10 +30,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'  # Add built-in pip caching
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4  # Use official action instead of curl
+        uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
 
@@ -132,15 +131,21 @@ jobs:
       - name: Set up ESP-IDF environment
         run: |
           source ~/esp/idf/export.sh
+          # Export all ESP-IDF environment variables to GitHub Actions environment
           echo "IDF_PATH=$IDF_PATH" >> $GITHUB_ENV
-          echo "$HOME/.espressif/tools/bin" >> $GITHUB_PATH
+          echo "IDF_PYTHON_ENV_PATH=$IDF_PYTHON_ENV_PATH" >> $GITHUB_ENV
+          # Capture the modified PATH
+          echo "ESP_PATH=$PATH" >> $GITHUB_ENV
 
       - name: Build firmware
         env:
           MICROPY_MPYCROSS: ${{ github.workspace }}/firmware/micropython/mpy-cross/build/mpy-cross
+          PATH: ${{ env.ESP_PATH }}
         run: |
-          source ~/esp/idf/export.sh
-          uv run make build
+          # Verify environment is set
+          echo "IDF_PATH: $IDF_PATH"
+          which idf.py
+          make build
 
       - name: Collect build outputs
         if: success()
