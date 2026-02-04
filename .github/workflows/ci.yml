@@ -9,11 +9,15 @@ on:
     branches:
       - main
       - develop
+  workflow_dispatch:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 permissions:
   contents: read
+
 jobs:
   lint:
     name: Lint / Format
@@ -21,150 +25,159 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install uv
         shell: bash
         run: |
           set -euo pipefail
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Cache uv
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/uv
+          path: ~/.cache/uv
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: |
             ${{ runner.os }}-uv-
+
       - name: Install dependencies
         shell: bash
         run: |
           set -euo pipefail
           uv sync --frozen
-      - name: Ruff lint
-        shell: bash
-        run: |
-          set -euo pipefail
-          uv run ruff check .
-      - name: Ruff format check
-        shell: bash
-        run: |
-          set -euo pipefail
-          uv run ruff format --check .
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Ruff format
+        run: uv run ruff format --check .
+
   build-firmware:
     name: Build firmware
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     env:
       ESP_IDF_PATH: /tmp/esp/idf
       ESP_TOOLS_PATH: /tmp/esp
+      MICROPYTHON_VER: master
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Install system dependencies
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y \
-            git \
-            build-essential \
-            cmake \
-            ninja-build \
-            flex \
-            bison \
-            gperf \
-            ccache \
-            libffi-dev \
-            libssl-dev \
-            dfu-util \
-            libusb-1.0-0
+            git build-essential cmake ninja-build flex bison gperf \
+            ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install uv
         shell: bash
         run: |
           set -euo pipefail
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Cache uv
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/uv
+          path: ~/.cache/uv
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: |
             ${{ runner.os }}-uv-
+
       - name: Install dependencies
         shell: bash
         run: |
           set -euo pipefail
           uv sync --frozen
+
+      - name: Cache MicroPython
+        id: cache-micropython
+        uses: actions/cache@v4
+        with:
+          path: firmware/micropython
+          key: ${{ runner.os }}-micropython-${{ env.MICROPYTHON_VER }}
+
       - name: Clone MicroPython
+        if: steps.cache-micropython.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          cd firmware
-          git clone --depth 1 https://github.com/micropython/micropython.git
+          mkdir -p firmware
+          git clone --depth 1 https://github.com/micropython/micropython.git firmware/micropython
+
+      - name: Cache mpy-cross
+        id: cache-mpy-cross
+        uses: actions/cache@v4
+        with:
+          path: firmware/micropython/mpy-cross/build/mpy-cross
+          key: ${{ runner.os }}-mpy-cross-${{ hashFiles('firmware/micropython/py/*.[ch]') }}
+          restore-keys: |
+            ${{ runner.os }}-mpy-cross-
+
       - name: Build mpy-cross
+        if: steps.cache-mpy-cross.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           cd firmware/micropython/mpy-cross
           make -j$(nproc) CC=gcc
+
       - name: Cache ESP-IDF + tools
         uses: actions/cache@v4
         with:
           path: |
             /tmp/esp/idf
             /tmp/esp
-          key: ${{ runner.os }}-esp-idf-v5_5
+          key: ${{ runner.os }}-esp-idf-v5.5
           restore-keys: |
-            ${{ runner.os }}-esp-idf-v5_5-
+            ${{ runner.os }}-esp-idf-v5.5-
             ${{ runner.os }}-esp-idf-
+
       - name: Install ESP-IDF
         uses: espressif/install-esp-idf-action@v1
         with:
           version: v5.5
           path: /tmp/esp/idf
           tools-path: /tmp/esp
-      - name: Sanity check idf.py
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v idf.py
-          idf.py --version || true
+
       - name: Build firmware
         shell: bash
         env:
           MICROPY_MPYCROSS: ${{ github.workspace }}/firmware/micropython/mpy-cross/build/mpy-cross
         run: |
           set -euo pipefail
-          make build
+          uv run make build
+
       - name: Collect build outputs
         if: success()
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          # Use the artifacts collected by the build tool
-          if [ -d firmware/build ] && [ "$(ls -A firmware/build/*.bin 2>/dev/null)" ]; then
-            cp -v firmware/build/*.bin artifacts/
-          else
-            # Fallback to direct paths if tool failed to copy
-            BOARD_BUILD_DIR="firmware/micropython/ports/esp32/build-STRIPALERTS_S3"
-            [ -f "$BOARD_BUILD_DIR/micropython.bin" ] && cp -v "$BOARD_BUILD_DIR/micropython.bin" artifacts/firmware.bin
-            [ -f "$BOARD_BUILD_DIR/partition_table/partition-table.bin" ] && cp -v "$BOARD_BUILD_DIR/partition_table/partition-table.bin" artifacts/
-            [ -f "$BOARD_BUILD_DIR/bootloader/bootloader.bin" ] && cp -v "$BOARD_BUILD_DIR/bootloader/bootloader.bin" artifacts/
-          fi
+          cp -v firmware/build/*.bin artifacts/ || \
+          (echo "Warning: Build artifacts not found in firmware/build, checking fallback..." && \
+           BOARD_BUILD_DIR="firmware/micropython/ports/esp32/build-STRIPALERTS_S3" && \
+           cp -v "$BOARD_BUILD_DIR/micropython.bin" artifacts/firmware.bin && \
+           cp -v "$BOARD_BUILD_DIR/partition_table/partition-table.bin" artifacts/ && \
+           cp -v "$BOARD_BUILD_DIR/bootloader/bootloader.bin" artifacts/)
           ls -la artifacts
+
       - name: Upload firmware artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: firmware
           path: artifacts/*
