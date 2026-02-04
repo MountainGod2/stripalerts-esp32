@@ -1,0 +1,2 @@
+PIN_NUM = 48
+NUM_PIXELS = 1
