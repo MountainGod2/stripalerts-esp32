@@ -450,18 +450,6 @@ class FileUploader:
                 if not self.upload_file(file_path, f"/{filename}", port):
                     return False
 
-        # Upload stripalerts package
-        stripalerts_dir = self.src_dir / "stripalerts"
-        if stripalerts_dir.exists() and stripalerts_dir.is_dir():
-            print("\n  Creating /stripalerts directory...")
-            self.create_remote_dir("/stripalerts", port)
-
-            for py_file in stripalerts_dir.glob("*.py"):
-                if py_file.name != "__pycache__":
-                    remote_path = f"/stripalerts/{py_file.name}"
-                    if not self.upload_file(py_file, remote_path, port):
-                        return False
-
         print_success("All files uploaded")
         return True
 
