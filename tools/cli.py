@@ -5,6 +5,8 @@ Consolidated tool for building, uploading, monitoring, and managing
 the StripAlerts ESP32 firmware and application files.
 """
 
+from __future__ import annotations
+
 import argparse
 import re
 import shutil
@@ -12,6 +14,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import ClassVar
 
 from utils import (
     check_idf_prerequisites,
@@ -23,17 +26,24 @@ from utils import (
     run_command,
 )
 
+try:
+    import serial
+except ImportError:
+    print("[ERROR] pyserial not installed")
+    print("Install with: pip install pyserial")
+
 
 class FirmwareBuilder:
     """Builds ESP32 MicroPython firmware with frozen modules."""
 
-    def __init__(self, root_dir: Path, board: str, clean: bool = False):
+    def __init__(self, root_dir: Path, board: str, *, clean: bool = False) -> None:
         """Initialize the firmware builder.
 
         Args:
             root_dir: Root directory of the project
             board: Target ESP32 board variant
             clean: Whether to clean before building
+
         """
         self.root_dir = root_dir
         self.firmware_dir = root_dir / "firmware"
@@ -86,10 +96,10 @@ class FirmwareBuilder:
                 cwd=self.firmware_dir,
             )
             print("[OK] MicroPython cloned successfully")
-            return True
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] Failed to clone MicroPython: {e}")
             return False
+        return True
 
     def build_mpy_cross(self) -> bool:
         """Build the mpy-cross compiler."""
@@ -99,33 +109,9 @@ class FirmwareBuilder:
         try:
             run_command(["make"], cwd=mpy_cross_dir)
             print("[OK] mpy-cross built successfully")
-            return True
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] Failed to build mpy-cross: {e}")
             return False
-
-    def setup_frozen_manifest(self) -> bool:
-        """Setup the manifest for frozen modules."""
-        print("Setting up frozen module manifest...")
-
-        if not self.frozen_dir.exists():
-            print(f"[WARNING] Frozen directory not found at {self.frozen_dir}")
-            return False
-
-        manifest_path = self.esp32_port_dir / "boards" / "manifest_stripalerts.py"
-        manifest_content = f'''"""Custom manifest for StripAlerts firmware."""
-# Include base board manifest
-try:
-    include("$(PORT_DIR)/boards/{self.board}/manifest.py")
-except:
-    include("$(PORT_DIR)/boards/manifest.py")
-
-# Freeze StripAlerts package
-package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
-'''
-        manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        manifest_path.write_text(manifest_content)
-        print(f"[OK] Frozen manifest created at {manifest_path}")
         return True
 
     def clean_build(self) -> None:
@@ -150,10 +136,10 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
                 shutil.rmtree(custom_board_dest)
             shutil.copytree(custom_board_src, custom_board_dest)
             print(f"[OK] Custom board copied to {custom_board_dest}")
-            return True
         except Exception as e:
             print(f"[ERROR] Failed to copy custom board: {e}")
             return False
+        return True
 
     def build_firmware(self) -> bool:
         """Build the ESP32 firmware."""
@@ -165,30 +151,21 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
         if not self.copy_custom_board():
             return False
 
-        import os
-
-        env = os.environ.copy()
-        env["FROZEN_MANIFEST"] = str(
-            self.esp32_port_dir / "boards" / "manifest_stripalerts.py"
-        )
-
         try:
             run_command(
                 ["make", f"BOARD={self.board}", "submodules"],
                 cwd=self.esp32_port_dir,
-                env=env,
             )
             run_command(
                 ["make", f"BOARD={self.board}"],
                 cwd=self.esp32_port_dir,
-                env=env,
             )
             print("[OK] Firmware built successfully")
             self.copy_firmware_artifacts()
-            return True
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] Failed to build firmware: {e}")
             return False
+        return True
 
     def copy_firmware_artifacts(self) -> None:
         """Copy firmware artifacts to build directory."""
@@ -237,8 +214,6 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
             return False
         if not self.build_mpy_cross():
             return False
-        if not self.setup_frozen_manifest():
-            return False
         if not self.build_firmware():
             return False
 
@@ -249,7 +224,7 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
 class FirmwareUploader:
     """Uploads firmware to ESP32 devices."""
 
-    FLASH_ADDRESSES = {
+    FLASH_ADDRESSES: ClassVar = {
         "bootloader": 0x0,
         "partition-table": 0x8000,
         "firmware": 0x10000,
@@ -261,8 +236,9 @@ class FirmwareUploader:
         board: str,
         port: str | None = None,
         baud: int = 460800,
+        *,
         erase: bool = False,
-    ):
+    ) -> None:
         """Initialize the firmware uploader.
 
         Args:
@@ -271,6 +247,7 @@ class FirmwareUploader:
             port: Serial port (auto-detected if None)
             baud: Baud rate for flashing
             erase: Whether to erase flash before uploading
+
         """
         self.root_dir = root_dir
         self.port = port
@@ -306,10 +283,10 @@ class FirmwareUploader:
         try:
             run_command(["python", "-m", "esptool", "--port", port, "erase_flash"])
             print("[OK] Flash erased successfully")
-            return True
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] Failed to erase flash: {e}")
             return False
+        return True
 
     def upload_firmware(self, port: str) -> bool:
         """Upload firmware to device."""
@@ -338,10 +315,10 @@ class FirmwareUploader:
         try:
             run_command(cmd)
             print("[OK] Firmware uploaded successfully")
-            return True
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] Failed to upload firmware: {e}")
             return False
+        return True
 
     def upload(self) -> bool:
         """Execute the upload process."""
@@ -369,12 +346,13 @@ class FirmwareUploader:
 class FileUploader:
     """Uploads application files to ESP32 filesystem."""
 
-    def __init__(self, root_dir: Path, port: str | None = None):
+    def __init__(self, root_dir: Path, port: str | None = None) -> None:
         """Initialize the file uploader.
 
         Args:
             root_dir: Root directory of the project
             port: Serial port (auto-detected if None)
+
         """
         self.root_dir = root_dir
         self.src_dir = root_dir / "src"
@@ -395,10 +373,10 @@ class FileUploader:
             cmd = ["mpremote", "connect", port, "soft-reset"]
             subprocess.run(cmd, check=True, capture_output=True, timeout=5)
             time.sleep(2)  # Wait for device to stabilize after reset
-            return True
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             # Soft reset might fail if device is not responding, continue anyway
             return False
+        return True
 
     def upload_file(self, local_path: Path, remote_path: str, port: str) -> bool:
         """Upload a single file to the device with retry logic."""
@@ -417,7 +395,6 @@ class FileUploader:
                     f":{remote_path}",
                 ]
                 subprocess.run(cmd, check=True, capture_output=True, timeout=30)
-                return True
             except subprocess.TimeoutExpired:
                 print(
                     f"  [WARNING] Upload timeout (attempt {attempt + 1}/{max_retries})"
@@ -435,6 +412,7 @@ class FileUploader:
                         f"  [ERROR] Failed to upload {local_path.name} after {max_retries} attempts"
                     )
                     return False
+            return True
         return False
 
     def create_remote_dir(self, remote_path: str, port: str) -> None:
@@ -468,9 +446,10 @@ class FileUploader:
         # Upload boot.py and main.py
         for filename in ["boot.py", "main.py"]:
             file_path = self.src_dir / filename
-            if file_path.exists():
-                if not self.upload_file(file_path, f"/{filename}", port):
-                    return False
+            if file_path.exists() and not self.upload_file(
+                file_path, f"/{filename}", port
+            ):
+                return False
 
         print_success("All files uploaded")
         return True
@@ -479,12 +458,13 @@ class FileUploader:
 class SerialMonitor:
     """Monitors ESP32 serial output."""
 
-    def __init__(self, port: str | None = None, baud: int = 115200):
+    def __init__(self, port: str | None = None, baud: int = 115200) -> None:
         """Initialize the serial monitor.
 
         Args:
             port: Serial port (auto-detected if None)
             baud: Baud rate for monitoring
+
         """
         self.port = port
         self.baud = baud
@@ -508,20 +488,13 @@ class SerialMonitor:
 
         try:
             run_command(["mpremote", "connect", port])
-            return True
         except (subprocess.CalledProcessError, KeyboardInterrupt):
             print("\n[INFO] Monitoring stopped")
             return True
+        return True
 
     def _monitor_pyserial(self, port: str) -> bool:
         """Monitor using pyserial."""
-        try:
-            import serial
-        except ImportError:
-            print("[ERROR] pyserial not installed")
-            print("Install with: pip install pyserial")
-            return False
-
         print_header(f"Serial Monitor (pyserial)\nPort: {port} | Baud: {self.baud}")
         print("Press Ctrl+C to exit\n")
 
@@ -549,12 +522,13 @@ class SerialMonitor:
 class BuildCleaner:
     """Cleans build artifacts and caches."""
 
-    def __init__(self, root_dir: Path, all_clean: bool = False):
+    def __init__(self, root_dir: Path, *, all_clean: bool = False) -> None:
         """Initialize the build cleaner.
 
         Args:
             root_dir: Root directory of the project
             all_clean: Whether to clean everything including MicroPython
+
         """
         self.root_dir = root_dir
         self.all_clean = all_clean

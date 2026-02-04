@@ -1,6 +1,7 @@
 """Common utilities for StripAlerts ESP32 development tools."""
 
-import glob
+from __future__ import annotations
+
 import os
 import subprocess
 from pathlib import Path
@@ -11,6 +12,7 @@ def find_serial_port() -> str | None:
 
     Returns:
         Serial port path if found, None otherwise
+
     """
     print("Auto-detecting ESP32 device...")
 
@@ -33,12 +35,11 @@ def find_serial_port() -> str | None:
         pass
 
     # Fallback to glob pattern matching
-    ports = (
-        glob.glob("/dev/ttyUSB*")
-        + glob.glob("/dev/ttyACM*")
-        + glob.glob("/dev/cu.usb*")
-        + glob.glob("/dev/cu.wchusbserial*")
-    )
+    ports = [
+        str(p)
+        for pattern in ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
+        for p in Path("/dev").glob(pattern)
+    ]
 
     if ports:
         port = ports[0]
@@ -54,6 +55,7 @@ def check_idf_prerequisites() -> tuple[bool, str | None, list[str]]:
 
     Returns:
         Tuple of (success, idf_path, idf_py_command)
+
     """
     esp_idf_path = os.environ.get("IDF_PATH")
     if not esp_idf_path:
@@ -110,15 +112,16 @@ def check_tool_available(tool: str, version_flag: str = "--version") -> bool:
             check=False,
             timeout=5,
         )
-        return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
+    return result.returncode == 0
 
 
 def run_command(
     cmd: list[str],
     cwd: str | Path | None = None,
     env: dict | None = None,
+    *,
     check: bool = True,
 ) -> subprocess.CompletedProcess:
     """Run a command with error handling.
@@ -134,6 +137,7 @@ def run_command(
 
     Raises:
         subprocess.CalledProcessError: If check=True and command fails
+
     """
     return subprocess.run(cmd, cwd=str(cwd) if cwd else None, env=env, check=check)
 
@@ -146,20 +150,20 @@ def get_chip_type(board: str) -> str:
 
     Returns:
         Chip type string for esptool
+
     """
     board_upper = board.upper()
     if "S3" in board_upper:
         return "esp32s3"
-    elif "S2" in board_upper:
+    if "S2" in board_upper:
         return "esp32s2"
-    elif "C3" in board_upper:
+    if "C3" in board_upper:
         return "esp32c3"
-    elif "C6" in board_upper:
+    if "C6" in board_upper:
         return "esp32c6"
-    elif "H2" in board_upper:
+    if "H2" in board_upper:
         return "esp32h2"
-    else:
-        return "esp32"
+    return "esp32"
 
 
 def print_header(title: str, width: int = 60) -> None:
@@ -168,6 +172,7 @@ def print_header(title: str, width: int = 60) -> None:
     Args:
         title: Header title
         width: Total width of header
+
     """
     print("\n" + "=" * width)
     print(title)
@@ -180,6 +185,7 @@ def print_success(message: str, width: int = 60) -> None:
     Args:
         message: Success message
         width: Total width of box
+
     """
     print("\n" + "=" * width)
     print(f"[SUCCESS] {message}")
