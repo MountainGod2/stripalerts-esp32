@@ -136,12 +136,34 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
             shutil.rmtree(build_dir)
             print("[OK] Build directory cleaned")
 
+    def copy_custom_board(self) -> bool:
+        """Copy custom board configuration if it exists."""
+        custom_board_src = self.root_dir / "boards" / self.board
+        if not custom_board_src.exists():
+            return True  # No custom board, use default
+        
+        custom_board_dest = self.esp32_port_dir / "boards" / self.board
+        print(f"Copying custom board configuration: {self.board}")
+        
+        try:
+            if custom_board_dest.exists():
+                shutil.rmtree(custom_board_dest)
+            shutil.copytree(custom_board_src, custom_board_dest)
+            print(f"[OK] Custom board copied to {custom_board_dest}")
+            return True
+        except Exception as e:
+            print(f"[ERROR] Failed to copy custom board: {e}")
+            return False
+
     def build_firmware(self) -> bool:
         """Build the ESP32 firmware."""
         print(f"Building firmware for {self.board}...")
 
         if self.clean:
             self.clean_build()
+        
+        if not self.copy_custom_board():
+            return False
 
         import os
 

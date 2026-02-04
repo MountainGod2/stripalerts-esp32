@@ -2,7 +2,7 @@
 .DEFAULT_GOAL := help
 
 # Configuration
-BOARD ?= ESP32_GENERIC_S3
+BOARD ?= STRIPALERTS_S3
 PORT ?=
 BAUD ?= 460800
 CLEAN ?=
