@@ -1,7 +1,7 @@
 """Manifest for StripAlerts ESP32S3 board."""
 
-# Include the base ESP32_GENERIC_S3 manifest
-include("$(PORT_DIR)/boards/ESP32_GENERIC_S3/manifest.py")
+# Include the base ESP32 manifest
+include("$(PORT_DIR)/boards/manifest.py")
 
 # Freeze StripAlerts package
-freeze("$(MPY_DIR)/../../../frozen/stripalerts", opt=3)
+freeze("$(MPY_DIR)/../../frozen", "stripalerts", opt=3)
