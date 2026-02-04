@@ -141,10 +141,10 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
         custom_board_src = self.root_dir / "boards" / self.board
         if not custom_board_src.exists():
             return True  # No custom board, use default
-        
+
         custom_board_dest = self.esp32_port_dir / "boards" / self.board
         print(f"Copying custom board configuration: {self.board}")
-        
+
         try:
             if custom_board_dest.exists():
                 shutil.rmtree(custom_board_dest)
@@ -161,7 +161,7 @@ package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
 
         if self.clean:
             self.clean_build()
-        
+
         if not self.copy_custom_board():
             return False
 
