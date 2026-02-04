@@ -608,7 +608,9 @@ def cmd_build(args) -> int:
 def cmd_flash(args) -> int:
     """Flash firmware command handler."""
     root_dir = Path(__file__).parent.parent.resolve()
-    uploader = FirmwareUploader(root_dir, args.board, args.port, args.baud, erase=args.erase)
+    uploader = FirmwareUploader(
+        root_dir, args.board, args.port, args.baud, erase=args.erase
+    )
     return 0 if uploader.upload() else 1
 
 
