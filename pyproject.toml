@@ -22,6 +22,8 @@ dev = [
 ]
 
 [tool.ruff]
+# lint.select = ["ALL"]
+lint.ignore = ["COM812", "D203","D213","T201","FBT001"]
 format.exclude = ["firmware/*"]
 lint.exclude = ["firmware/*"]
 lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
