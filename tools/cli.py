@@ -601,14 +601,14 @@ class BuildCleaner:
 def cmd_build(args) -> int:
     """Build command handler."""
     root_dir = Path(__file__).parent.parent.resolve()
-    builder = FirmwareBuilder(root_dir, args.board, args.clean)
+    builder = FirmwareBuilder(root_dir, args.board, clean=args.clean)
     return 0 if builder.build() else 1
 
 
 def cmd_flash(args) -> int:
     """Flash firmware command handler."""
     root_dir = Path(__file__).parent.parent.resolve()
-    uploader = FirmwareUploader(root_dir, args.board, args.port, args.baud, args.erase)
+    uploader = FirmwareUploader(root_dir, args.board, args.port, args.baud, erase=args.erase)
     return 0 if uploader.upload() else 1
 
 
@@ -628,7 +628,7 @@ def cmd_monitor(args) -> int:
 def cmd_clean(args) -> int:
     """Clean command handler."""
     root_dir = Path(__file__).parent.parent.resolve()
-    cleaner = BuildCleaner(root_dir, args.all)
+    cleaner = BuildCleaner(root_dir, all_clean=args.all)
     return 0 if cleaner.clean() else 1
 
 
@@ -639,7 +639,7 @@ def cmd_deploy(args) -> int:
     # Step 1: Build
     if not args.skip_build:
         print_header("STEP 1: Building Firmware")
-        builder = FirmwareBuilder(root_dir, args.board, args.clean)
+        builder = FirmwareBuilder(root_dir, args.board, clean=args.clean)
         if not builder.build():
             print("\n[ERROR] Build failed")
             return 1
@@ -648,7 +648,7 @@ def cmd_deploy(args) -> int:
     if not args.skip_flash:
         print_header("STEP 2: Flashing Firmware")
         uploader = FirmwareUploader(
-            root_dir, args.board, args.port, args.baud, args.erase
+            root_dir, args.board, args.port, args.baud, erase=args.erase
         )
         if not uploader.upload():
             print("\n[ERROR] Flash failed")
