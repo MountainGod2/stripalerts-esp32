@@ -24,4 +24,4 @@ dev = [
 [tool.ruff]
 format.exclude = ["firmware/*"]
 lint.exclude = ["firmware/*"]
-lint.per-file-ignores = { "frozen/manifest.py" = ["F821"] }
+lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
