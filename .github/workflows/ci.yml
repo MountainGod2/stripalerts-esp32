@@ -133,6 +133,12 @@ jobs:
           set -euo pipefail
           cd firmware
           git clone --depth 1 https://github.com/micropython/micropython.git
+      - name: Build mpy-cross with system compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd firmware/micropython/mpy-cross
+          make CC=gcc
       - name: Build firmware
         shell: bash
         run: |
