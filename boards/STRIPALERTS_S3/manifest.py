@@ -4,4 +4,4 @@
 include("$(PORT_DIR)/boards/manifest.py")
 
 # Freeze StripAlerts package
-freeze("$(MPY_DIR)/../../frozen", "stripalerts", opt=3)
+freeze("$(MPY_DIR)/../../frozen", ("stripalerts",), opt=3)
