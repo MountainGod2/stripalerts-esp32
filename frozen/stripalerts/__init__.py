@@ -1,3 +1,4 @@
-from .constants import PIN_NUM, NUM_PIXELS
-
-__all__ = ['PIN_NUM', 'NUM_PIXELS']
+# This file is empty intentionally
+# Frozen modules (constants.py) and filesystem modules (app.py, ble.py, etc.)
+# coexist in the stripalerts namespace
+# The filesystem version of this file takes precedence

@@ -117,8 +117,12 @@ try:
 except:
     include("$(PORT_DIR)/boards/manifest.py")
 
-# Freeze StripAlerts package
-package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
+# Freeze only specific StripAlerts modules (not the whole package)
+# This allows filesystem modules to coexist in the same namespace
+freeze("{str(self.frozen_dir.resolve())}/stripalerts", "constants.py", opt=3)
+# Add other frozen modules here as needed:
+# freeze("{str(self.frozen_dir.resolve())}/stripalerts", "config.py", opt=3)
+# freeze("{str(self.frozen_dir.resolve())}/stripalerts", "version.py", opt=3)
 '''
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         manifest_path.write_text(manifest_content)
