@@ -104,10 +104,17 @@ class FirmwareBuilder:
     def build_mpy_cross(self) -> bool:
         """Build the mpy-cross compiler."""
         mpy_cross_dir = self.micropython_dir / "mpy-cross"
+        mpy_cross_bin = mpy_cross_dir / "build" / "mpy-cross"
+
+        if mpy_cross_bin.exists():
+            print("[OK] mpy-cross already built")
+            return True
+
         print("Building mpy-cross compiler...")
 
         try:
-            run_command(["make"], cwd=mpy_cross_dir)
+            # Explicitly use host gcc to avoid issues with ESP-IDF toolchain in PATH
+            run_command(["make", "CC=gcc"], cwd=mpy_cross_dir)
             print("[OK] mpy-cross built successfully")
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] Failed to build mpy-cross: {e}")

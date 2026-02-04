@@ -111,12 +111,12 @@ jobs:
           set -euo pipefail
           cd firmware
           git clone --depth 1 https://github.com/micropython/micropython.git
-      - name: Build mpy-cross with system compiler
+      - name: Build mpy-cross
         shell: bash
         run: |
           set -euo pipefail
           cd firmware/micropython/mpy-cross
-          make CC=gcc
+          make -j$(nproc) CC=gcc
       - name: Cache ESP-IDF + tools
         uses: actions/cache@v4
         with:
@@ -141,20 +141,27 @@ jobs:
           idf.py --version || true
       - name: Build firmware
         shell: bash
+        env:
+          MICROPY_MPYCROSS: ${{ github.workspace }}/firmware/micropython/mpy-cross/build/mpy-cross
         run: |
           set -euo pipefail
           make build
       - name: Collect build outputs
-        if: always()
+        if: success()
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          find firmware/micropython/ports/esp32 -type f \( \
-            -name "firmware.bin" -o \
-            -name "*.bin" -o \
-            -name "*.elf" \
-          \) -print -exec cp -v {} artifacts/ \;
+          # Use the artifacts collected by the build tool
+          if [ -d firmware/build ] && [ "$(ls -A firmware/build/*.bin 2>/dev/null)" ]; then
+            cp -v firmware/build/*.bin artifacts/
+          else
+            # Fallback to direct paths if tool failed to copy
+            BOARD_BUILD_DIR="firmware/micropython/ports/esp32/build-STRIPALERTS_S3"
+            [ -f "$BOARD_BUILD_DIR/micropython.bin" ] && cp -v "$BOARD_BUILD_DIR/micropython.bin" artifacts/firmware.bin
+            [ -f "$BOARD_BUILD_DIR/partition_table/partition-table.bin" ] && cp -v "$BOARD_BUILD_DIR/partition_table/partition-table.bin" artifacts/
+            [ -f "$BOARD_BUILD_DIR/bootloader/bootloader.bin" ] && cp -v "$BOARD_BUILD_DIR/bootloader/bootloader.bin" artifacts/
+          fi
           ls -la artifacts
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v6
