@@ -137,7 +137,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          uv run python tools/build.py
+          make build
       - name: Collect build outputs
         if: always()
         shell: bash
