@@ -55,7 +55,7 @@ class FirmwareBuilder:
             return False
 
         print(f"[OK] ESP-IDF found at: {idf_path}")
-        
+
         if idf_cmd:
             self.idf_py_cmd = idf_cmd
             print(f"[OK] idf.py command: {' '.join(idf_cmd)}")
@@ -76,7 +76,10 @@ class FirmwareBuilder:
         try:
             run_command(
                 [
-                    "git", "clone", "--depth", "1",
+                    "git",
+                    "clone",
+                    "--depth",
+                    "1",
                     "https://github.com/micropython/micropython.git",
                     str(self.micropython_dir),
                 ],
@@ -92,7 +95,7 @@ class FirmwareBuilder:
         """Build the mpy-cross compiler."""
         mpy_cross_dir = self.micropython_dir / "mpy-cross"
         print("Building mpy-cross compiler...")
-        
+
         try:
             run_command(["make"], cwd=mpy_cross_dir)
             print("[OK] mpy-cross built successfully")
@@ -117,12 +120,8 @@ try:
 except:
     include("$(PORT_DIR)/boards/manifest.py")
 
-# Freeze only specific StripAlerts modules (not the whole package)
-# This allows filesystem modules to coexist in the same namespace
-freeze("{str(self.frozen_dir.resolve())}/stripalerts", "constants.py", opt=3)
-# Add other frozen modules here as needed:
-# freeze("{str(self.frozen_dir.resolve())}/stripalerts", "config.py", opt=3)
-# freeze("{str(self.frozen_dir.resolve())}/stripalerts", "version.py", opt=3)
+# Freeze StripAlerts package
+package("stripalerts", base_path="{str(self.frozen_dir.resolve())}", opt=3)
 '''
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         manifest_path.write_text(manifest_content)
@@ -145,6 +144,7 @@ freeze("{str(self.frozen_dir.resolve())}/stripalerts", "constants.py", opt=3)
             self.clean_build()
 
         import os
+
         env = os.environ.copy()
         env["FROZEN_MANIFEST"] = str(
             self.esp32_port_dir / "boards" / "manifest_stripalerts.py"
@@ -294,11 +294,17 @@ class FirmwareUploader:
         print(f"Uploading firmware to {port} at {self.baud} baud...")
 
         cmd = [
-            "python", "-m", "esptool",
-            "--chip", self.chip,
-            "--port", port,
-            "--baud", str(self.baud),
-            "write_flash", "-z",
+            "python",
+            "-m",
+            "esptool",
+            "--chip",
+            self.chip,
+            "--port",
+            port,
+            "--baud",
+            str(self.baud),
+            "write_flash",
+            "-z",
             hex(self.FLASH_ADDRESSES["bootloader"]),
             str(self.build_dir / "bootloader.bin"),
             hex(self.FLASH_ADDRESSES["partition-table"]),
@@ -375,24 +381,37 @@ class FileUploader:
     def upload_file(self, local_path: Path, remote_path: str, port: str) -> bool:
         """Upload a single file to the device with retry logic."""
         print(f"  Uploading {local_path.name} -> {remote_path}")
-        
+
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                cmd = ["mpremote", "connect", port, "fs", "cp", 
-                       str(local_path), f":{remote_path}"]
+                cmd = [
+                    "mpremote",
+                    "connect",
+                    port,
+                    "fs",
+                    "cp",
+                    str(local_path),
+                    f":{remote_path}",
+                ]
                 subprocess.run(cmd, check=True, capture_output=True, timeout=30)
                 return True
             except subprocess.TimeoutExpired:
-                print(f"  [WARNING] Upload timeout (attempt {attempt + 1}/{max_retries})")
+                print(
+                    f"  [WARNING] Upload timeout (attempt {attempt + 1}/{max_retries})"
+                )
                 if attempt < max_retries - 1:
                     time.sleep(2)
             except subprocess.CalledProcessError:
                 if attempt < max_retries - 1:
-                    print(f"  [WARNING] Upload failed (attempt {attempt + 1}/{max_retries}), retrying...")
+                    print(
+                        f"  [WARNING] Upload failed (attempt {attempt + 1}/{max_retries}), retrying..."
+                    )
                     time.sleep(2)
                 else:
-                    print(f"  [ERROR] Failed to upload {local_path.name} after {max_retries} attempts")
+                    print(
+                        f"  [ERROR] Failed to upload {local_path.name} after {max_retries} attempts"
+                    )
                     return False
         return False
 
@@ -501,7 +520,11 @@ class SerialMonitor:
                 while True:
                     if ser.in_waiting:
                         try:
-                            line = ser.readline().decode("utf-8", errors="replace").rstrip()
+                            line = (
+                                ser.readline()
+                                .decode("utf-8", errors="replace")
+                                .rstrip()
+                            )
                             print(line)
                         except Exception as e:
                             print(f"[ERROR] {e}")
@@ -601,9 +624,7 @@ def cmd_build(args) -> int:
 def cmd_flash(args) -> int:
     """Flash firmware command handler."""
     root_dir = Path(__file__).parent.parent.resolve()
-    uploader = FirmwareUploader(
-        root_dir, args.board, args.port, args.baud, args.erase
-    )
+    uploader = FirmwareUploader(root_dir, args.board, args.port, args.baud, args.erase)
     return 0 if uploader.upload() else 1
 
 
@@ -681,8 +702,9 @@ def main() -> int:
     # Build command
     build_parser = subparsers.add_parser("build", help="Build firmware")
     build_parser.add_argument(
-        "--board", default="ESP32_GENERIC_S3",
-        help="ESP32 board variant (default: ESP32_GENERIC_S3)"
+        "--board",
+        default="ESP32_GENERIC_S3",
+        help="ESP32 board variant (default: ESP32_GENERIC_S3)",
     )
     build_parser.add_argument(
         "--clean", action="store_true", help="Clean before building"
@@ -691,8 +713,12 @@ def main() -> int:
 
     # Flash command
     flash_parser = subparsers.add_parser("flash", help="Flash firmware to device")
-    flash_parser.add_argument("--port", "-p", help="Serial port (auto-detect if not set)")
-    flash_parser.add_argument("--baud", "-b", type=int, default=460800, help="Baud rate")
+    flash_parser.add_argument(
+        "--port", "-p", help="Serial port (auto-detect if not set)"
+    )
+    flash_parser.add_argument(
+        "--baud", "-b", type=int, default=460800, help="Baud rate"
+    )
     flash_parser.add_argument(
         "--board", default="ESP32_GENERIC_S3", help="ESP32 board variant"
     )
@@ -701,13 +727,19 @@ def main() -> int:
 
     # Upload command
     upload_parser = subparsers.add_parser("upload", help="Upload application files")
-    upload_parser.add_argument("--port", "-p", help="Serial port (auto-detect if not set)")
+    upload_parser.add_argument(
+        "--port", "-p", help="Serial port (auto-detect if not set)"
+    )
     upload_parser.set_defaults(func=cmd_upload)
 
     # Monitor command
     monitor_parser = subparsers.add_parser("monitor", help="Monitor serial output")
-    monitor_parser.add_argument("--port", "-p", help="Serial port (auto-detect if not set)")
-    monitor_parser.add_argument("--baud", "-b", type=int, default=115200, help="Baud rate")
+    monitor_parser.add_argument(
+        "--port", "-p", help="Serial port (auto-detect if not set)"
+    )
+    monitor_parser.add_argument(
+        "--baud", "-b", type=int, default=115200, help="Baud rate"
+    )
     monitor_parser.set_defaults(func=cmd_monitor)
 
     # Clean command
@@ -721,17 +753,31 @@ def main() -> int:
     deploy_parser = subparsers.add_parser(
         "deploy", help="Full deployment (build + flash + upload + monitor)"
     )
-    deploy_parser.add_argument("--port", "-p", help="Serial port (auto-detect if not set)")
+    deploy_parser.add_argument(
+        "--port", "-p", help="Serial port (auto-detect if not set)"
+    )
     deploy_parser.add_argument(
         "--board", default="ESP32_GENERIC_S3", help="ESP32 board variant"
     )
-    deploy_parser.add_argument("--baud", type=int, default=460800, help="Flash baud rate")
-    deploy_parser.add_argument("--clean", action="store_true", help="Clean before building")
+    deploy_parser.add_argument(
+        "--baud", type=int, default=460800, help="Flash baud rate"
+    )
+    deploy_parser.add_argument(
+        "--clean", action="store_true", help="Clean before building"
+    )
     deploy_parser.add_argument("--erase", action="store_true", help="Erase flash first")
-    deploy_parser.add_argument("--skip-build", action="store_true", help="Skip build step")
-    deploy_parser.add_argument("--skip-flash", action="store_true", help="Skip flash step")
-    deploy_parser.add_argument("--skip-upload", action="store_true", help="Skip upload step")
-    deploy_parser.add_argument("--skip-monitor", action="store_true", help="Skip monitor step")
+    deploy_parser.add_argument(
+        "--skip-build", action="store_true", help="Skip build step"
+    )
+    deploy_parser.add_argument(
+        "--skip-flash", action="store_true", help="Skip flash step"
+    )
+    deploy_parser.add_argument(
+        "--skip-upload", action="store_true", help="Skip upload step"
+    )
+    deploy_parser.add_argument(
+        "--skip-monitor", action="store_true", help="Skip monitor step"
+    )
     deploy_parser.set_defaults(func=cmd_deploy)
 
     args = parser.parse_args()

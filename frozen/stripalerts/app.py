@@ -2,11 +2,12 @@ import neopixel
 import machine
 import time
 
-from stripalerts.led import deg_to_rgb
-from stripalerts.constants import PIN_NUM, NUM_PIXELS
+from .led import deg_to_rgb
+from .constants import PIN_NUM, NUM_PIXELS
 
 pin = machine.Pin(PIN_NUM, machine.Pin.OUT)
 np = neopixel.NeoPixel(pin, NUM_PIXELS)
+
 
 def rainbow_cycle():
     while True:
