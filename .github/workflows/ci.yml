@@ -36,7 +36,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Export requirements
-        run: uv export --format requirements.txt --output-file requirements.txt
+        run: uv export --no-hashes --format requirements.txt --output-file requirements.txt
 
       - name: Install dependencies
         run: |
@@ -76,7 +76,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Export requirements
-        run: uv export --format requirements.txt --output-file requirements.txt
+        run: uv export --no-hashes --format requirements.txt --output-file requirements.txt
 
       - name: Install dependencies
         run: |
