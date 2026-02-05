@@ -1,35 +1,64 @@
-.PHONY: help build upload monitor clean flash test
+.PHONY: help build flash upload monitor clean deploy check
+.DEFAULT_GOAL := help
 
-help:
-	@echo "StripAlerts ESP32 Makefile"
+# Configuration
+BOARD ?= STRIPALERTS_S3
+PORT ?=
+BAUD ?= 460800
+CLEAN ?=
+
+# Tools
+PYTHON := python3
+CLI := $(PYTHON) tools/cli.py
+
+help: ## Show this help message
+	@echo "StripAlerts ESP32 Firmware Build System"
+	@echo ""
+	@echo "Prerequisites:"
+	@echo "  1. Source ESP-IDF: source \$$IDF_PATH/export.sh"
+	@echo "  2. Install deps: uv sync"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  build     - Build MicroPython firmware with frozen modules"
-	@echo "  upload    - Upload runtime code to ESP32"
-	@echo "  monitor   - Connect to ESP32 serial monitor"
-	@echo "  flash     - Flash firmware to ESP32"
-	@echo "  clean     - Clean build artifacts"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
+	@echo ""
+	@echo "Options:"
+	@echo "  BOARD=<board>    Board variant (default: $(BOARD))"
+	@echo "  PORT=<port>      Serial port (auto-detect if not set)"
+	@echo "  BAUD=<rate>      Baud rate (default: $(BAUD))"
+	@echo "  CLEAN=1          Clean before building"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make build BOARD=ESP32_GENERIC"
+	@echo "  make flash PORT=/dev/ttyUSB0"
+	@echo "  make deploy CLEAN=1"
 
-build:
-	@echo "Building firmware..."
-	python3 tools/build.py
+check: ## Check prerequisites
+	@$(CLI) --help > /dev/null 2>&1 || \
+		(echo "[ERROR] Python tools not found. Run: uv sync" && exit 1)
+	@if [ -z "$$IDF_PATH" ]; then \
+		echo "[ERROR] IDF_PATH not set. Run: source \$$IDF_PATH/export.sh"; \
+		exit 1; \
+	fi
+	@echo "[OK] Prerequisites check passed"
 
-upload:
-	@echo "Uploading runtime code..."
-	python3 tools/upload.py
+build: check ## Build firmware
+	@$(CLI) build --board $(BOARD) $(if $(CLEAN),--clean)
 
-monitor:
-	@echo "Starting monitor..."
-	python3 tools/monitor.py
+flash: ## Flash firmware to device
+	@$(CLI) flash --board $(BOARD) --baud $(BAUD) --erase $(if $(PORT),--port $(PORT))
 
-flash: build
-	@echo "Flashing firmware..."
-	@echo "Note: Using ESP32-S3 configuration"
-	esptool.py --chip esp32s3 --port /dev/ttyACM0 --baud 460800 write_flash -z 0x0 firmware/build/firmware.bin
+upload: ## Upload application files to device
+	@$(CLI) upload $(if $(PORT),--port $(PORT))
 
-clean:
-	@echo "Cleaning build artifacts..."
-	rm -rf firmware/build/*.bin
-	find . -type d -name __pycache__ -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
+monitor: ## Monitor serial output
+	@$(CLI) monitor $(if $(PORT),--port $(PORT))
 
+clean: ## Clean build artifacts
+	@$(CLI) clean
+
+clean-all: ## Clean everything including MicroPython
+	@$(CLI) clean --all
+
+deploy: ## Full deployment (build + flash + upload + monitor)
+	@$(CLI) deploy --board $(BOARD) --baud $(BAUD) --erase $(if $(CLEAN),--clean) $(if $(PORT),--port $(PORT))

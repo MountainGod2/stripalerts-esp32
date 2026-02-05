@@ -1,4 +1,4 @@
-from stripalerts import main
+from stripalerts.app import rainbow_cycle
 
 if __name__ == "__main__":
-    main()
+    rainbow_cycle()
