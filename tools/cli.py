@@ -402,12 +402,18 @@ class FileUploader:
                     f":{remote_path}",
                 ]
                 subprocess.run(cmd, check=True, capture_output=True, timeout=30)
+                return True
             except subprocess.TimeoutExpired:
                 print(
                     f"  [WARNING] Upload timeout (attempt {attempt + 1}/{max_retries})"
                 )
                 if attempt < max_retries - 1:
                     time.sleep(2)
+                    continue
+                print(
+                    f"  [ERROR] Failed to upload {local_path.name} after {max_retries} attempts"
+                )
+                return False
             except subprocess.CalledProcessError:
                 if attempt < max_retries - 1:
                     print(
@@ -419,7 +425,6 @@ class FileUploader:
                         f"  [ERROR] Failed to upload {local_path.name} after {max_retries} attempts"
                     )
                     return False
-            return True
         return False
 
     def create_remote_dir(self, remote_path: str, port: str) -> None:
