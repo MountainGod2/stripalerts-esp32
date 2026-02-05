@@ -4,6 +4,7 @@ import json
 
 CONFIG_FILE = "/config.json"
 
+
 class Config:
     def __init__(self):
         self._config = {}
@@ -21,6 +22,7 @@ class Config:
     def get(self, key, default=None):
         """Get a configuration value."""
         return self._config.get(key, default)
+
 
 # Singleton instance
 settings = Config()

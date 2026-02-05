@@ -5,6 +5,7 @@ import machine
 from .led import deg_to_rgb
 from .constants import PIN_NUM, NUM_PIXELS
 
+
 class App:
     def __init__(self):
         self.pin = machine.Pin(PIN_NUM, machine.Pin.OUT)
@@ -26,4 +27,3 @@ class App:
 
         while True:
             await asyncio.sleep(1)
-
