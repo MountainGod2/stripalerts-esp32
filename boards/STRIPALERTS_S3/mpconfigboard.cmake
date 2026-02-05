@@ -7,4 +7,5 @@ set(SDKCONFIG_DEFAULTS
     boards/sdkconfig.ble
     boards/sdkconfig.spiram_sx
     boards/ESP32_GENERIC_S3/sdkconfig.board
+    boards/STRIPALERTS_S3/sdkconfig.board
 )
