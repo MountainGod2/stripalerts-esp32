@@ -1,41 +1,37 @@
 def deg_to_rgb(deg):
-    """Convert degrees to RGB colour.
+    """Convert degrees (Hue) to RGB colour (0-255).
 
     Args:
-        deg (int): Degree value from 0 to 360.
+        deg (int): Degree value from 0 to 360 (Hue).
 
     Returns:
-        tuple: RGB colour as a tuple of three floats from 0 to 1.
+        tuple: RGB colour as a tuple of three integers from 0 to 255.
     """
     deg = deg % 360
-    m = 1 / 60
-    R = 0
-    G = 0
-    B = 0
+    
+    # Sector 0 to 5
+    region = deg // 60
+    
+    # We want 0..255 for the calculation
+    # p, q, t calculation for V=1, S=1 in HSV logic
+    # But since we just want a simple rainbow, we can do linear interpolation
+    # RGB Range 0-255
+    
+    # Fully saturated colors (S=1, V=1)
+    val = 255
+    # rising/falling slope
+    x = int(val * (deg % 60) / 60)
+    
+    if region == 0:
+        return (val, x, 0)
+    elif region == 1:
+        return (val - x, val, 0)
+    elif region == 2:
+        return (0, val, x)
+    elif region == 3:
+        return (0, val - x, val)
+    elif region == 4:
+        return (x, 0, val)
+    else: # region 5
+        return (val, 0, val - x)
 
-    if deg >= 0 and deg < 60:
-        R = 1
-        G = 0
-        B = m * deg
-    if deg >= 60 and deg < 120:
-        R = 1 - m * (deg - 60)
-        G = 0
-        B = 1
-    if deg >= 120 and deg < 180:
-        R = 0
-        G = m * (deg - 120)
-        B = 1
-    if deg >= 180 and deg < 240:
-        R = 0
-        G = 1
-        B = 1 - m * (deg - 180)
-    if deg >= 240 and deg < 300:
-        R = m * (deg - 240)
-        G = 1
-        B = 0
-    if deg >= 300 and deg < 360:
-        R = 1
-        G = 1 - m * (deg - 300)
-        B = 0
-    my_colour = (R, G, B)
-    return my_colour

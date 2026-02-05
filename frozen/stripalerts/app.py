@@ -1,21 +1,28 @@
+import uasyncio as asyncio
 import neopixel
 import machine
-import time
 
 from .led import deg_to_rgb
 from .constants import PIN_NUM, NUM_PIXELS
 
-pin = machine.Pin(PIN_NUM, machine.Pin.OUT)
-np = neopixel.NeoPixel(pin, NUM_PIXELS)
+class App:
+    def __init__(self):
+        self.pin = machine.Pin(PIN_NUM, machine.Pin.OUT)
+        self.np = neopixel.NeoPixel(self.pin, NUM_PIXELS)
 
+    async def rainbow_cycle(self):
+        while True:
+            for deg in range(0, 360, 10):
+                color = deg_to_rgb(deg)
+                for i in range(NUM_PIXELS):
+                    self.np[i] = color
+                self.np.write()
+                await asyncio.sleep(0.025)
 
-def rainbow_cycle():
-    while True:
-        for deg in range(0, 360, 10):
-            color = deg_to_rgb(deg)
-            r = int(color[0] * 255)
-            g = int(color[1] * 255)
-            b = int(color[2] * 255)
-            np[0] = (r, g, b)
-            np.write()
-            time.sleep(0.1)
+    async def start(self):
+        print("Starting StripAlerts...")
+        asyncio.create_task(self.rainbow_cycle())
+
+        while True:
+            await asyncio.sleep(1)
+
