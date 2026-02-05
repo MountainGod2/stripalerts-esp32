@@ -17,10 +17,11 @@ class App:
                 for i in range(NUM_PIXELS):
                     self.np[i] = color
                 self.np.write()
-                await asyncio.sleep(0.025)
+                await asyncio.sleep(0.25)
 
     async def start(self):
         print("Starting StripAlerts...")
+        print("Press Ctrl+C to stop.")
         asyncio.create_task(self.rainbow_cycle())
 
         while True:
