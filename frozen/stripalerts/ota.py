@@ -1,8 +1,9 @@
 """Over-the-Air (OTA) update mechanism."""
+from __future__ import annotations
 
-try:
-    from typing import Optional
-except ImportError:
+import contextlib
+
+with contextlib.suppress(ImportError):
     pass
 
 import aiohttp
@@ -23,7 +24,7 @@ class OTAUpdater:
         """
         self.url = url
 
-    async def check_for_update(self) -> Optional[dict]:
+    async def check_for_update(self) -> dict | None:
         """Check if an update is available.
 
         Returns:

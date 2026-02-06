@@ -1,8 +1,9 @@
 """Main application module for StripAlerts."""
+from __future__ import annotations
 
-try:
-    from typing import Optional
-except ImportError:
+import contextlib
+
+with contextlib.suppress(ImportError):
     pass
 
 import asyncio
@@ -32,10 +33,10 @@ class App:
             num_pixels=self.config.get("num_pixels", 1),
             timing=self.config.get("led_timing", 1),
         )
-        self.wifi: Optional[WiFiManager] = None
-        self.ble: Optional[BLEManager] = None
-        self.api: Optional[ChaturbateAPI] = None
-        self._override_task: Optional[asyncio.Task] = None
+        self.wifi: WiFiManager | None = None
+        self.ble: BLEManager | None = None
+        self.api: ChaturbateAPI | None = None
+        self._override_task: asyncio.Task | None = None
         self._running = False
 
         gc.collect()

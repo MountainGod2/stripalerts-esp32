@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-try:
+import contextlib
+
+with contextlib.suppress(ImportError):
     from typing import ClassVar
-except ImportError:
-    pass
 
 import subprocess
 import time
-from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from utils import (
     check_tool_available,
@@ -20,6 +19,9 @@ from utils import (
     print_success,
     run_command,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class FirmwareUploader:

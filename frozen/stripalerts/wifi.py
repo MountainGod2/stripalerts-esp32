@@ -1,8 +1,9 @@
 """WiFi connection management."""
+from __future__ import annotations
 
-try:
-    from typing import Optional
-except ImportError:
+import contextlib
+
+with contextlib.suppress(ImportError):
     pass
 
 import asyncio
@@ -114,7 +115,7 @@ class WiFiManager:
         """
         return self.sta.isconnected()
 
-    def get_ip(self) -> Optional[str]:
+    def get_ip(self) -> str | None:
         """Get current IP address.
 
         Returns:

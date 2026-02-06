@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import shutil
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from utils import print_header, print_success
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class BuildCleaner:

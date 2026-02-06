@@ -1,8 +1,9 @@
 """LED control and pattern management."""
+from __future__ import annotations
 
-try:
-    from typing import Optional
-except ImportError:
+import contextlib
+
+with contextlib.suppress(ImportError):
     pass
 
 import asyncio
@@ -49,14 +50,15 @@ def deg_to_rgb(deg: int) -> tuple[int, int, int]:
 class LEDPattern:
     """Base class for LED patterns."""
 
-    async def update(self, controller: "LEDController") -> None:
+    async def update(self, controller: LEDController) -> None:
         """Update the LED pattern.
 
         Args:
             controller: The LED controller instance
 
         """
-        raise NotImplementedError("Subclasses must implement update()")
+        msg = "Subclasses must implement update()"
+        raise NotImplementedError(msg)
 
 
 class RainbowPattern(LEDPattern):
@@ -75,7 +77,7 @@ class RainbowPattern(LEDPattern):
         self.current_deg = 0
 
     @micropython.native
-    async def update(self, controller: "LEDController") -> None:
+    async def update(self, controller: LEDController) -> None:
         """Update rainbow pattern."""
         color = deg_to_rgb(self.current_deg)
         controller.fill(color)
@@ -96,7 +98,7 @@ class SolidColorPattern(LEDPattern):
         self.color = color
 
     @micropython.native
-    async def update(self, controller: "LEDController") -> None:
+    async def update(self, controller: LEDController) -> None:
         """Update solid color pattern."""
         controller.fill(self.color)
         await asyncio.sleep(1)  # Long delay since nothing changes
@@ -122,7 +124,7 @@ class BlinkPattern(LEDPattern):
         self.state = False
 
     @micropython.native
-    async def update(self, controller: "LEDController") -> None:
+    async def update(self, controller: LEDController) -> None:
         """Update blink pattern."""
         if self.state:
             controller.fill(self.color)
@@ -149,7 +151,7 @@ class LEDController:
         self.num_pixels = num_pixels
         # Pass timing parameter to support different NeoPixel types
         self.np = neopixel.NeoPixel(self.pin, num_pixels, timing=timing)
-        self.pattern: Optional[LEDPattern] = None
+        self.pattern: LEDPattern | None = None
         self._running = False
 
     def set_pattern(self, pattern: LEDPattern) -> None:
