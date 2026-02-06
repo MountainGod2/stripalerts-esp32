@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+import traceback
 from pathlib import Path
 
 from builder import FirmwareBuilder
@@ -100,7 +101,7 @@ def cmd_deploy(args) -> int:
 
 
 def main() -> int:
-    """Main CLI entry point."""
+    """CLI entry point."""
     parser = argparse.ArgumentParser(
         description="StripAlerts ESP32 Development CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -198,8 +199,6 @@ def main() -> int:
         return args.func(args)
     except Exception as e:
         print(f"[ERROR] Unexpected error: {e}")
-        import traceback
-
         traceback.print_exc()
         return 1
 

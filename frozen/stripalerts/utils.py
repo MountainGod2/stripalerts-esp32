@@ -9,7 +9,7 @@ import micropython
 
 
 def log(level: str, message: str) -> None:
-    """Simple logging function.
+    """Logging function.
 
     Args:
         level: Log level (INFO, WARNING, ERROR, DEBUG)

@@ -4,6 +4,8 @@ import json
 
 from micropython import const
 
+from .utils import log_error, log_warning
+
 CONFIG_FILE = const("/config.json")
 
 _DEFAULT_CONFIG = (
@@ -46,13 +48,9 @@ class Config:
                 self._loaded = True
                 return True
         except OSError as e:
-            from .utils import log_warning
-
             log_warning(f"Config file not found, using defaults: {e}")
             return False
         except ValueError as e:
-            from .utils import log_error
-
             log_error(f"Invalid JSON in config file: {e}")
             return False
 
@@ -68,8 +66,6 @@ class Config:
                 json.dump(self._config, f)
             return True
         except OSError as e:
-            from .utils import log_error
-
             log_error(f"Failed to save config: {e}")
             return False
 

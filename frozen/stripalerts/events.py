@@ -5,6 +5,7 @@ import contextlib
 from collections import deque
 
 from .constants import MAX_EVENT_QUEUE_SIZE
+from .utils import log_error
 
 
 class EventManager:
@@ -62,8 +63,6 @@ class EventManager:
                     try:
                         await handler(data)
                     except Exception as e:
-                        from .utils import log_error
-
                         log_error(f"Error in event handler: {e}")
 
     async def run(self) -> None:

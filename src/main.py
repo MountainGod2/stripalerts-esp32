@@ -2,13 +2,13 @@
 
 import sys
 
-import uasyncio as asyncio
+import asyncio
 from stripalerts.app import App
 from stripalerts.utils import log_error, log_info
 
 
 async def main() -> None:
-    """Main application entry point."""
+    """Application entry point."""
     app = App()
     try:
         await app.start()

@@ -1,4 +1,5 @@
 """Main application module for StripAlerts."""
+
 from __future__ import annotations
 
 import contextlib
@@ -38,6 +39,8 @@ class App:
         self.api: ChaturbateAPI | None = None
         self._override_task: asyncio.Task | None = None
         self._running = False
+        self._tasks: set[asyncio.Task] = set()
+        self._stop_event = asyncio.Event()
 
         gc.collect()
         gc.threshold(gc.mem_free() // 4 + gc.mem_alloc())
@@ -91,26 +94,26 @@ class App:
     async def run(self) -> None:
         """Run the main application loop."""
         self._running = True
+        self._stop_event.clear()
         log_info("Starting StripAlerts...")
 
         # Start LED controller
-        asyncio.create_task(self.led_controller.run())
+        self._tasks.add(asyncio.create_task(self.led_controller.run()))
 
         # Start event processing
-        asyncio.create_task(self.events.run())
+        self._tasks.add(asyncio.create_task(self.events.run()))
 
         # Start API logic
         if self.api:
-            asyncio.create_task(self.api.start())
+            self._tasks.add(asyncio.create_task(self.api.start()))
 
         # Start BLE if enabled
         if self.ble:
-            asyncio.create_task(self.ble.start())
+            self._tasks.add(asyncio.create_task(self.ble.start()))
 
         try:
             # Main loop
-            while self._running:
-                await asyncio.sleep(1)
+            await self._stop_event.wait()
 
         except KeyboardInterrupt:
             log_info("Received interrupt signal")
@@ -121,6 +124,7 @@ class App:
         """Gracefully shutdown the application."""
         log_info("Shutting down...")
         self._running = False
+        self._stop_event.set()
 
         if self.led_controller:
             self.led_controller.clear()

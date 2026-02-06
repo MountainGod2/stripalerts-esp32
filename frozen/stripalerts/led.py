@@ -1,4 +1,5 @@
 """LED control and pattern management."""
+
 from __future__ import annotations
 
 import contextlib

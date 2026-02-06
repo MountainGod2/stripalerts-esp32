@@ -1,4 +1,5 @@
 """WiFi connection management."""
+
 from __future__ import annotations
 
 import contextlib
@@ -29,12 +30,12 @@ class WiFiManager:
 
     def enable_sta(self) -> None:
         """Enable station mode."""
-        self.sta.active(True)
+        self.sta.active(is_active=True)
         log_info("WiFi station mode enabled")
 
     def disable_sta(self) -> None:
         """Disable station mode."""
-        self.sta.active(False)
+        self.sta.active(is_active=False)
         log_info("WiFi station mode disabled")
 
     def enable_ap(self, ssid: str, password: str = "") -> None:
@@ -45,7 +46,7 @@ class WiFiManager:
             password: Password (optional)
 
         """
-        self.ap.active(True)
+        self.ap.active(is_active=True)
 
         if password:
             self.ap.config(
@@ -58,7 +59,7 @@ class WiFiManager:
 
     def disable_ap(self) -> None:
         """Disable access point mode."""
-        self.ap.active(False)
+        self.ap.active(is_active=False)
         log_info("WiFi AP mode disabled")
 
     async def connect(

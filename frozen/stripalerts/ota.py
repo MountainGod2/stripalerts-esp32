@@ -1,4 +1,5 @@
 """Over-the-Air (OTA) update mechanism."""
+
 from __future__ import annotations
 
 import contextlib
@@ -33,10 +34,12 @@ class OTAUpdater:
         """
         try:
             log_info(f"Checking for updates: {self.url}")
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.url}/version.json") as response:
-                    if response.status == 200:
-                        return await response.json()
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(f"{self.url}/version.json") as response,
+            ):
+                if response.status == 200:
+                    return await response.json()
         except Exception as e:
             log_error(f"Failed to check for update: {e}")
         return None
@@ -53,13 +56,12 @@ class OTAUpdater:
         """
         try:
             log_info(f"Downloading firmware version {version}...")
-            async with aiohttp.ClientSession() as session, session.get(
-                f"{self.url}/firmware-{version}.bin"
-            ) as response:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(f"{self.url}/firmware-{version}.bin") as response,
+            ):
                 if response.status != 200:
-                    log_error(
-                        f"Failed to download firmware: HTTP {response.status}"
-                    )
+                    log_error(f"Failed to download firmware: HTTP {response.status}")
                     return False
 
                 log_warning("OTA installation not fully implemented yet")
