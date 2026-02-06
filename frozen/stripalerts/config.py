@@ -1,7 +1,6 @@
 """Configuration management for StripAlerts."""
 
 import json
-import pathlib
 
 from micropython import const
 
@@ -41,7 +40,7 @@ class Config:
 
         """
         try:
-            with pathlib.Path(CONFIG_FILE).open() as f:
+            with open(CONFIG_FILE) as f:
                 loaded_config = json.load(f)
                 self._config.update(loaded_config)
                 self._loaded = True
@@ -65,7 +64,7 @@ class Config:
 
         """
         try:
-            with pathlib.Path(CONFIG_FILE).open("w") as f:
+            with open(CONFIG_FILE, "w") as f:
                 json.dump(self._config, f)
             return True
         except OSError as e:
