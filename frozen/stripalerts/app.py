@@ -12,6 +12,7 @@ import uasyncio as asyncio
 from .api import ChaturbateAPI
 from .ble import BLEManager
 from .config import settings
+from .constants import COLOR_MAP
 from .events import EventManager
 from .led import LEDController, RainbowPattern, SolidColorPattern
 from .utils import log_error, log_info
@@ -54,7 +55,6 @@ class App:
 
         if wifi_ssid:
             self.wifi = WiFiManager()
-            log_info(f"Connecting to WiFi: {wifi_ssid}")
             if await self.wifi.connect(wifi_ssid, wifi_password or ""):
                 api_url = config.get("api_url")
                 if api_url:
@@ -150,20 +150,10 @@ class App:
             message = tip_data.get("message", "").lower().strip()
 
             if tokens == 35:
-                color_map = {
-                    "red": (255, 0, 0),
-                    "orange": (255, 165, 0),
-                    "yellow": (255, 255, 0),
-                    "green": (0, 255, 0),
-                    "blue": (0, 0, 255),
-                    "indigo": (75, 0, 130),
-                    "violet": (238, 130, 238),
-                }
-
-                # Check for full match or if the message contains the color name
+                # Check for exact match or if the message is a color name
                 target_color = None
-                if message in color_map:
-                    target_color = color_map[message]
+                if message in COLOR_MAP:
+                    target_color = COLOR_MAP[message]
 
                 if target_color:
                     log_info(f"Triggering color override: {message}")
@@ -189,8 +179,6 @@ class App:
             # Revert to default
             self._restore_default_pattern()
         except asyncio.CancelledError:
-            pass
-        finally:
             pass
 
     def _restore_default_pattern(self) -> None:

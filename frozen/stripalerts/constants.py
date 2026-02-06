@@ -20,3 +20,15 @@ HTTP_REQUEST_TIMEOUT = const(5)
 
 # Event queue size
 MAX_EVENT_QUEUE_SIZE = const(50)
+
+
+# Color mapping for tips
+COLOR_MAP = {
+    "red": (255, 0, 0),
+    "orange": (255, 165, 0),
+    "yellow": (255, 255, 0),
+    "green": (0, 255, 0),
+    "blue": (0, 0, 255),
+    "indigo": (75, 0, 130),
+    "violet": (238, 130, 238),
+}
