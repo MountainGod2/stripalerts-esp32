@@ -12,11 +12,9 @@ def find_serial_port() -> str | None:
 
     Returns:
         Serial port path if found, None otherwise
-
     """
     print("Auto-detecting ESP32 device...")
 
-    # Try esptool chip_id first
     try:
         result = subprocess.run(
             ["python", "-m", "esptool", "chip_id"],
@@ -34,7 +32,6 @@ def find_serial_port() -> str | None:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    # Fallback to glob pattern matching
     ports = [
         str(p)
         for pattern in ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
@@ -61,7 +58,6 @@ def check_idf_prerequisites() -> tuple[bool, str | None, list[str]]:
     if not esp_idf_path:
         return False, None, []
 
-    # Try idf.py in PATH first
     try:
         result = subprocess.run(
             ["idf.py", "--version"],
@@ -75,7 +71,6 @@ def check_idf_prerequisites() -> tuple[bool, str | None, list[str]]:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    # Try idf.py in IDF_PATH/tools
     idf_py_path = Path(esp_idf_path) / "tools" / "idf.py"
     if idf_py_path.exists():
         try:

@@ -383,6 +383,26 @@ wheels = [
 ]
 
 [[package]]
+name = "micropython-esp32-stubs"
+version = "1.27.0.post1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "micropython-stdlib-stubs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3f/f3/2de79bc53b27f545e7a8b9ddaa1bbb64617a401f43c55469cde7870f1b14/micropython_esp32_stubs-1.27.0.post1.tar.gz", hash = "sha256:891c2f7bd560096b6576bc726f2d624ed4302b7b18ac37b0364a33923478f386", size = 98642, upload-time = "2025-12-18T15:47:23.186Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/73/c1/f207cdbc0baa4e41ed80150aa9f2bb9c93a22ca5fe9535b5beff46eecca8/micropython_esp32_stubs-1.27.0.post1-py2.py3-none-any.whl", hash = "sha256:5145b41594a79cd7f9e6ebb2fa32d221afde4d5c54de24b81cbbe7fb7fedebcd", size = 123355, upload-time = "2025-12-18T15:47:22.071Z" },
+]
+
+[[package]]
+name = "micropython-stdlib-stubs"
+version = "1.27.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9d/c9/7b2b826822db66ee35582fd219379a45c4b3aaa2ac1d3f99e2a87f146cf5/micropython_stdlib_stubs-1.27.0-py3-none-any.whl", hash = "sha256:372070e64b5aadf106d6c11d27e47e9d5d1e157914c740d0ee1d27ee2e34276a", size = 166165, upload-time = "2025-12-18T14:44:40.744Z" },
+]
+
+[[package]]
 name = "mpremote"
 version = "1.27.0"
 source = { registry = "https://pypi.org/simple" }
@@ -612,6 +632,11 @@ name = "stripalerts"
 version = "0.1.0"
 source = { editable = "." }
 
+[package.optional-dependencies]
+stubs = [
+    { name = "micropython-esp32-stubs" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "esptool", version = "4.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -622,6 +647,8 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "micropython-esp32-stubs", marker = "extra == 'stubs'" }]
+provides-extras = ["stubs"]
 
 [package.metadata.requires-dev]
 dev = [

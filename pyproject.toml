@@ -21,9 +21,33 @@ dev = [
     "ruff>=0.14.14",
 ]
 
+[project.optional-dependencies]
+# uv pip install -r pyproject.toml --extra stubs --target typings
+stubs = [
+  "micropython-esp32-stubs"
+]
+
 [tool.ruff]
 # lint.select = ["ALL"]
 lint.ignore = ["COM812", "D203","D213","T201","FBT001"]
 format.exclude = ["firmware/*"]
 lint.exclude = ["firmware/*"]
 lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
+
+[tool.mypy]
+platform = "linux"
+python_version = "3.9"
+mypy_path = "src,frozen,typings"
+custom_typeshed_dir = "typings"
+files = ["src", "frozen"]
+exclude = [
+    "typings[\\/].*",
+]
+follow_imports = "silent"
+follow_imports_for_stubs = true
+no_site_packages = true
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "aioble"
+ignore_missing_imports = true
