@@ -49,3 +49,6 @@ Thumbs.db
 # Environment files
 .env
 secrets.py
+
+# MicroPython type stubs
+typings/

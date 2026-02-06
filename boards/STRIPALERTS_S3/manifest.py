@@ -2,6 +2,7 @@
 
 # Include the base ESP32 manifest
 include("$(PORT_DIR)/boards/manifest.py")
+require("aioble")
 
 # Freeze StripAlerts package
 freeze(
