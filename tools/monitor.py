@@ -66,8 +66,7 @@ class SerialMonitor:
                     if ser.in_waiting:
                         try:
                             line = (
-                                ser
-                                .readline()
+                                ser.readline()
                                 .decode("utf-8", errors="replace")
                                 .rstrip()
                             )
