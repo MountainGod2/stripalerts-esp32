@@ -48,6 +48,12 @@ follow_imports_for_stubs = true
 no_site_packages = true
 check_untyped_defs = false
 
+
+# Modules are frozen, so we can ignore missing imports for them
 [[tool.mypy.overrides]]
 module = "aioble"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "aiohttp"
 ignore_missing_imports = true
