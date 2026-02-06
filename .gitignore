@@ -52,3 +52,4 @@ secrets.py
 
 # MicroPython type stubs
 typings/
+config.json
