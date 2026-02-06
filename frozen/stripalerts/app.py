@@ -1,6 +1,5 @@
 """Main application module for StripAlerts."""
 
-from typing import Optional
 import uasyncio as asyncio
 import gc
 
@@ -10,6 +9,11 @@ from .events import EventManager
 from .utils import log_info, log_error
 from .wifi import WiFiManager
 from .ble import BLEManager
+
+try:
+    from typing import Optional
+except ImportError:
+    pass
 
 
 class App:
@@ -26,8 +30,8 @@ class App:
             num_pixels=self.config.get("num_pixels", 1),
             timing=self.config.get("led_timing", 1),
         )
-        self.wifi: Optional[WiFiManager] = None
-        self.ble: Optional[BLEManager] = None
+        self.wifi: "Optional[WiFiManager]" = None
+        self.ble: "Optional[BLEManager]" = None
         self._running = False
 
         gc.collect()
