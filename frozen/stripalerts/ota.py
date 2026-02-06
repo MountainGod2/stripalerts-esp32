@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import aiohttp
+import esp32
 import machine
 
 from .utils import log_error, log_info, log_warning
@@ -51,6 +52,9 @@ class OTAUpdater:
         """
         try:
             log_info(f"Downloading firmware version {version}...")
+            
+            partition = esp32.Partition(esp32.Partition.RUNNING).get_next_update()
+            
             async with (
                 aiohttp.ClientSession() as session,
                 session.get(f"{self.url}/firmware-{version}.bin") as response,
@@ -59,8 +63,41 @@ class OTAUpdater:
                     log_error(f"Failed to download firmware: HTTP {response.status}")
                     return False
 
-                log_warning("OTA installation not fully implemented yet")
-                return False
+                block_size = 4096
+                buf = bytearray(block_size)
+                buf_mv = memoryview(buf)
+                buf_idx = 0
+                block_num = 0
+                
+                reader = response.content
+                
+                while True:
+                    chunk = await reader.read(1024)
+                    if not chunk:
+                        break
+                        
+                    chunk_len = len(chunk)
+                    chunk_idx = 0
+                    while chunk_idx < chunk_len:
+                        to_copy = min(block_size - buf_idx, chunk_len - chunk_idx)
+                        buf_mv[buf_idx : buf_idx + to_copy] = chunk[chunk_idx : chunk_idx + to_copy]
+                        buf_idx += to_copy
+                        chunk_idx += to_copy
+                        
+                        if buf_idx == block_size:
+                            partition.ioctl(6, block_num)
+                            partition.writeblocks(block_num, buf)
+                            block_num += 1
+                            buf_idx = 0
+
+                if buf_idx > 0:
+                    for i in range(buf_idx, block_size):
+                        buf[i] = 0xFF
+                    partition.ioctl(6, block_num)
+                    partition.writeblocks(block_num, buf)
+
+                partition.set_boot()
+                return True
 
         except Exception as e:
             log_error(f"Failed to download/install update: {e}")
