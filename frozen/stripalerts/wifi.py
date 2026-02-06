@@ -87,7 +87,7 @@ class WiFiManager:
         iterations = (timeout * 1000) // _CONNECT_CHECK_INTERVAL_MS
         for _ in range(iterations):
             if self.sta.isconnected():
-                ip_addr = self.sta.ipconfig("addr4")[0]
+                ip_addr = self.sta.ifconfig()[0]
                 log_info(f"Connected! IP: {ip_addr}")
                 self._connected = True
                 return True
