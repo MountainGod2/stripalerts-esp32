@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
-
-with contextlib.suppress(ImportError):
-    from typing import ClassVar
-
 import subprocess
 import time
 from typing import TYPE_CHECKING, ClassVar

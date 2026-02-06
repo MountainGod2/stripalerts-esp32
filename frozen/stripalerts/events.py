@@ -1,7 +1,6 @@
 """Event handling system for StripAlerts."""
 
 import asyncio
-import contextlib
 from collections import deque
 
 from .constants import MAX_EVENT_QUEUE_SIZE
@@ -37,8 +36,10 @@ class EventManager:
 
         """
         if event_type in self._handlers:
-            with contextlib.suppress(ValueError):
+            try:
                 self._handlers[event_type].remove(handler)
+            except ValueError:
+                log_error(f"Handler not found for event '{event_type}'")
 
     def emit(self, event_type: str, data=None) -> None:
         """Emit an event.
