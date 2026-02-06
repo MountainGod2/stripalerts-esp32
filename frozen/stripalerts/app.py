@@ -9,10 +9,11 @@ import gc
 
 import uasyncio as asyncio
 
+from .api import ChaturbateAPI
 from .ble import BLEManager
 from .config import settings
 from .events import EventManager
-from .led import LEDController, RainbowPattern
+from .led import LEDController, RainbowPattern, SolidColorPattern
 from .utils import log_error, log_info
 from .wifi import WiFiManager
 
@@ -33,6 +34,8 @@ class App:
         )
         self.wifi: Optional[WiFiManager] = None
         self.ble: Optional[BLEManager] = None
+        self.api: Optional[ChaturbateAPI] = None
+        self._override_task: Optional[asyncio.Task] = None
         self._running = False
 
         gc.collect()
@@ -51,6 +54,11 @@ class App:
             self.wifi = WiFiManager()
             log_info(f"Connecting to WiFi: {wifi_ssid}")
             await self.wifi.connect(wifi_ssid, wifi_password or "")
+            api_url = config.get("api_url")
+            if api_url:
+                self.api = ChaturbateAPI(api_url, self.events)
+                self.events.on("api:tip", self._handle_tip)
+
             gc.collect()
 
         if config.get("ble_enabled", False):
@@ -79,6 +87,10 @@ class App:
         # Start event processing
         asyncio.create_task(self.events.run())
 
+        # Start API logic
+        if self.api:
+            asyncio.create_task(self.api.start())
+
         # Start BLE if enabled
         if self.ble:
             asyncio.create_task(self.ble.start())
@@ -104,10 +116,80 @@ class App:
         if self.wifi:
             self.wifi.disconnect()
 
+        if self.api:
+            self.api.stop()
+
         if self.ble:
             self.ble.deinit()
 
         log_info("Shutdown complete")
+
+    async def _handle_tip(self, event_data: dict) -> None:
+        """Handle tip events."""
+        try:
+            # Extract data
+            payload = event_data.get("object", {})
+            tip_data = payload.get("tip", {})
+            tokens = tip_data.get("tokens", 0)
+            # Handle string or int tokens just in case
+            if isinstance(tokens, str) and tokens.isdigit():
+                tokens = int(tokens)
+
+            message = tip_data.get("message", "").lower().strip()
+
+            if tokens == 35:
+                color_map = {
+                    "red": (255, 0, 0),
+                    "orange": (255, 165, 0),
+                    "yellow": (255, 255, 0),
+                    "green": (0, 255, 0),
+                    "blue": (0, 0, 255),
+                    "indigo": (75, 0, 130),
+                    "violet": (238, 130, 238),
+                }
+
+                # Check for full match or if the message contains the color name
+                target_color = None
+                if message in color_map:
+                    target_color = color_map[message]
+
+                if target_color:
+                    log_info(f"Triggering color override: {message}")
+                    await self._activate_override(target_color)
+        except Exception as e:
+            log_error(f"Error handling tip: {e}")
+
+    async def _activate_override(self, color: tuple[int, int, int]) -> None:
+        """Activate color override."""
+        if self._override_task:
+            self._override_task.cancel()
+
+        pattern = SolidColorPattern(color)
+        self.led_controller.set_pattern(pattern)
+
+        # 10 minutes = 600 seconds
+        self._override_task = asyncio.create_task(self._revert_after_delay(600))
+
+    async def _revert_after_delay(self, delay: int) -> None:
+        """Revert to default pattern after delay."""
+        try:
+            await asyncio.sleep(delay)
+            # Revert to default
+            self._restore_default_pattern()
+        except asyncio.CancelledError:
+            pass
+        finally:
+            pass
+
+    def _restore_default_pattern(self) -> None:
+        """Restore the default LED pattern."""
+        log_info("Restoring default pattern")
+        pattern = RainbowPattern(
+            step=self.config.get("rainbow_step", 1),
+            delay=self.config.get("rainbow_delay", 0.1),
+        )
+        self.led_controller.set_pattern(pattern)
+        self._override_task = None
 
     async def start(self) -> None:
         """Start the application (setup + run)."""

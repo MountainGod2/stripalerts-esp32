@@ -13,6 +13,7 @@ _DEFAULT_CONFIG = (
     ("led_pattern", "rainbow"),
     ("rainbow_step", 1),
     ("rainbow_delay", 0.1),
+    ("api_url", "https://events.testbed.cb.dev/events/mountaingod2/test/"),
     ("wifi_ssid", None),
     ("wifi_password", None),
     ("ble_enabled", False),
