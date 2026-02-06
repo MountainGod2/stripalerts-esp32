@@ -21,6 +21,7 @@ class SerialMonitor:
         Args:
             port: Serial port (auto-detected if None)
             baud: Baud rate for monitoring
+
         """
         self.port = port
         self.baud = baud

@@ -17,6 +17,7 @@ class BuildCleaner:
         Args:
             root_dir: Root directory of the project
             all_clean: Whether to clean everything including MicroPython
+
         """
         self.root_dir = root_dir
         self.all_clean = all_clean

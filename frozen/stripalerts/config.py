@@ -1,6 +1,7 @@
 """Configuration management for StripAlerts."""
 
 import json
+
 from micropython import const
 
 CONFIG_FILE = const("/config.json")
@@ -35,9 +36,10 @@ class Config:
 
         Returns:
             True if loaded successfully, False otherwise
+
         """
         try:
-            with open(CONFIG_FILE, "r") as f:
+            with open(CONFIG_FILE) as f:
                 loaded_config = json.load(f)
                 self._config.update(loaded_config)
                 self._loaded = True
@@ -58,6 +60,7 @@ class Config:
 
         Returns:
             True if saved successfully, False otherwise
+
         """
         try:
             with open(CONFIG_FILE, "w") as f:
@@ -78,6 +81,7 @@ class Config:
 
         Returns:
             Configuration value or default
+
         """
         return self._config.get(key, default)
 
@@ -87,6 +91,7 @@ class Config:
         Args:
             key: Configuration key
             value: Value to set
+
         """
         self._config[key] = value
 
@@ -95,6 +100,7 @@ class Config:
 
         Args:
             values: Dictionary of key-value pairs to update
+
         """
         self._config.update(values)
 
@@ -107,6 +113,7 @@ class Config:
 
         Returns:
             Configuration dictionary
+
         """
         return self._config.copy()
 

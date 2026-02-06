@@ -2,7 +2,8 @@
 
 import aioble
 import uasyncio as asyncio
-from .utils import log_info, log_error
+
+from .utils import log_error, log_info
 
 
 class BLEManager:
@@ -13,6 +14,7 @@ class BLEManager:
 
         Args:
             name: Device name for BLE advertisement
+
         """
         self.name = name
         self._connection = None
@@ -48,6 +50,7 @@ class BLEManager:
 
         Returns:
             True if connected, False otherwise
+
         """
         return self._connection is not None
 

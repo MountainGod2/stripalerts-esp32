@@ -13,9 +13,9 @@ import time
 from pathlib import Path
 
 from builder import FirmwareBuilder
-from uploader import FirmwareUploader, FileUploader
-from monitor import SerialMonitor
 from cleaner import BuildCleaner
+from monitor import SerialMonitor
+from uploader import FileUploader, FirmwareUploader
 from utils import print_header, print_success
 
 

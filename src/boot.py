@@ -1,8 +1,9 @@
 """Boot script for StripAlerts ESP32."""
 
 import gc
-import esp
 import sys
+
+import esp
 
 esp.osdebug(None)
 gc.collect()

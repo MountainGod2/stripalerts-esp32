@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+try:
+    from typing import ClassVar
+except ImportError:
+    pass
+
 import subprocess
 import time
 from pathlib import Path
@@ -43,6 +48,7 @@ class FirmwareUploader:
             port: Serial port (auto-detected if None)
             baud: Baud rate for flashing
             erase: Whether to erase flash before uploading
+
         """
         self.root_dir = root_dir
         self.port = port
@@ -147,6 +153,7 @@ class FileUploader:
         Args:
             root_dir: Root directory of the project
             port: Serial port (auto-detected if None)
+
         """
         self.root_dir = root_dir
         self.src_dir = root_dir / "src"

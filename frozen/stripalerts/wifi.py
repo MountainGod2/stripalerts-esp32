@@ -1,11 +1,16 @@
 """WiFi connection management."""
 
-from typing import Optional
+try:
+    from typing import Optional
+except ImportError:
+    pass
+
 import network
 import uasyncio as asyncio
 from micropython import const
-from .utils import log_info, log_error
+
 from .constants import WIFI_CONNECT_TIMEOUT
+from .utils import log_error, log_info
 
 # Connection check interval
 _CONNECT_CHECK_INTERVAL_MS = const(100)
@@ -36,6 +41,7 @@ class WiFiManager:
         Args:
             ssid: SSID for access point
             password: Password (optional)
+
         """
         self.ap.active(True)
 
@@ -65,6 +71,7 @@ class WiFiManager:
 
         Returns:
             True if connected, False otherwise
+
         """
         self.enable_sta()
 
@@ -102,6 +109,7 @@ class WiFiManager:
 
         Returns:
             True if connected, False otherwise
+
         """
         return self.sta.isconnected()
 
@@ -110,6 +118,7 @@ class WiFiManager:
 
         Returns:
             IP address string or None if not connected
+
         """
         if self.sta.isconnected():
             ip_config = self.sta.ipconfig("addr4")
@@ -122,6 +131,7 @@ class WiFiManager:
 
         Returns:
             List of tuples (ssid, rssi) for available networks
+
         """
         self.enable_sta()
         log_info("Scanning for networks...")
@@ -137,6 +147,7 @@ class WiFiManager:
 
         Returns:
             Status code (network.STAT_* constants)
+
         """
         return self.sta.status()
 
@@ -145,5 +156,6 @@ class WiFiManager:
 
         Returns:
             MAC address as list of integers
+
         """
         return self.sta.config("mac")

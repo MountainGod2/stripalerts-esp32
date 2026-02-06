@@ -20,6 +20,7 @@ class FirmwareBuilder:
             root_dir: Root directory of the project
             board: Target ESP32 board variant
             clean: Whether to clean before building
+
         """
         self.root_dir = root_dir
         self.firmware_dir = root_dir / "firmware"

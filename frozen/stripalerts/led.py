@@ -1,10 +1,14 @@
 """LED control and pattern management."""
 
-from typing import Optional
-import uasyncio as asyncio
-import neopixel
+try:
+    from typing import Optional
+except ImportError:
+    pass
+
 import machine
 import micropython
+import neopixel
+import uasyncio as asyncio
 
 # micropython.constants
 _HUE_MAX = micropython.const(360)
@@ -21,6 +25,7 @@ def deg_to_rgb(deg: int) -> tuple[int, int, int]:
 
     Returns:
         RGB colour as a tuple of three integers from 0 to 255.
+
     """
     deg = deg % _HUE_MAX
     region = deg // _REGION_SIZE
@@ -29,16 +34,15 @@ def deg_to_rgb(deg: int) -> tuple[int, int, int]:
 
     if region == 0:
         return (val, x, 0)
-    elif region == 1:
+    if region == 1:
         return (val - x, val, 0)
-    elif region == 2:
+    if region == 2:
         return (0, val, x)
-    elif region == 3:
+    if region == 3:
         return (0, val - x, val)
-    elif region == 4:
+    if region == 4:
         return (x, 0, val)
-    else:
-        return (val, 0, val - x)
+    return (val, 0, val - x)
 
 
 class LEDPattern:
@@ -49,6 +53,7 @@ class LEDPattern:
 
         Args:
             controller: The LED controller instance
+
         """
         raise NotImplementedError("Subclasses must implement update()")
 
@@ -62,6 +67,7 @@ class RainbowPattern(LEDPattern):
         Args:
             step: Degree increment per update
             delay: Delay between updates in seconds
+
         """
         self.step = step
         self.delay = delay
@@ -84,6 +90,7 @@ class SolidColorPattern(LEDPattern):
 
         Args:
             color: RGB color tuple (0-255 for each channel)
+
         """
         self.color = color
 
@@ -106,6 +113,7 @@ class BlinkPattern(LEDPattern):
             color: RGB color tuple
             on_time: Time LED is on in seconds
             off_time: Time LED is off in seconds
+
         """
         self.color = color
         self.on_time = on_time
@@ -134,6 +142,7 @@ class LEDController:
             pin: GPIO pin number
             num_pixels: Number of pixels in the strip
             timing: 1 for 800kHz (default), 0 for 400kHz devices
+
         """
         self.pin = machine.Pin(pin, machine.Pin.OUT)
         self.num_pixels = num_pixels
@@ -147,6 +156,7 @@ class LEDController:
 
         Args:
             pattern: LED pattern to activate
+
         """
         self.pattern = pattern
 
@@ -156,6 +166,7 @@ class LEDController:
         Args:
             index: Pixel index
             color: RGB color tuple
+
         """
         if 0 <= index < self.num_pixels:
             self.np[index] = color
@@ -166,6 +177,7 @@ class LEDController:
 
         Args:
             color: RGB color tuple
+
         """
         for i in range(self.num_pixels):
             self.np[i] = color

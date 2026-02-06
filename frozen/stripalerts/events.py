@@ -1,7 +1,9 @@
 """Event handling system for StripAlerts."""
 
-import uasyncio as asyncio
 from collections import deque
+
+import uasyncio as asyncio
+
 from .constants import MAX_EVENT_QUEUE_SIZE
 
 
@@ -19,6 +21,7 @@ class EventManager:
         Args:
             event_type: Type of event to handle
             handler: Async callable to handle event
+
         """
         if event_type not in self._handlers:
             self._handlers[event_type] = []
@@ -30,6 +33,7 @@ class EventManager:
         Args:
             event_type: Type of event
             handler: Handler to remove
+
         """
         if event_type in self._handlers:
             try:
@@ -43,6 +47,7 @@ class EventManager:
         Args:
             event_type: Type of event
             data: Event data (optional)
+
         """
         self._queue.append((event_type, data))
 

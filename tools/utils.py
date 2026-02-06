@@ -12,6 +12,7 @@ def find_serial_port() -> str | None:
 
     Returns:
         Serial port path if found, None otherwise
+
     """
     print("Auto-detecting ESP32 device...")
 
@@ -98,6 +99,7 @@ def check_tool_available(tool: str, version_flag: str = "--version") -> bool:
 
     Returns:
         True if tool is available, False otherwise
+
     """
     try:
         result = subprocess.run(

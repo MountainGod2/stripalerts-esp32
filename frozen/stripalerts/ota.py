@@ -1,9 +1,14 @@
 """Over-the-Air (OTA) update mechanism."""
 
-from typing import Optional
-import urequests
+try:
+    from typing import Optional
+except ImportError:
+    pass
+
 import machine
-from .utils import log_info, log_error, log_warning
+import urequests
+
+from .utils import log_error, log_info, log_warning
 
 
 class OTAUpdater:
@@ -14,6 +19,7 @@ class OTAUpdater:
 
         Args:
             url: URL to check for updates
+
         """
         self.url = url
 
@@ -22,6 +28,7 @@ class OTAUpdater:
 
         Returns:
             Update info dict or None if no update
+
         """
         try:
             log_info(f"Checking for updates: {self.url}")
@@ -41,6 +48,7 @@ class OTAUpdater:
 
         Returns:
             True if successful, False otherwise
+
         """
         try:
             log_info(f"Downloading firmware version {version}...")

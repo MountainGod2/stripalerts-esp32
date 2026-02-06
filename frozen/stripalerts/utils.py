@@ -1,8 +1,9 @@
 """Utility functions and helpers."""
 
-import time
 import gc
 import sys
+import time
+
 import esp32
 import micropython
 
@@ -13,6 +14,7 @@ def log(level: str, message: str) -> None:
     Args:
         level: Log level (INFO, WARNING, ERROR, DEBUG)
         message: Message to log
+
     """
     timestamp = time.localtime()
     print(
@@ -49,8 +51,9 @@ def format_mac(mac_bytes: bytes) -> str:
 
     Returns:
         Formatted MAC address string
+
     """
-    return ":".join("{:02x}".format(b) for b in mac_bytes)
+    return ":".join(f"{b:02x}" for b in mac_bytes)
 
 
 def free_memory() -> int:
@@ -58,6 +61,7 @@ def free_memory() -> int:
 
     Returns:
         Free memory in bytes
+
     """
     gc.collect()
     return gc.mem_free()
@@ -68,15 +72,15 @@ def get_mcu_temperature() -> float:
 
     Returns:
         Temperature in Celsius for ESP32-S3/S2/C3/C6, or Fahrenheit for original ESP32
+
     """
     try:
         if hasattr(esp32, "mcu_temperature"):
             return esp32.mcu_temperature()
         # Original ESP32 has raw_temperature() in Fahrenheit
-        elif hasattr(esp32, "raw_temperature"):
+        if hasattr(esp32, "raw_temperature"):
             return esp32.raw_temperature()
-        else:
-            return 0.0
+        return 0.0
     except Exception:
         return 0.0
 
@@ -86,6 +90,7 @@ def system_info() -> dict:
 
     Returns:
         Dictionary with system information
+
     """
     info = {
         "platform": sys.platform,
