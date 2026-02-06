@@ -30,12 +30,10 @@ class OTAUpdater:
         """
         try:
             log_info(f"Checking for updates: {self.url}")
-            async with (
-                aiohttp.ClientSession() as session,
-                session.get(f"{self.url}/version.json") as response,
-            ):
-                if response.status == 200:
-                    return await response.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.url}/version.json") as response:
+                    if response.status == 200:
+                        return await response.json()
         except Exception as e:
             log_error(f"Failed to check for update: {e}")
         return None
@@ -55,13 +53,11 @@ class OTAUpdater:
             
             partition = esp32.Partition(esp32.Partition.RUNNING).get_next_update()
             
-            async with (
-                aiohttp.ClientSession() as session,
-                session.get(f"{self.url}/firmware-{version}.bin") as response,
-            ):
-                if response.status != 200:
-                    log_error(f"Failed to download firmware: HTTP {response.status}")
-                    return False
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.url}/firmware-{version}.bin") as response:
+                    if response.status != 200:
+                        log_error(f"Failed to download firmware: HTTP {response.status}")
+                        return False
 
                 block_size = 4096
                 buf = bytearray(block_size)
