@@ -1,8 +1,9 @@
 """Async Chaturbate Events API Client."""
 
 import json
-import uasyncio as asyncio
+
 import aiohttp
+import uasyncio as asyncio
 
 from .utils import log_error, log_info
 

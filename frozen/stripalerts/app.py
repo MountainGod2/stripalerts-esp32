@@ -50,29 +50,41 @@ class App:
         wifi_ssid = config.get("wifi_ssid")
         wifi_password = config.get("wifi_password")
 
+        has_error = False
+
         if wifi_ssid:
             self.wifi = WiFiManager()
             log_info(f"Connecting to WiFi: {wifi_ssid}")
-            await self.wifi.connect(wifi_ssid, wifi_password or "")
-            api_url = config.get("api_url")
-            if api_url:
-                self.api = ChaturbateAPI(api_url, self.events)
-                self.events.on("api:tip", self._handle_tip)
-
-            gc.collect()
+            if await self.wifi.connect(wifi_ssid, wifi_password or ""):
+                api_url = config.get("api_url")
+                if api_url:
+                    self.api = ChaturbateAPI(api_url, self.events)
+                    self.events.on("api:tip", self._handle_tip)
+                gc.collect()
+            else:
+                log_error("WiFi connection failed")
+                # Display Red for connection failure
+                self.led_controller.set_pattern(SolidColorPattern((255, 0, 0)))
+                has_error = True
+        else:
+            log_error("No WiFi SSID configured")
+            # Display Orange for missing configuration
+            self.led_controller.set_pattern(SolidColorPattern((255, 100, 0)))
+            has_error = True
 
         if config.get("ble_enabled", False):
             device_name = config.get("ble_name", "StripAlerts")
             self.ble = BLEManager(device_name)
             gc.collect()
 
-        pattern_name = config.get("led_pattern", "rainbow")
-        if pattern_name == "rainbow":
-            pattern = RainbowPattern(
-                step=config.get("rainbow_step", 1),
-                delay=config.get("rainbow_delay", 0.1),
-            )
-            self.led_controller.set_pattern(pattern)
+        if not has_error:
+            pattern_name = config.get("led_pattern", "rainbow")
+            if pattern_name == "rainbow":
+                pattern = RainbowPattern(
+                    step=config.get("rainbow_step", 1),
+                    delay=config.get("rainbow_delay", 0.1),
+                )
+                self.led_controller.set_pattern(pattern)
 
         log_info("Setup complete")
 
