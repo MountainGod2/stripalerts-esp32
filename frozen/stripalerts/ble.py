@@ -1,7 +1,8 @@
 """Bluetooth Low Energy (BLE) services and characteristics."""
 
+import asyncio
+
 import aioble
-import uasyncio as asyncio
 
 from .utils import log_error, log_info
 

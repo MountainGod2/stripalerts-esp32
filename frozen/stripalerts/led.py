@@ -5,10 +5,11 @@ try:
 except ImportError:
     pass
 
+import asyncio
+
 import machine
 import micropython
 import neopixel
-import uasyncio as asyncio
 
 # micropython.constants
 _HUE_MAX = micropython.const(360)

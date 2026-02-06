@@ -1,8 +1,7 @@
 """Event handling system for StripAlerts."""
 
+import asyncio
 from collections import deque
-
-import uasyncio as asyncio
 
 from .constants import MAX_EVENT_QUEUE_SIZE
 

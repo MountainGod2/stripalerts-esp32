@@ -5,9 +5,8 @@ try:
 except ImportError:
     pass
 
+import asyncio
 import gc
-
-import uasyncio as asyncio
 
 from .api import ChaturbateAPI
 from .ble import BLEManager

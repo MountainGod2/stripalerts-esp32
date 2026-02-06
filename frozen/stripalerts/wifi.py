@@ -5,8 +5,9 @@ try:
 except ImportError:
     pass
 
+import asyncio
+
 import network
-import uasyncio as asyncio
 from micropython import const
 
 from .constants import WIFI_CONNECT_TIMEOUT
