@@ -256,5 +256,17 @@ class FileUploader:
             ):
                 return False
 
+        # Handle configuration file
+        config_file = self.root_dir / "config.json"
+        example_config = self.root_dir / "config.json.example"
+
+        if config_file.exists():
+            if not self.upload_file(config_file, "/config.json", port):
+                return False
+        elif example_config.exists():
+            print(f"config.json not found, using {example_config.name}")
+            if not self.upload_file(example_config, "/config.json", port):
+                return False
+
         print_success("All files uploaded")
         return True
