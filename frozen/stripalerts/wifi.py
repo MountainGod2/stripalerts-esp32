@@ -23,12 +23,12 @@ class WiFiManager:
 
     def enable_sta(self) -> None:
         """Enable station mode."""
-        self.sta.active(is_active=True)
+        self.sta.active(True)
         log_info("WiFi station mode enabled")
 
     def disable_sta(self) -> None:
         """Disable station mode."""
-        self.sta.active(is_active=False)
+        self.sta.active(False)
         log_info("WiFi station mode disabled")
 
     def enable_ap(self, ssid: str, password: str = "") -> None:
@@ -39,7 +39,7 @@ class WiFiManager:
             password: Password (optional)
 
         """
-        self.ap.active(is_active=True)
+        self.ap.active(True)
 
         if password:
             self.ap.config(
@@ -52,7 +52,7 @@ class WiFiManager:
 
     def disable_ap(self) -> None:
         """Disable access point mode."""
-        self.ap.active(is_active=False)
+        self.ap.active(False)
         log_info("WiFi AP mode disabled")
 
     async def connect(
