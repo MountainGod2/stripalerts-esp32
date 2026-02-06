@@ -56,7 +56,7 @@ class LEDPattern:
 class RainbowPattern(LEDPattern):
     """Rainbow cycling pattern."""
 
-    def __init__(self, step: int = 10, delay: float = 0.25) -> None:
+    def __init__(self, step: int = 1, delay: float = 0.1) -> None:
         """Initialize rainbow pattern.
 
         Args:

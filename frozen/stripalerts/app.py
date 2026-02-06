@@ -56,8 +56,8 @@ class App:
         pattern_name = config.get("led_pattern", "rainbow")
         if pattern_name == "rainbow":
             pattern = RainbowPattern(
-                step=config.get("rainbow_step", 10),
-                delay=config.get("rainbow_delay", 0.25),
+                step=config.get("rainbow_step", 1),
+                delay=config.get("rainbow_delay", 0.1),
             )
             self.led_controller.set_pattern(pattern)
 

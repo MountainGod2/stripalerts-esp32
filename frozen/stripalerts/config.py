@@ -10,8 +10,8 @@ _DEFAULT_CONFIG = (
     ("num_pixels", 1),
     ("led_timing", 1),  # 1 for 800kHz NeoPixel (default), 0 for 400kHz
     ("led_pattern", "rainbow"),
-    ("rainbow_step", 10),
-    ("rainbow_delay", 0.25),
+    ("rainbow_step", 1),
+    ("rainbow_delay", 0.1),
     ("wifi_ssid", None),
     ("wifi_password", None),
     ("ble_enabled", False),
