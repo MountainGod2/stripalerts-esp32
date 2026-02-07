@@ -3,12 +3,14 @@
 import asyncio
 
 import machine
+import micropython
 import neopixel
 from micropython import const
 
 _HUE_MAX = const(360)
 
 
+@micropython.native
 def hsv_to_rgb(h: int, s: int = 255, v: int = 255) -> tuple[int, int, int]:
     """Convert HSV to RGB (0-255)."""
     if s == 0:
@@ -18,11 +20,13 @@ def hsv_to_rgb(h: int, s: int = 255, v: int = 255) -> tuple[int, int, int]:
     region = h // 60
 
     # Calculate intermediate values
-    f = (h % 60) * 255 // 60
+    # Map remainder of 60 to 0-255: (h % 60) * 255 // 60
+    # Equivalent to (h % 60) * 4.25
+    f = (h % 60) * 17 // 4
     
-    p = (v * (255 - s)) // 255
-    q = (v * (255 - (s * f) // 255)) // 255
-    t = (v * (255 - (s * (255 - f)) // 255)) // 255
+    p = (v * (255 - s)) >> 8
+    q = (v * (255 - ((s * f) >> 8))) >> 8
+    t = (v * (255 - ((s * (255 - f)) >> 8))) >> 8
 
     if region == 0:
         return (v, t, p)
@@ -99,11 +103,11 @@ def solid_pattern(controller: LEDController, color: tuple[int, int, int]):
         yield 1.0
 
 
-def rainbow_pattern(controller: LEDController, step: int = 1, delay: float = 0.05):
+def rainbow_pattern(controller: LEDController, step: float = 1, delay: float = 0.05):
     """Generator for rainbow effect."""
-    hue = 0
+    hue = 0.0
     while True:
-        color = hsv_to_rgb(hue)
+        color = hsv_to_rgb(int(hue))
         controller.fill(color)
         hue = (hue + step) % 360
         yield delay
