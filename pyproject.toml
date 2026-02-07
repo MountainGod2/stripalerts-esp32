@@ -15,10 +15,10 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "esptool>=4.8.1",
-    "mpremote>=1.27.0",
-    "pyserial>=3.5",
-    "ruff>=0.14.14",
+    "esptool==4.11.0",
+    "mpremote==1.27.0",
+    "pyserial==3.5",
+    "ruff==0.15.0",
 ]
 
 [project.optional-dependencies]
