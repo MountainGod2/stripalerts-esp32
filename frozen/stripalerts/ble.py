@@ -190,11 +190,25 @@ class BLEManager:
         networks = await self.app.wifi.scan()
 
         try:
-            # Top 10 networks
-            simple_list = [
-                {"ssid": n["ssid"], "rssi": n["rssi"], "auth": n["auth"] != 0}
-                for n in networks[:10]
-            ]
+            # Prepare networks list, fitting into one BLE packet (max ~250 bytes)
+            # Frontend only displays top 5 anyway.
+            simple_list = []
+            for n in networks:
+                # Build entry (auth is unused by frontend, omitting to save space)
+                entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
+
+                # Test if adding this keeps us under the limit
+                temp_list = simple_list + [entry]
+                json_str = json.dumps(temp_list)
+
+                # Check length (using 240 as safe limit for default MTU/packet size)
+                if len(json_str) > 240:
+                    break
+
+                simple_list.append(entry)
+                if len(simple_list) >= 5:
+                    break
+
             json_str = json.dumps(simple_list)
 
             # Send as one chunk if possible, otherwise truncate/split?
