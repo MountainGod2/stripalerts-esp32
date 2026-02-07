@@ -2,7 +2,10 @@
 
 import asyncio
 import gc
-from typing import Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Optional
 
 from .api import ChaturbateAPI
 from .config import settings
