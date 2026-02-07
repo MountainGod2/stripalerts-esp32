@@ -125,8 +125,10 @@ class BLEManager:
                 try:
                     decoded = self._buffers[uuid].decode("utf-8")
                     settings[config_key] = decoded
-                    settings.save()
-                    log_info(f"Updated {config_key}: {decoded[:10]}...")
+                    # Do not save on every chunk to avoid flash wear
+                    
+                    val_log = "***" if "password" in config_key else decoded[:10]
+                    log_info(f"Updated {config_key}: {val_log}...")
                 except Exception as e:
                     # Might be incomplete UTF-8 if split mid-multibyte
                     pass
@@ -166,7 +168,7 @@ class BLEManager:
                         await self._write_test_result("failed")
 
                 elif command == "save":
-                    # Settings are already saved on write, but let's ensure
+                    # Persist settings to disk
                     settings.save()
                     await self._notify_status("Saved")
                     log_info("Configuration complete. Rebooting in 3s...")
@@ -219,8 +221,13 @@ class BLEManager:
                 self.char_networks.notify(self._connection)
 
             await self._notify_status("Scan Complete")
+
+            # Signal that we are ready for user interaction
+            await asyncio.sleep(0.5)
+            await self._notify_status("Ready")
         except Exception as e:
             log_error(f"Send networks error: {e}")
+            await self._notify_status("Ready")
 
     async def _notify_status(self, message):
         """Send status update."""
