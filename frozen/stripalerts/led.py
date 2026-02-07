@@ -11,8 +11,13 @@ _HUE_MAX = const(360)
 
 
 @micropython.native
-def hsv_to_rgb(h: int, s: int = 255, v: int = 255) -> tuple[int, int, int]:
-    """Convert HSV to RGB (0-255)."""
+def hsv_to_rgb(h: int, s: int = 255, v: int = 255):
+    """Convert HSV to RGB (0-255).
+
+    Returns:
+        tuple[int, int, int]: RGB color values (0-255)
+
+    """
     if s == 0:
         return (v, v, v)
 
@@ -23,7 +28,7 @@ def hsv_to_rgb(h: int, s: int = 255, v: int = 255) -> tuple[int, int, int]:
     # Map remainder of 60 to 0-255: (h % 60) * 255 // 60
     # Equivalent to (h % 60) * 4.25
     f = (h % 60) * 17 // 4
-    
+
     p = (v * (255 - s)) >> 8
     q = (v * (255 - ((s * f) >> 8))) >> 8
     t = (v * (255 - ((s * (255 - f)) >> 8))) >> 8
@@ -60,7 +65,7 @@ class LEDController:
         """Clear the strip."""
         self.fill((0, 0, 0))
 
-    def fill(self, color: tuple[int, int, int]) -> None:
+    def fill(self, color: "tuple[int, int, int]") -> None:
         """Fill strip with color immediately."""
         self.np.fill(color)
         self.np.write()
@@ -93,10 +98,7 @@ class LEDController:
         self._running = False
 
 
-# --- Patterns ---
-
-
-def solid_pattern(controller: LEDController, color: tuple[int, int, int]):
+def solid_pattern(controller: LEDController, color: "tuple[int, int, int]"):
     """Generator for solid color."""
     controller.fill(color)
     while True:
@@ -114,7 +116,7 @@ def rainbow_pattern(controller: LEDController, step: float = 1, delay: float = 0
 
 
 def blink_pattern(
-    controller: LEDController, color: tuple[int, int, int], duration: float = 0.5
+    controller: LEDController, color: "tuple[int, int, int]", duration: float = 0.5
 ):
     """Generator for blink effect."""
     while True:
