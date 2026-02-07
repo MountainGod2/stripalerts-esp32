@@ -1,9 +1,8 @@
 """Async Chaturbate Events API Client."""
 
 import asyncio
+import gc
 import json
-
-import aiohttp
 
 from .utils import log_error, log_info
 
@@ -12,13 +11,6 @@ class ChaturbateAPI:
     """Handles connection to Chaturbate Events API."""
 
     def __init__(self, start_url: str, event_manager) -> None:
-        """Initialize API client.
-
-        Args:
-            start_url: The initial API URL with token.
-            event_manager: The event manager to emit events to.
-
-        """
         self.current_url = start_url
         self.events = event_manager
         self._running = False
@@ -26,43 +18,83 @@ class ChaturbateAPI:
     async def start(self) -> None:
         """Start the polling loop."""
         self._running = True
-        log_info(f"Starting API polling with URL: {self.current_url}")
-
+        log_info("Starting API polling task")
         while self._running:
             try:
-                # Use context manager for session
-                async with aiohttp.ClientSession() as session:
-                    while self._running:
-                        await self._poll(session)
-                        # Yield to other tasks
-                        await asyncio.sleep(0)
+                await self._poll()
+                # Yield to let other tasks run
+                await asyncio.sleep(0.1)
             except Exception as e:
-                log_error(f"Session Error: {e}")
-                # Wait before retrying session creation
+                log_error(f"API Error: {e}")
                 await asyncio.sleep(5)
+            gc.collect()
 
-    async def _poll(self, session) -> None:
-        """Single poll request."""
+    async def _poll(self) -> None:
+        """Execute a single poll request."""
+        # Simple URL parsing
         try:
-            # Server timeout is ~90s
-            headers = {"User-Agent": "StripAlerts-ESP32"}
-            async with session.get(self.current_url, headers=headers) as response:
-                if response.status != 200:
-                    log_error(f"HTTP Error: {response.status}")
-                    await asyncio.sleep(5)
-                    return
+            proto, dummy, host, path = self.current_url.split("/", 3)
+            use_ssl = proto == "https:"
+            port = 443 if use_ssl else 80
+            # Remove trailing part from path if needed or keep it
+            path = "/" + path
+        except ValueError:
+            log_error(f"Invalid URL: {self.current_url}")
+            await asyncio.sleep(5)
+            return
 
+        reader = writer = None
+        try:
+            reader, writer = await asyncio.open_connection(host, port, ssl=use_ssl)
+
+            # Send GET request
+            request = (
+                f"GET {path} HTTP/1.0\r\n"
+                f"Host: {host}\r\n"
+                "User-Agent: StripAlerts-ESP32\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+            )
+            writer.write(request.encode())
+            await writer.drain()
+
+            # Read Status Line
+            line = await reader.readline()
+            if not line:
+                raise ValueError("Empty response")
+
+            parts = line.split(b" ")
+            if len(parts) > 1 and parts[1] != b"200":
+                log_error(f"HTTP Error: {parts[1].decode()}")
+                await asyncio.sleep(5)
+                return
+
+            # Skip Headers
+            while True:
+                line = await reader.readline()
+                if line == b"\r\n" or line == b"\n" or not line:
+                    break
+
+            # Read Body
+            # Limit size to prevent OOM
+            body = await reader.read(4096)
+            if body:
                 try:
-                    data = await response.json()
-                except Exception:
-                    text = await response.text()
-                    data = json.loads(text)
-
-                self._process_response(data)
+                    data = json.loads(body)
+                    self._process_response(data)
+                except ValueError:
+                    log_error("Invalid JSON response")
 
         except Exception as e:
-            log_error(f"Poll Error: {e}")
+            log_error(f"Connection failed: {e}")
             await asyncio.sleep(2)
+        finally:
+            if writer:
+                try:
+                    writer.close()
+                    await writer.wait_closed()
+                except Exception:
+                    pass
 
     def _process_response(self, data: dict) -> None:
         """Process the JSON response."""
@@ -74,7 +106,7 @@ class ChaturbateAPI:
         for event in events:
             method = event.get("method")
             if method:
-                log_info(f"Event received: {method}")
+                log_info(f"Event: {method}")
                 self.events.emit("api_event", event)
                 self.events.emit(f"api:{method}", event)
 

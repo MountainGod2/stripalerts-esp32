@@ -1,4 +1,4 @@
-"""Configuration management for StripAlerts."""
+"""Configuration management."""
 
 import json
 
@@ -8,111 +8,53 @@ from .utils import log_error, log_warning
 
 CONFIG_FILE = const("/config.json")
 
-_DEFAULT_CONFIG = (
-    ("led_pin", 48),
-    ("num_pixels", 1),
-    ("led_timing", 1),  # 1 for 800kHz NeoPixel (default), 0 for 400kHz
-    ("led_pattern", "rainbow"),
-    ("rainbow_step", 1),
-    ("rainbow_delay", 0.1),
-    ("api_url", "https://events.testbed.cb.dev/events/mountaingod2/test/"),
-    ("wifi_ssid", None),
-    ("wifi_password", None),
-    ("ble_enabled", False),
-    ("ble_name", "StripAlerts"),
-)
+# Default configuration
+DEFAULTS = {
+    "led_pin": 48,
+    "num_pixels": 60,
+    "led_timing": 1,
+    "led_pattern": "rainbow",
+    "rainbow_step": 1,
+    "rainbow_delay": 0.1,
+    "api_url": "https://events.testbed.cb.dev/events/mountaingod2/test/",
+    "wifi_ssid": "",
+    "wifi_password": "",
+    "ble_enabled": False,
+    "ble_name": "StripAlerts",
+}
 
 
 class Config:
-    """Configuration manager with persistence."""
+    """Simple configuration manager."""
 
     def __init__(self) -> None:
-        """Initialize configuration."""
-        self._config = {}
-        for key, value in _DEFAULT_CONFIG:
-            self._config[key] = value
-        self._loaded = False
+        self._data = DEFAULTS.copy()
         self.load()
 
-    def load(self) -> bool:
-        """Load configuration from JSON file.
-
-        Returns:
-            True if loaded successfully, False otherwise
-
-        """
+    def load(self) -> None:
+        """Load configuration from disk."""
         try:
-            with open(CONFIG_FILE) as f:
-                loaded_config = json.load(f)
-                self._config.update(loaded_config)
-                self._loaded = True
-                return True
-        except OSError as e:
-            log_warning(f"Config file not found, using defaults: {e}")
-            return False
-        except ValueError as e:
-            log_error(f"Invalid JSON in config file: {e}")
-            return False
+            with open(CONFIG_FILE, "r") as f:
+                self._data.update(json.load(f))
+        except (OSError, ValueError) as e:
+            log_warning(f"Using default config ({e})")
 
-    def save(self) -> bool:
-        """Save configuration to JSON file.
-
-        Returns:
-            True if saved successfully, False otherwise
-
-        """
+    def save(self) -> None:
+        """Save configuration to disk."""
         try:
             with open(CONFIG_FILE, "w") as f:
-                json.dump(self._config, f)
-            return True
+                json.dump(self._data, f)
         except OSError as e:
-            log_error(f"Failed to save config: {e}")
-            return False
+            log_error(f"Save failed: {e}")
 
-    def get(self, key: str, default=None):
-        """Get a configuration value.
+    def __getitem__(self, key):
+        return self._data.get(key, DEFAULTS.get(key))
 
-        Args:
-            key: Configuration key
-            default: Default value if key not found
+    def __setitem__(self, key, value):
+        self._data[key] = value
 
-        Returns:
-            Configuration value or default
-
-        """
-        return self._config.get(key, default)
-
-    def set(self, key: str, value) -> None:
-        """Set a configuration value.
-
-        Args:
-            key: Configuration key
-            value: Value to set
-
-        """
-        self._config[key] = value
-
-    def update(self, values: dict) -> None:
-        """Update multiple configuration values.
-
-        Args:
-            values: Dictionary of key-value pairs to update
-
-        """
-        self._config.update(values)
-
-    def reset_to_defaults(self) -> None:
-        """Reset configuration to default values."""
-        self._config = dict(_DEFAULT_CONFIG)
-
-    def as_dict(self) -> dict:
-        """Get configuration as dictionary.
-
-        Returns:
-            Configuration dictionary
-
-        """
-        return self._config.copy()
+    def get(self, key, default=None):
+        return self._data.get(key, default)
 
 
 # Singleton instance

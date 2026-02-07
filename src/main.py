@@ -1,8 +1,8 @@
 """Main entry point for StripAlerts."""
 
+import asyncio
 import sys
 
-import asyncio
 from stripalerts.app import App
 from stripalerts.utils import log_error, log_info
 

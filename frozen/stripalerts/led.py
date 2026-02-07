@@ -1,198 +1,118 @@
-"""LED control and pattern management."""
+"""LED control module."""
 
 import asyncio
 
 import machine
-import micropython
 import neopixel
+from micropython import const
 
-# micropython.constants
-_HUE_MAX = micropython.const(360)
-_REGION_SIZE = micropython.const(60)
-_COLOR_MAX = micropython.const(255)
+_HUE_MAX = const(360)
 
 
-@micropython.native
-def deg_to_rgb(deg: int) -> tuple[int, int, int]:
-    """Convert degrees (Hue) to RGB colour (0-255).
+def hsv_to_rgb(h: int, s: int = 255, v: int = 255) -> tuple[int, int, int]:
+    """Convert HSV to RGB (0-255)."""
+    if s == 0:
+        return (v, v, v)
 
-    Args:
-        deg: Degree value from 0 to 360 (Hue).
+    h = h % _HUE_MAX
+    region = h // 60
+    remainder = (h - (region * 60)) * 6
 
-    Returns:
-        RGB colour as a tuple of three integers from 0 to 255.
-
-    """
-    deg = deg % _HUE_MAX
-    region = deg // _REGION_SIZE
-    val = _COLOR_MAX
-    x = (val * (deg % _REGION_SIZE)) // _REGION_SIZE
+    p = (v * (255 - s)) >> 8
+    q = (v * (255 - ((s * remainder) >> 8))) >> 8
+    t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8
 
     if region == 0:
-        return (val, x, 0)
+        return (v, t, p)
     if region == 1:
-        return (val - x, val, 0)
+        return (q, v, p)
     if region == 2:
-        return (0, val, x)
+        return (p, v, t)
     if region == 3:
-        return (0, val - x, val)
+        return (p, q, v)
     if region == 4:
-        return (x, 0, val)
-    return (val, 0, val - x)
-
-
-class LEDPattern:
-    """Base class for LED patterns."""
-
-    async def update(self, controller: LEDController) -> None:
-        """Update the LED pattern.
-
-        Args:
-            controller: The LED controller instance
-
-        """
-        msg = "Subclasses must implement update()"
-        raise NotImplementedError(msg)
-
-
-class RainbowPattern(LEDPattern):
-    """Rainbow cycling pattern."""
-
-    def __init__(self, step: int = 1, delay: float = 0.1) -> None:
-        """Initialize rainbow pattern.
-
-        Args:
-            step: Degree increment per update
-            delay: Delay between updates in seconds
-
-        """
-        self.step = step
-        self.delay = delay
-        self.current_deg = 0
-
-    @micropython.native
-    async def update(self, controller: LEDController) -> None:
-        """Update rainbow pattern."""
-        color = deg_to_rgb(self.current_deg)
-        controller.fill(color)
-        self.current_deg = (self.current_deg + self.step) % int(_HUE_MAX)
-        await asyncio.sleep(self.delay)
-
-
-class SolidColorPattern(LEDPattern):
-    """Solid color pattern."""
-
-    def __init__(self, color: tuple[int, int, int]) -> None:
-        """Initialize solid color pattern.
-
-        Args:
-            color: RGB color tuple (0-255 for each channel)
-
-        """
-        self.color = color
-
-    @micropython.native
-    async def update(self, controller: LEDController) -> None:
-        """Update solid color pattern."""
-        controller.fill(self.color)
-        await asyncio.sleep(1)  # Long delay since nothing changes
-
-
-class BlinkPattern(LEDPattern):
-    """Blinking pattern."""
-
-    def __init__(
-        self, color: tuple[int, int, int], on_time: float = 0.5, off_time: float = 0.5
-    ) -> None:
-        """Initialize blink pattern.
-
-        Args:
-            color: RGB color tuple
-            on_time: Time LED is on in seconds
-            off_time: Time LED is off in seconds
-
-        """
-        self.color = color
-        self.on_time = on_time
-        self.off_time = off_time
-        self.state = False
-
-    @micropython.native
-    async def update(self, controller: LEDController) -> None:
-        """Update blink pattern."""
-        if self.state:
-            controller.fill(self.color)
-            await asyncio.sleep(self.on_time)
-        else:
-            controller.clear()
-            await asyncio.sleep(self.off_time)
-        self.state = not self.state
+        return (t, p, v)
+    return (v, p, q)
 
 
 class LEDController:
-    """Controls NeoPixel LEDs with pattern support."""
+    """Non-blocking LED Controller."""
 
     def __init__(self, pin: int, num_pixels: int, timing: int = 1) -> None:
-        """Initialize LED controller.
-
-        Args:
-            pin: GPIO pin number
-            num_pixels: Number of pixels in the strip
-            timing: 1 for 800kHz (default), 0 for 400kHz devices
-
-        """
-        self.pin = machine.Pin(pin, machine.Pin.OUT)
         self.num_pixels = num_pixels
-        # Pass timing parameter to support different NeoPixel types
-        self.np = neopixel.NeoPixel(self.pin, num_pixels, timing=timing)
-        self.pattern: LEDPattern | None = None
+        self.np = neopixel.NeoPixel(machine.Pin(pin), num_pixels, timing=timing)
+        self._pattern_gen = None
         self._running = False
+        self._task = None
+        self.clear()
 
-    def set_pattern(self, pattern: LEDPattern) -> None:
-        """Set the active LED pattern.
-
-        Args:
-            pattern: LED pattern to activate
-
-        """
-        self.pattern = pattern
-
-    def set_pixel(self, index: int, color: tuple[int, int, int]) -> None:
-        """Set individual pixel color.
-
-        Args:
-            index: Pixel index
-            color: RGB color tuple
-
-        """
-        if 0 <= index < self.num_pixels:
-            self.np[index] = color
-
-    @micropython.native
-    def fill(self, color: tuple[int, int, int]) -> None:
-        """Fill all pixels with a color.
-
-        Args:
-            color: RGB color tuple
-
-        """
-        for i in range(self.num_pixels):
-            self.np[i] = color
-        self.np.write()
+    def set_pattern(self, pattern_generator) -> None:
+        """Set the active pattern generator."""
+        self._pattern_gen = pattern_generator
 
     def clear(self) -> None:
-        """Turn off all LEDs."""
+        """Clear the strip."""
         self.fill((0, 0, 0))
 
+    def fill(self, color: tuple[int, int, int]) -> None:
+        """Fill strip with color immediately."""
+        self.np.fill(color)
+        self.np.write()
+
     async def run(self) -> None:
-        """Run the LED controller with the active pattern."""
+        """Main LED loop."""
         self._running = True
         while self._running:
-            if self.pattern:
-                await self.pattern.update(self)
+            if self._pattern_gen:
+                try:
+                    # Pattern generator yields delay in seconds
+                    delay = next(self._pattern_gen)
+                    if delay is None:
+                        # Stop if pattern is done
+                        self._pattern_gen = None
+                        delay = 0.1
+                    await asyncio.sleep(delay)
+                except StopIteration:
+                    self._pattern_gen = None
+                    await asyncio.sleep(0.1)
+                except Exception as e:
+                    # Log error but don't crash loop
+                    print(f"LED Pattern Error: {e}")
+                    self._pattern_gen = None
+                    await asyncio.sleep(1)
             else:
                 await asyncio.sleep(0.1)
 
     def stop(self) -> None:
-        """Stop the LED controller."""
         self._running = False
+
+
+# --- Patterns ---
+
+
+def solid_pattern(controller: LEDController, color: tuple[int, int, int]):
+    """Generator for solid color."""
+    controller.fill(color)
+    while True:
+        yield 1.0
+
+
+def rainbow_pattern(controller: LEDController, step: int = 1, delay: float = 0.05):
+    """Generator for rainbow effect."""
+    hue = 0
+    while True:
+        color = hsv_to_rgb(hue)
+        controller.fill(color)
+        hue = (hue + step) % 360
+        yield delay
+
+
+def blink_pattern(
+    controller: LEDController, color: tuple[int, int, int], duration: float = 0.5
+):
+    """Generator for blink effect."""
+    while True:
+        controller.fill(color)
+        yield duration
+        controller.clear()
+        yield duration

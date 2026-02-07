@@ -109,7 +109,7 @@ class WiFiManager:
         """
         return self.sta.isconnected()
 
-    def get_ip(self) -> str | None:
+    def get_ip(self) -> "str | None":
         """Get current IP address.
 
         Returns:

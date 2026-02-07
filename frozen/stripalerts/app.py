@@ -1,199 +1,125 @@
-"""Main application module for StripAlerts."""
+"""Main application module."""
 
 import asyncio
 import gc
 
 from .api import ChaturbateAPI
-from .ble import BLEManager
 from .config import settings
-from .constants import COLOR_MAP
 from .events import EventManager
-from .led import LEDController, RainbowPattern, SolidColorPattern
-from .utils import log_error, log_info
+from .led import LEDController, rainbow_pattern, solid_pattern
+from .utils import log_info
 from .wifi import WiFiManager
 
 
 class App:
-    """Main application class for StripAlerts."""
+    """Main application controller."""
 
     def __init__(self) -> None:
-        """Initialize the application."""
         gc.collect()
-
-        self.config = settings
         self.events = EventManager()
-        self.led_controller = LEDController(
-            pin=self.config.get("led_pin", 48),
-            num_pixels=self.config.get("num_pixels", 1),
-            timing=self.config.get("led_timing", 1),
-        )
-        self.wifi: WiFiManager | None = None
-        self.ble: BLEManager | None = None
-        self.api: ChaturbateAPI | None = None
-        self._override_task: asyncio.Task | None = None
-        self._running = False
-        self._tasks: set[asyncio.Task] = set()
-        self._stop_event = asyncio.Event()
 
-        gc.collect()
-        gc.threshold(gc.mem_free() // 4 + gc.mem_alloc())
+        # Initialize Hardware
+        self.led = LEDController(
+            pin=settings["led_pin"],
+            num_pixels=settings["num_pixels"],
+            timing=settings.get("led_timing", 1),
+        )
+
+        self.wifi = WiFiManager()
+        self.api: "ChaturbateAPI | None" = None
+        self.ble = None
+
+        if settings["ble_enabled"]:
+             try:
+                from .ble import BLEManager
+                self.ble = BLEManager(settings["ble_name"])
+             except ImportError:
+                 log_info("BLE enabled but module not found (aioble missing?)")
+
+        self._tasks: list = []
+        self._running = False
+
+    async def _handle_api_event(self, event: dict):
+        """Handle API events."""
+        # Example: Tip handling
+        method = event.get("method")
+        if method == "tip":
+            log_info(f"Tip received: {event.get('object', {}).get('amount')}")
+            # Flash Green
+            self.led.set_pattern(solid_pattern(self.led, (0, 255, 0)))
+            await asyncio.sleep(2)
+            # Revert to rainbow
+            self.led.set_pattern(
+                rainbow_pattern(
+                    self.led,
+                    step=settings["rainbow_step"],
+                    delay=settings["rainbow_delay"],
+                )
+            )
 
     async def setup(self) -> None:
-        """Setup application components."""
-        log_info("Setting up StripAlerts...")
+        """Initialize components."""
+        log_info("Setting up...")
 
-        config = self.config
+        # Set default pattern
+        self.led.set_pattern(
+            rainbow_pattern(
+                self.led, step=settings["rainbow_step"], delay=settings["rainbow_delay"]
+            )
+        )
 
-        wifi_ssid = config.get("wifi_ssid")
-        wifi_password = config.get("wifi_password")
-
-        has_error = False
-
-        if wifi_ssid:
-            self.wifi = WiFiManager()
-            if await self.wifi.connect(wifi_ssid, wifi_password or ""):
-                api_url = config.get("api_url")
-                if api_url:
-                    self.api = ChaturbateAPI(api_url, self.events)
-                    self.events.on("api:tip", self._handle_tip)
-                gc.collect()
+        # Connect WiFi
+        ssid = settings["wifi_ssid"]
+        if ssid:
+            if await self.wifi.connect(ssid, settings["wifi_password"]):
+                # Start API if connected
+                url = settings["api_url"]
+                if url:
+                    self.api = ChaturbateAPI(url, self.events)
+                    self.events.on("api_event", self._handle_api_event)
             else:
-                log_error("WiFi connection failed")
-                # Display Red for connection failure
-                self.led_controller.set_pattern(SolidColorPattern((255, 0, 0)))
-                has_error = True
-        else:
-            log_error("No WiFi SSID configured")
-            # Display Orange for missing configuration
-            self.led_controller.set_pattern(SolidColorPattern((255, 100, 0)))
-            has_error = True
-
-        if config.get("ble_enabled", False):
-            device_name = config.get("ble_name", "StripAlerts")
-            self.ble = BLEManager(device_name)
-            gc.collect()
-
-        if not has_error:
-            pattern_name = config.get("led_pattern", "rainbow")
-            if pattern_name == "rainbow":
-                pattern = RainbowPattern(
-                    step=config.get("rainbow_step", 1),
-                    delay=config.get("rainbow_delay", 0.1),
-                )
-                self.led_controller.set_pattern(pattern)
-
-        log_info("Setup complete")
-
-    async def run(self) -> None:
-        """Run the main application loop."""
-        self._running = True
-        self._stop_event.clear()
-        log_info("Starting StripAlerts...")
-
-        # Start LED controller
-        self._tasks.add(asyncio.create_task(self.led_controller.run()))
-
-        # Start event processing
-        self._tasks.add(asyncio.create_task(self.events.run()))
-
-        # Start API logic
-        if self.api:
-            self._tasks.add(asyncio.create_task(self.api.start()))
-
-        # Start BLE if enabled
-        if self.ble:
-            self._tasks.add(asyncio.create_task(self.ble.start()))
-
-        try:
-            # Main loop
-            await self._stop_event.wait()
-
-        except KeyboardInterrupt:
-            log_info("Received interrupt signal")
-        finally:
-            await self.shutdown()
-
-    async def shutdown(self) -> None:
-        """Gracefully shutdown the application."""
-        log_info("Shutting down...")
-        self._running = False
-        self._stop_event.set()
-
-        if self.led_controller:
-            self.led_controller.clear()
-
-        if self.wifi:
-            self.wifi.disconnect()
-
-        if self.api:
-            self.api.stop()
+                # Red for WiFi failure
+                self.led.set_pattern(solid_pattern(self.led, (255, 0, 0)))
 
         if self.ble:
-            self.ble.deinit()
-
-        log_info("Shutdown complete")
-
-    async def _handle_tip(self, event_data: dict) -> None:
-        """Handle tip events."""
-        try:
-            # Extract data
-            payload = event_data.get("object", {})
-            tip_data = payload.get("tip", {})
-            tokens = tip_data.get("tokens", 0)
-            # Handle string or int tokens just in case
-            if isinstance(tokens, str) and tokens.isdigit():
-                tokens = int(tokens)
-
-            message = tip_data.get("message", "").lower().strip()
-
-            if tokens == 35:
-                # Check for exact match or if the message is a color name
-                target_color = None
-                if message in COLOR_MAP:
-                    target_color = COLOR_MAP[message]
-
-                if target_color:
-                    log_info(f"Triggering color override: {message}")
-                    await self._activate_override(target_color)
-        except Exception as e:
-            log_error(f"Error handling tip: {e}")
-
-    async def _activate_override(self, color: tuple[int, int, int]) -> None:
-        """Activate color override."""
-        if self._override_task:
-            self._override_task.cancel()
-
-        pattern = SolidColorPattern(color)
-        self.led_controller.set_pattern(pattern)
-
-        # 10 minutes = 600 seconds
-        self._override_task = asyncio.create_task(self._revert_after_delay(600))
-
-    async def _revert_after_delay(self, delay: int) -> None:
-        """Revert to default pattern after delay."""
-        try:
-            await asyncio.sleep(delay)
-            # Revert to default
-            self._restore_default_pattern()
-        except asyncio.CancelledError:
+            # BLE setup usually simple, just need to start the task in run()
             pass
 
-    def _restore_default_pattern(self) -> None:
-        """Restore the default LED pattern."""
-        log_info("Restoring default pattern")
-        pattern = RainbowPattern(
-            step=self.config.get("rainbow_step", 1),
-            delay=self.config.get("rainbow_delay", 0.1),
-        )
-        self.led_controller.set_pattern(pattern)
-        self._override_task = None
+        gc.collect()
 
-    async def start(self) -> None:
-        """Start the application (setup + run)."""
+    async def run(self) -> None:
+        """Main loop."""
+        self._running = True
+
+        # Hardware Tasks
+        tasks = [asyncio.create_task(self.led.run())]
+
+        # Event Processing
+        tasks.append(asyncio.create_task(self.events.run()))
+
+        # Network Tasks
+        if self.api:
+            tasks.append(asyncio.create_task(self.api.start()))
+
+        if self.ble:
+            tasks.append(asyncio.create_task(self.ble.start()))
+
         try:
-            await self.setup()
-            await self.run()
-        except Exception as e:
-            log_error(f"Application error: {e}")
-            await self.shutdown()
-            raise
+            log_info("App started.")
+            while self._running:
+                await asyncio.gather(*tasks)
+        except asyncio.CancelledError:
+            log_info("Stopping...")
+        finally:
+            self._running = False
+            for t in tasks:
+                t.cancel()
+            self.led.clear()
+
+    async def shutdown(self):
+        self._running = False
+
+    async def start(self):
+        """Start the application."""
+        await self.setup()
+        await self.run()
