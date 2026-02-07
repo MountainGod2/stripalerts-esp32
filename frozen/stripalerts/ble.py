@@ -182,7 +182,7 @@ class BLEManager:
         """Write result to wifiTest char and notify."""
         self.char_wifitest.write(result.encode("utf-8"))
         if self._connection:
-            await self.char_wifitest.notify(self._connection)
+            self.char_wifitest.notify(self._connection)
 
     async def _send_networks(self):
         """Scan and send networks."""
@@ -202,7 +202,7 @@ class BLEManager:
             encoded = json_str.encode("utf-8")
             self.char_networks.write(encoded)
             if self._connection:
-                await self.char_networks.notify(self._connection)
+                self.char_networks.notify(self._connection)
 
             await self._notify_status("Scan Complete")
         except Exception as e:
@@ -214,6 +214,6 @@ class BLEManager:
         try:
             self.char_status.write(message.encode("utf-8"))
             if self._connection:
-                await self.char_status.notify(self._connection)
+                self.char_status.notify(self._connection)
         except Exception as e:
             log_error(f"Notify error: {e}")
