@@ -2,9 +2,11 @@
 
 import asyncio
 import gc
+from typing import Optional
 
 from .api import ChaturbateAPI
 from .config import settings
+from .constants import COLOR_MAP
 from .events import EventManager
 from .led import LEDController, rainbow_pattern, solid_pattern
 from .utils import log_info
@@ -26,29 +28,71 @@ class App:
         )
 
         self.wifi = WiFiManager()
-        self.api: "ChaturbateAPI | None" = None
+        self.api: Optional[ChaturbateAPI] = None
         self.ble = None
 
         if settings["ble_enabled"]:
-             try:
+            try:
                 from .ble import BLEManager
+
                 self.ble = BLEManager(settings["ble_name"])
-             except ImportError:
-                 log_info("BLE enabled but module not found (aioble missing?)")
+            except ImportError:
+                log_info("BLE enabled but module not found (aioble missing?)")
 
         self._tasks: list = []
         self._running = False
+        self._revert_task = None
+        self._current_hold_color: Optional[tuple[int, int, int]] = None
 
     async def _handle_api_event(self, event: dict):
         """Handle API events."""
         # Example: Tip handling
         method = event.get("method")
         if method == "tip":
-            log_info(f"Tip received: {event.get('object', {}).get('amount')}")
-            # Flash Green
+            tip_data = event.get("object", {}).get("tip", {})
+            tokens = tip_data.get("tokens")
+            message = tip_data.get("message", "").lower()
+            log_info(f"Tip received: {tokens}")
+
+            # Check for color trigger (35 tokens + color in message)
+            found_color: Optional[tuple[int, int, int]] = None
+            if tokens == 35:
+                for name, color in COLOR_MAP.items():
+                    if name in message:
+                        found_color = color
+                        break
+
+            if found_color:
+                log_info(f"Color trigger received: {found_color}")
+                if self._revert_task:
+                    self._revert_task.cancel()
+
+                self._current_hold_color = found_color
+                self.led.set_pattern(solid_pattern(self.led, found_color))
+                self._revert_task = asyncio.create_task(self._revert_to_rainbow(600))
+                return
+
+            # Default behavior: Flash Green
             self.led.set_pattern(solid_pattern(self.led, (0, 255, 0)))
             await asyncio.sleep(2)
-            # Revert to rainbow
+
+            # Restore previous state or rainbow
+            if self._revert_task and self._current_hold_color:
+                self.led.set_pattern(solid_pattern(self.led, self._current_hold_color))
+            else:
+                self.led.set_pattern(
+                    rainbow_pattern(
+                        self.led,
+                        step=settings["rainbow_step"],
+                        delay=settings["rainbow_delay"],
+                    )
+                )
+
+    async def _revert_to_rainbow(self, delay: int):
+        """Revert to rainbow pattern after delay."""
+        try:
+            await asyncio.sleep(delay)
+            log_info("Reverting to rainbow pattern")
             self.led.set_pattern(
                 rainbow_pattern(
                     self.led,
@@ -56,6 +100,12 @@ class App:
                     delay=settings["rainbow_delay"],
                 )
             )
+            self._current_hold_color = None
+        except asyncio.CancelledError:
+            # Task cancelled, do nothing
+            pass
+        finally:
+            self._revert_task = None
 
     async def setup(self) -> None:
         """Initialize components."""
