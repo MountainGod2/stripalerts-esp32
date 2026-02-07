@@ -28,7 +28,7 @@ stubs = [
 ]
 
 [tool.ruff]
-# lint.select = ["ALL"]
+lint.select = ["I"]
 lint.ignore = ["COM812", "D203","D213","T201","FBT001"]
 format.exclude = ["firmware/*"]
 lint.exclude = ["firmware/*"]
