@@ -11,12 +11,14 @@ except ImportError:
 if TYPE_CHECKING:
     from typing import Optional
 
+    from .ble import BLEManager
+
 from .api import ChaturbateAPI
 from .config import settings
 from .constants import COLOR_MAP
 from .events import EventManager
 from .led import LEDController, rainbow_pattern, solid_pattern
-from .utils import log_info
+from .utils import log_error, log_info
 from .wifi import WiFiManager
 
 
@@ -36,15 +38,8 @@ class App:
 
         self.wifi = WiFiManager()
         self.api: Optional[ChaturbateAPI] = None
-        self.ble = None
-
-        if settings["ble_enabled"]:
-            try:
-                from .ble import BLEManager
-
-                self.ble = BLEManager(settings["ble_name"])
-            except ImportError:
-                log_info("BLE enabled but module not found (aioble missing?)")
+        self.ble: Optional[BLEManager] = None
+        self.mode = "BOOT"  # BOOT, NORMAL, PROVISIONING
 
         self._tasks: list = []
         self._running = False
@@ -109,7 +104,6 @@ class App:
             )
             self._current_hold_color = None
         except asyncio.CancelledError:
-            # Task cancelled, do nothing
             pass
         finally:
             self._revert_task = None
@@ -118,51 +112,67 @@ class App:
         """Initialize components."""
         log_info("Setting up...")
 
-        # Set default pattern
+        # Set default pattern (Rainbow)
         self.led.set_pattern(
             rainbow_pattern(
                 self.led, step=settings["rainbow_step"], delay=settings["rainbow_delay"]
             )
         )
 
-        # Connect WiFi
+        # Check Configuration
         ssid = settings["wifi_ssid"]
-        if ssid:
-            if await self.wifi.connect(ssid, settings["wifi_password"]):
-                # Start API if connected
-                url = settings["api_url"]
-                if url:
-                    self.api = ChaturbateAPI(url, self.events)
-                    self.events.on("api_event", self._handle_api_event)
+        password = settings["wifi_password"]
+        api_url = settings["api_url"]
+
+        if ssid and api_url:
+            log_info(f"Config found. Connecting to {ssid}...")
+            if await self.wifi.connect(ssid, password):
+                log_info("WiFi Connected.")
+                self.mode = "NORMAL"
+                self.api = ChaturbateAPI(api_url, self.events)
+                self.events.on("api_event", self._handle_api_event)
+                return
             else:
-                # Red for WiFi failure
-                self.led.set_pattern(solid_pattern(self.led, (255, 0, 0)))
+                log_info("WiFi Connect Failed.")
+        else:
+            log_info("Missing Configuration (SSID or API URL).")
 
-        if self.ble:
-            # BLE setup usually simple, just need to start the task in run()
-            pass
+        # Fallback to Provisioning
+        self.mode = "PROVISIONING"
+        log_info("Entering Provisioning Mode...")
 
-        gc.collect()
+        # Indicate Provisioning Mode (Blue Pulse?)
+        self.led.set_pattern(solid_pattern(self.led, (0, 0, 255)))
+
+        try:
+            from .ble import BLEManager
+
+            self.ble = BLEManager(self)
+        except ImportError:
+            log_error("BLE module not found. Cannot provision.")
+            self.led.set_pattern(solid_pattern(self.led, (255, 0, 0)))  # Red Error
 
     async def run(self) -> None:
         """Main loop."""
         self._running = True
 
-        # Hardware Tasks
+        # LED is always running
         tasks = [asyncio.create_task(self.led.run())]
 
-        # Event Processing
-        tasks.append(asyncio.create_task(self.events.run()))
+        if self.mode == "NORMAL":
+            tasks.append(asyncio.create_task(self.events.run()))
+            if self.api:
+                tasks.append(asyncio.create_task(self.api.start()))
 
-        # Network Tasks
-        if self.api:
-            tasks.append(asyncio.create_task(self.api.start()))
+        elif self.mode == "PROVISIONING":
+            if self.ble:
+                tasks.append(asyncio.create_task(self.ble.start()))
+            else:
+                log_error("BLE failed, staying in error mode")
 
-        if self.ble:
-            tasks.append(asyncio.create_task(self.ble.start()))
 
         try:
-            log_info("App started.")
+            log_info(f"App started in {self.mode} mode.")
             while self._running:
                 await asyncio.gather(*tasks)
         except asyncio.CancelledError:

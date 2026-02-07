@@ -97,7 +97,43 @@ class WiFiManager:
         """Disconnect from WiFi."""
         if self.sta.isconnected():
             self.sta.disconnect()
+            self._connected = False
             log_info("Disconnected from WiFi")
+
+    async def scan(self) -> list:
+        """Scan for available WiFi networks.
+
+        Returns:
+            List of dictionaries containing network info:
+            [{'ssid': 'name', 'rssi': -60, 'auth': 3}, ...]
+        """
+        self.enable_sta()
+        try:
+            log_info("Scanning for networks...")
+            # scan() blocks for a bit, but that's usually okay in MP if not too long
+            # async scan is not always available or consistent across ports
+            networks = self.sta.scan()
+            unique_nets: dict[str, dict] = {}
+            for n in networks:
+                # n = (ssid, bssid, channel, RSSI, authmode, hidden)
+                ssid = n[0].decode("utf-8")
+                if not ssid:
+                    continue
+                rssi = n[3]
+                authmode = n[4]
+
+                # Keep strongest signal for dupes
+                if ssid not in unique_nets or unique_nets[ssid]["rssi"] < rssi:
+                    unique_nets[ssid] = {"ssid": ssid, "rssi": rssi, "auth": authmode}
+
+            # Sort by RSSI
+            results = sorted(
+                unique_nets.values(), key=lambda x: x["rssi"], reverse=True
+            )
+            return results
+        except Exception as e:
+            log_error(f"Scan failed: {e}")
+            return []
         self._connected = False
 
     def is_connected(self) -> bool:
@@ -121,22 +157,6 @@ class WiFiManager:
             if ip_config:
                 return str(ip_config[0])
         return None
-
-    def scan(self) -> list:
-        """Scan for available networks.
-
-        Returns:
-            List of tuples (ssid, rssi) for available networks
-
-        """
-        self.enable_sta()
-        log_info("Scanning for networks...")
-        try:
-            networks = self.sta.scan()
-            return [(net[0].decode("utf-8"), net[3]) for net in networks]
-        except Exception as e:
-            log_error(f"WiFi scan failed: {e}")
-            return []
 
     def get_status(self) -> list:
         """Get WiFi connection status.
