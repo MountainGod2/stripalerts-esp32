@@ -16,11 +16,13 @@ def hsv_to_rgb(h: int, s: int = 255, v: int = 255) -> tuple[int, int, int]:
 
     h = h % _HUE_MAX
     region = h // 60
-    remainder = (h - (region * 60)) * 6
 
-    p = (v * (255 - s)) >> 8
-    q = (v * (255 - ((s * remainder) >> 8))) >> 8
-    t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8
+    # Calculate intermediate values
+    f = (h % 60) * 255 // 60
+    
+    p = (v * (255 - s)) // 255
+    q = (v * (255 - (s * f) // 255)) // 255
+    t = (v * (255 - (s * (255 - f)) // 255)) // 255
 
     if region == 0:
         return (v, t, p)
