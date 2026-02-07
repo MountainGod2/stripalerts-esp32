@@ -53,3 +53,6 @@ secrets.py
 # MicroPython type stubs
 typings/
 config.json
+
+# Frontend files
+frontend/

@@ -57,28 +57,29 @@ class FirmwareBuilder:
         return True
 
     def setup_micropython(self) -> bool:
-        """Clone and setup MicroPython repository if needed."""
-        if self.micropython_dir.exists():
-            print(f"[OK] MicroPython already cloned at {self.micropython_dir}")
+        """Initialize MicroPython submodule if needed."""
+        # Check if submodule is populated
+        if (self.micropython_dir / "py" / "mpconfig.h").exists():
+            print(f"[OK] MicroPython submodule seems populated at {self.micropython_dir}")
             return True
 
-        print("Cloning MicroPython repository...")
+        print("Initializing MicroPython submodule...")
         try:
             run_command(
                 [
                     "git",
-                    "clone",
-                    "--depth",
-                    "1",
-                    "https://github.com/micropython/micropython.git",
-                    str(self.micropython_dir),
+                    "submodule",
+                    "update",
+                    "--init",
+                    "--recursive",
+                    "firmware/micropython",
                 ],
-                cwd=self.firmware_dir,
+                cwd=self.root_dir,
             )
-            print("[OK] MicroPython cloned successfully")
+            print("[OK] MicroPython submodule initialized")
             return True
         except subprocess.CalledProcessError as e:
-            print(f"[ERROR] Failed to clone MicroPython: {e}")
+            print(f"[ERROR] Failed to initialize MicroPython submodule: {e}")
             return False
 
     def build_mpy_cross(self) -> bool:
