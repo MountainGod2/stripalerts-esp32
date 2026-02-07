@@ -76,7 +76,7 @@ def get_mcu_temperature() -> float:
     """
     try:
         if hasattr(esp32, "mcu_temperature"):
-            return esp32.mcu_temperature()
+            return esp32.mcu_temperature()  # type: ignore
         # Original ESP32 has raw_temperature() in Fahrenheit
         if hasattr(esp32, "raw_temperature"):
             return esp32.raw_temperature()
@@ -101,6 +101,6 @@ def system_info() -> dict:
 
     # Add flash_size if available
     if hasattr(esp32, "flash_size"):
-        info["flash_size"] = esp32.flash_size()
+        info["flash_size"] = esp32.flash_size()  # type: ignore
 
     return info
