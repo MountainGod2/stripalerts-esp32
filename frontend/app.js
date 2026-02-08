@@ -18,6 +18,7 @@ const state = {
   currentStep: STEPS.DEVICE,
   deviceReady: false,
   isConfigEventsComplete: false,
+  waitingForSave: false,
 };
 
 let qrScanner = null;
@@ -151,6 +152,23 @@ const onStatusUpdate = (status) => {
     (status.startsWith("Saving") || status.startsWith("Saved"))
   ) {
     document.getElementById("confirmInfo").textContent = status;
+
+    if (status === "Saved" && state.waitingForSave) {
+      state.waitingForSave = false;
+      state.isConfigEventsComplete = true;
+
+      hideElement("confirmInfo");
+      showElement("confirmSuccess");
+      document
+        .getElementById("confirmSuccess")
+        .classList.add("success-animation");
+      markStepComplete(STEPS.CONFIRM);
+
+      setTimeout(() => {
+        hideElement("confirmBtn");
+        hideElement("confirmBackBtn");
+      }, 500); // Small delay to let animation start
+    }
   }
 };
 
@@ -313,21 +331,22 @@ const sendConfig = async () => {
     await new Promise((r) => setTimeout(r, 100));
 
     // Send save command
+    state.waitingForSave = true;
+    showElement("confirmInfo"); // Ensure it's visible or keep currently visible
+    document.getElementById("confirmInfo").textContent = "Saving...";
+
     await ble.write("wifiTest", "save");
 
-    state.isConfigEventsComplete = true;
-    hideElement("confirmInfo");
-    showElement("confirmSuccess");
-    document
-      .getElementById("confirmSuccess")
-      .classList.add("success-animation");
-    markStepComplete(STEPS.CONFIRM);
-
+    // Timeout fallback if "Saved" event doesn't arrive
     setTimeout(() => {
-      hideElement("confirmBtn");
-      hideElement("confirmBackBtn");
-    }, 2000);
+      if (state.waitingForSave) {
+        state.waitingForSave = false;
+        btn.disabled = false;
+        showError("confirmError", "Save timed out. Please try again.");
+      }
+    }, 10000);
   } catch (e) {
+    state.waitingForSave = false;
     btn.disabled = false;
     showError("confirmError", e.message);
   }
