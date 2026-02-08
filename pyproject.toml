@@ -13,7 +13,7 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-name = "stripalerts"
-module-root = "lib"
+module-root = "modules"
 
 [dependency-groups]
 dev = [
@@ -38,7 +38,7 @@ format.quote-style = "double"
 format.indent-style = "space"
 
 [tool.pyright]
-include = ["src", "lib"]
+include = ["src", "modules"]
 exclude = [".*", "__*", "**/typings"]
 typeCheckingMode = "basic"
 stubPath = "typings"
@@ -53,7 +53,7 @@ platform = "linux"
 python_version = "3.9"
 mypy_path = "typings"
 custom_typeshed_dir = "typings"
-files = "src, lib"
+files = "src, modules"
 exclude = [
     "typings[\\/].*", # TOML basic string
 ]

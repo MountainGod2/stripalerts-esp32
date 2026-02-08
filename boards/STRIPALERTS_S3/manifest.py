@@ -7,19 +7,19 @@ require("aiohttp")
 
 # Freeze StripAlerts package
 freeze(
-    "$(MPY_DIR)/../../lib",
+    "$(MPY_DIR)/../../modules/stripalerts",
     (
-        "stripalerts/__init__.py",
-        "stripalerts/api.py",
-        "stripalerts/app.py",
-        "stripalerts/ble.py",
-        "stripalerts/config.py",
-        "stripalerts/constants.py",
-        "stripalerts/events.py",
-        "stripalerts/led.py",
-        "stripalerts/utils.py",
-        "stripalerts/version.py",
-        "stripalerts/wifi.py",
+        "__init__.py",
+        "api.py",
+        "app.py",
+        "ble.py",
+        "config.py",
+        "constants.py",
+        "events.py",
+        "led.py",
+        "utils.py",
+        "version.py",
+        "wifi.py",
     ),
     opt=3,
 )
