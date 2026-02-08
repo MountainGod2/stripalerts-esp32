@@ -37,7 +37,7 @@ format.indent-style = "space"
 lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
 
 [tool.pyright]
-include = ["src", "frozen"]
+include = ["src", "lib"]
 exclude = [".*", "__*", "**/typings"]
 typeCheckingMode = "basic"
 stubPath = "typings"
@@ -52,7 +52,7 @@ platform = "linux"
 python_version = "3.9"
 mypy_path = "typings"
 custom_typeshed_dir = "typings"
-files = "src, frozen"
+files = "src, lib"
 exclude = [
     "typings[\\/].*", # TOML basic string 
 ]
