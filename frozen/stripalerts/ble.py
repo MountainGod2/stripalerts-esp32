@@ -42,6 +42,7 @@ class BLEManager:
             _CHAR_SSID: bytearray(),
             _CHAR_PASS: bytearray(),
             _CHAR_API: bytearray(),
+            _CHAR_WIFITEST: bytearray(),
         }
 
         # Service Definition
@@ -140,7 +141,23 @@ class BLEManager:
         while True:
             try:
                 conn, value = await self.char_wifitest.written()
-                command = decode_utf8(value).strip().lower()
+                if not value or len(value) < 1:
+                    continue
+
+                flag = value[0]
+                data = value[1:]
+                uuid = _CHAR_WIFITEST
+
+                if flag == _FLAG_START:
+                    self._buffers[uuid] = bytearray(data)
+                elif flag == _FLAG_APPEND:
+                    self._buffers[uuid].extend(data)
+
+                try:
+                    command = self._buffers[uuid].decode("utf-8").strip().lower()
+                except Exception:
+                    continue
+
                 log_info(f"Received command: {command}")
 
                 if command == "rescan":
@@ -164,6 +181,7 @@ class BLEManager:
                     if success:
                         await self._write_test_result("success")
                     else:
+                        await self._notify_status("WiFi failed")
                         await self._write_test_result("failed")
 
                 elif command == "save":
