@@ -3,29 +3,16 @@ name = "stripalerts"
 version = "0.1.0"
 description = "MicroPython for the Chaturbate Events API on ESP32"
 readme = "README.md"
-authors = [
-    { name = "MountainGod2", email = "admin@reid.ca" }
-]
+authors = [{ name = "MountainGod2", email = "admin@reid.ca" }]
 requires-python = ">=3.9"
 dependencies = []
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [dependency-groups]
-dev = [
-    "esptool==4.11.0",
-    "mpremote==1.27.0",
-    "pyserial==3.5",
-    "ruff==0.15.0",
-]
+dev = ["esptool==4.11.0", "mpremote==1.27.0", "pyserial==3.5", "ruff==0.15.0"]
 
 [project.optional-dependencies]
 # uv pip install -r pyproject.toml --extra stubs --target typings
-stubs = [
-  "micropython-esp32-stubs==1.27.0.*"
-]
+stubs = ["micropython-esp32-stubs==1.27.0.*"]
 
 [tool.ruff]
 exclude = ["firmware", "typings", ".*", "__*"]
@@ -64,3 +51,10 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 module = "aioble"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "aiohttp"
+ignore_missing_imports = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["lib/stripalerts"]
