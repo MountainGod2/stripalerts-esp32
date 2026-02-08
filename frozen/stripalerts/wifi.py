@@ -23,12 +23,12 @@ class WiFiManager:
 
     def enable_sta(self) -> None:
         """Enable station mode."""
-        self.sta.active(True)
+        self.sta.active(True)  # noqa: FBT003
         log_info("WiFi station mode enabled")
 
     def disable_sta(self) -> None:
         """Disable station mode."""
-        self.sta.active(False)
+        self.sta.active(False)  # noqa: FBT003
         log_info("WiFi station mode disabled")
 
     def enable_ap(self, ssid: str, password: str = "") -> None:
@@ -39,7 +39,7 @@ class WiFiManager:
             password: Password (optional)
 
         """
-        self.ap.active(True)
+        self.ap.active(True)  # noqa: FBT003
 
         if password:
             self.ap.config(
@@ -52,7 +52,7 @@ class WiFiManager:
 
     def disable_ap(self) -> None:
         """Disable access point mode."""
-        self.ap.active(False)
+        self.ap.active(False)  # noqa: FBT003
         log_info("WiFi AP mode disabled")
 
     async def connect(
@@ -106,6 +106,7 @@ class WiFiManager:
         Returns:
             List of dictionaries containing network info:
             [{'ssid': 'name', 'rssi': -60, 'auth': 3}, ...]
+
         """
         self.enable_sta()
         try:
@@ -114,8 +115,8 @@ class WiFiManager:
             # async scan is not always available or consistent across ports
             networks = self.sta.scan()
             unique_nets: dict[str, dict] = {}
+
             for n in networks:
-                # n = (ssid, bssid, channel, RSSI, authmode, hidden)
                 ssid = n[0].decode("utf-8")
                 if not ssid:
                     continue
@@ -127,14 +128,14 @@ class WiFiManager:
                     unique_nets[ssid] = {"ssid": ssid, "rssi": rssi, "auth": authmode}
 
             # Sort by RSSI
-            results = sorted(
-                unique_nets.values(), key=lambda x: x["rssi"], reverse=True
-            )
-            return results
+            return sorted(unique_nets.values(), key=lambda x: x["rssi"], reverse=True)
+
         except Exception as e:
             log_error(f"Scan failed: {e}")
             return []
+
         self._connected = False
+        return None
 
     def is_connected(self) -> bool:
         """Check if connected to WiFi.
