@@ -242,7 +242,7 @@ class BLEManager:
         try:
             # Prepare networks list, fitting into one BLE packet (max ~250 bytes)
             # Frontend only displays top 5 anyway.
-            simple_list: list[dict] = []
+            simple_list = []  # type: list[dict]
             for n in networks:
                 # Build entry (auth is unused by frontend, omitting to save space)
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
