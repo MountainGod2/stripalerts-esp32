@@ -201,18 +201,21 @@ class FileUploader:
                     time.sleep(2)
                     continue
                 print(
-                    f"  [ERROR] Failed to upload {local_path.name} after {max_retries} attempts"
+                    f"  [ERROR] Failed to upload {local_path.name} after "
+                    f"{max_retries} attempts"
                 )
                 return False
             except subprocess.CalledProcessError:
                 if attempt < max_retries - 1:
                     print(
-                        f"  [WARNING] Upload failed (attempt {attempt + 1}/{max_retries}), retrying..."
+                        f"  [WARNING] Upload failed (attempt {attempt + 1}/"
+                        f"{max_retries}), retrying..."
                     )
                     time.sleep(2)
                 else:
                     print(
-                        f"  [ERROR] Failed to upload {local_path.name} after {max_retries} attempts"
+                        f"  [ERROR] Failed to upload {local_path.name} after "
+                        f"{max_retries} attempts"
                     )
                     return False
         return False
