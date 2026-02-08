@@ -28,9 +28,12 @@ stubs = [
 ]
 
 [tool.ruff]
-exclude = ["firmware"]
-lint.select = ["I"]
-lint.ignore = ["COM812", "D203","D213","T201","FBT001"]
+exclude = ["firmware", "typings", ".*", "__*"]
+target-version = "py39"
+line-length = 88
+lint.select = ["E", "F", "W", "I", "PYI"]
+format.quote-style = "double"
+format.indent-style = "space"
 lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
 
 [tool.pyright]
