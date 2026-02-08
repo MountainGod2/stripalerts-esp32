@@ -64,7 +64,7 @@ class BLEManager:
             self.service, _CHAR_NETWORKS, read=True, notify=True
         )
         self.char_wifitest = aioble.Characteristic(
-            self.service, _CHAR_WIFITEST, write=True, notify=True, capture=True
+            self.service, _CHAR_WIFITEST, read=True, write=True, notify=True, capture=True
         )
 
         aioble.register_services(self.service)
