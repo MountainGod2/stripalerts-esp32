@@ -54,7 +54,12 @@ class App:
 
     async def _handle_tip(self, tip_data: dict):
         """Handle individual tip events."""
-        tokens = int(tip_data.get("tokens", 0))
+        try:
+            tokens = int(tip_data.get("tokens", 0))
+        except (ValueError, TypeError) as e:
+            log_error(f"Invalid token amount: {tip_data.get('tokens')} ({e})")
+            tokens = 0
+
         message = tip_data.get("message", "").lower()
         log_info(f"Tip received: {tokens}")
 
@@ -170,41 +175,59 @@ class App:
         self._running = True
 
         # LED is always running
-        tasks = [asyncio.create_task(self.led.run())]
+        self._tasks.append(asyncio.create_task(self.led.run()))
 
         if self.mode == "NORMAL":
-            tasks.append(asyncio.create_task(self.events.run()))
+            self._tasks.append(asyncio.create_task(self.events.run()))
             if self.api:
-                tasks.append(asyncio.create_task(self.api.start()))
+                self._tasks.append(asyncio.create_task(self.api.start()))
 
         elif self.mode == "PROVISIONING":
             if self.ble:
-                tasks.append(asyncio.create_task(self.ble.start()))
+                self._tasks.append(asyncio.create_task(self.ble.start()))
             else:
                 log_error("BLE failed, staying in error mode")
 
         try:
             log_info(f"App started in {self.mode} mode.")
-            await asyncio.gather(*tasks, return_exceptions=True)
-            for t in tasks:
-                if t.done() and not t.cancelled():
-                    exc = t.exception()
-                    if exc:
-                        log_error(f"Task failed: {exc}")
-                        # raise exc # OR re-raise if you want restart loop
+            while self._running:
+                # Basic monitoring
+                await asyncio.sleep(1)
+
+                # Prune finished tasks
+                for t in self._tasks[:]:
+                    if t.done():
+                        if not t.cancelled():
+                            exc = t.exception()
+                            if exc:
+                                log_error(f"Task failed: {exc}")
+                        self._tasks.remove(t)
+
+                if not self._tasks:
+                    log_info("All tasks finished.")
+                    break
+
         except asyncio.CancelledError:
             log_info("Stopping...")
         except Exception as e:
             log_error(f"App runtime error: {e}")
         finally:
-            self._running = False
-            for t in tasks:
-                t.cancel()
-            self.led.clear()
-            log_info("Shutdown complete.")
+            await self.shutdown()
 
     async def shutdown(self):
         self._running = False
+        log_info("Shutting down...")
+
+        for t in self._tasks:
+            if not t.done():
+                t.cancel()
+
+        if self._tasks:
+            await asyncio.gather(*self._tasks, return_exceptions=True)
+            self._tasks = []
+
+        self.led.clear()
+        log_info("Shutdown complete.")
 
     async def start(self):
         """Start the application."""
