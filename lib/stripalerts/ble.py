@@ -45,6 +45,7 @@ class BLEManager:
             _CHAR_API: bytearray(),
             _CHAR_WIFITEST: bytearray(),
         }
+        self._write_tasks = {}
 
         # Service Definition
         self.service = aioble.Service(_SERVICE_UUID)
@@ -102,7 +103,7 @@ class BLEManager:
 
                         # On connection, maybe send current status or networks?
                         # Trigger a background scan and send networks
-                        asyncio.create_task(self._send_networks())
+                        self._tasks.append(asyncio.create_task(self._send_networks()))
 
                         await connection.disconnected()
                         self._connection = None
@@ -123,6 +124,23 @@ class BLEManager:
     async def _monitor_write(self, char, config_key):
         """Monitor characteristic for writes and update config."""
         uuid = char.uuid
+
+        async def _save_debounced():
+            await asyncio.sleep(0.5)
+            try:
+                decoded = self._buffers[uuid].decode("utf-8")
+                settings[config_key] = decoded
+                # Do not save on every chunk to avoid flash wear
+
+                val_log = "***" if "password" in config_key else decoded[:10]
+                log_info(f"Updated {config_key}: {val_log}...")
+            except Exception:
+                # Might be incomplete UTF-8 if split mid-multibyte
+                pass
+
+            if uuid in self._write_tasks:
+                del self._write_tasks[uuid]
+
         while True:
             try:
                 conn, value = await char.written()
@@ -137,16 +155,13 @@ class BLEManager:
                 elif flag == _FLAG_APPEND:
                     self._buffers[uuid].extend(data)
 
-                try:
-                    decoded = self._buffers[uuid].decode("utf-8")
-                    settings[config_key] = decoded
-                    # Do not save on every chunk to avoid flash wear
+                # Debounce save
+                if uuid in self._write_tasks:
+                    t = self._write_tasks[uuid]
+                    if t:
+                        t.cancel()
 
-                    val_log = "***" if "password" in config_key else decoded[:10]
-                    log_info(f"Updated {config_key}: {val_log}...")
-                except Exception:
-                    # Might be incomplete UTF-8 if split mid-multibyte
-                    pass
+                self._write_tasks[uuid] = asyncio.create_task(_save_debounced())
 
             except Exception as e:
                 log_error(f"Write error on {config_key}: {e}")
