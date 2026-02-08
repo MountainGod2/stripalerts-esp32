@@ -29,7 +29,7 @@ def decode_utf8(data):
         if isinstance(data, (bytes, bytearray)):
             return data.decode("utf-8")
         return str(data)
-    except:
+    except Exception:
         return ""
 
 
@@ -170,7 +170,8 @@ class BLEManager:
 
                 elif command == "test":
                     await self._notify_status("Testing WiFi...")
-                    # Notify logic in app.js expects "success" or "failed" for the TEST result
+                    # Notify logic in app.js expects "success" or "failed"
+                    # for the TEST result
                     # BUT it *also* listens to status updates for UI.
                     # Wait, onWifiTestNotify checks for "success" / "failed".
 
