@@ -16,7 +16,13 @@ module-name = "stripalerts"
 module-root = "lib"
 
 [dependency-groups]
-dev = ["esptool==4.11.0", "mpremote==1.27.0", "pyserial==3.5", "ruff==0.15.0"]
+dev = [
+    "esptool==4.11.0",
+    "mpremote==1.27.0",
+    "pre-commit==4.3.0",
+    "pyserial==3.5",
+    "ruff==0.15.0",
+]
 
 [project.optional-dependencies]
 # uv pip install -r pyproject.toml --extra stubs --target typings
@@ -27,9 +33,9 @@ exclude = ["firmware", "typings"]
 target-version = "py39"
 line-length = 88
 lint.select = ["E", "F", "W", "I", "PYI"]
+lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
 format.quote-style = "double"
 format.indent-style = "space"
-lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
 
 [tool.pyright]
 include = ["src", "lib"]
@@ -49,7 +55,7 @@ mypy_path = "typings"
 custom_typeshed_dir = "typings"
 files = "src, lib"
 exclude = [
-    "typings[\\/].*", # TOML basic string 
+    "typings[\\/].*", # TOML basic string
 ]
 follow_imports = "silent"
 follow_imports_for_stubs = true
