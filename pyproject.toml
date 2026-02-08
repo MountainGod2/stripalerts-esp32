@@ -30,9 +30,9 @@ stubs = [
 [tool.ruff]
 lint.select = ["I"]
 lint.ignore = ["COM812", "D203","D213","T201","FBT001"]
-lint.exclude = ["firmware/*"]
+lint.exclude = ["firmware"]
 lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
-format.exclude = ["firmware/*"]
+format.exclude = ["firmware"]
 
 [tool.pyright]
 include = ["src", "frozen"]
