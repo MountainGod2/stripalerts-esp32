@@ -28,7 +28,7 @@ class FirmwareBuilder:
         self.root_dir = root_dir
         self.firmware_dir = root_dir / "firmware"
         self.micropython_dir = self.firmware_dir / "micropython"
-        self.lib_dir = root_dir / "lib"
+        self.lib_dir = root_dir / "modules"
         self.board = board
         self.clean = clean
         self.esp32_port_dir = self.micropython_dir / "ports" / "esp32"
