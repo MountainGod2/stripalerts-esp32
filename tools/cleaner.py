@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 from typing import TYPE_CHECKING
 
 from utils import print_header, print_success
@@ -62,17 +63,36 @@ class BuildCleaner:
                     print(f"  [WARNING] Failed to remove {path}: {e}")
 
     def clean_micropython(self) -> None:
-        """Remove MicroPython source directory."""
+        """Clean MicroPython build artifacts (non-destructive)."""
         if not self.micropython_dir.exists():
-            print("MicroPython directory does not exist")
             return
 
-        print(f"Removing MicroPython directory: {self.micropython_dir}")
-        try:
-            shutil.rmtree(self.micropython_dir)
-            print("[OK] MicroPython directory removed")
-        except Exception as e:
-            print(f"[ERROR] Failed to remove MicroPython: {e}")
+        print(f"Cleaning MicroPython artifacts in: {self.micropython_dir}")
+
+        # Clean mpy-cross
+        mpy_cross_dir = self.micropython_dir / "mpy-cross"
+        if (mpy_cross_dir / "Makefile").exists():
+            try:
+                subprocess.run(
+                    ["make", "clean"],
+                    cwd=mpy_cross_dir,
+                    capture_output=True,
+                    check=False,
+                )
+                print("  [OK] Cleaned mpy-cross")
+            except Exception as e:
+                print(f"  [WARNING] Failed to clean mpy-cross: {e}")
+
+        # Clean ESP32 port
+        esp32_dir = self.micropython_dir / "ports" / "esp32"
+        if (esp32_dir / "Makefile").exists():
+            try:
+                subprocess.run(
+                    ["make", "clean"], cwd=esp32_dir, capture_output=True, check=False
+                )
+                print("  [OK] Cleaned esp32 port")
+            except Exception as e:
+                print(f"  [WARNING] Failed to clean esp32 port: {e}")
 
     def clean(self) -> bool:
         """Execute the cleaning process."""

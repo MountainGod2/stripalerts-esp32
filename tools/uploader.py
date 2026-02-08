@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import time
 from typing import TYPE_CHECKING, ClassVar
 
@@ -79,7 +80,9 @@ class FirmwareUploader:
         """Erase the flash memory."""
         print("Erasing flash memory...")
         try:
-            run_command(["python", "-m", "esptool", "--port", port, "erase_flash"])
+            run_command(
+                [sys.executable, "-m", "esptool", "--port", port, "erase_flash"]
+            )
             print("[OK] Flash erased successfully")
             return True
         except subprocess.CalledProcessError as e:
@@ -91,7 +94,7 @@ class FirmwareUploader:
         print(f"Uploading firmware to {port} at {self.baud} baud...")
 
         cmd = [
-            "python",
+            sys.executable,
             "-m",
             "esptool",
             "--chip",

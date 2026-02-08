@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -18,7 +19,7 @@ def find_serial_port() -> str | None:
 
     try:
         result = subprocess.run(
-            ["python", "-m", "esptool", "chip_id"],
+            [sys.executable, "-m", "esptool", "chip_id"],
             capture_output=True,
             text=True,
             check=False,
@@ -76,14 +77,14 @@ def check_idf_prerequisites() -> tuple[bool, str | None, list[str]]:
     if idf_py_path.exists():
         try:
             result = subprocess.run(
-                ["python3", str(idf_py_path), "--version"],
+                [sys.executable, str(idf_py_path), "--version"],
                 capture_output=True,
                 text=True,
                 check=False,
                 timeout=5,
             )
             if result.returncode == 0:
-                return True, esp_idf_path, ["python3", str(idf_py_path)]
+                return True, esp_idf_path, [sys.executable, str(idf_py_path)]
         except subprocess.TimeoutExpired:
             pass
 

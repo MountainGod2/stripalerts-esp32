@@ -8,7 +8,7 @@ BAUD ?= 460800
 CLEAN ?=
 
 # Tools
-PYTHON := python3
+PYTHON ?= python
 CLI := $(PYTHON) tools/cli.py
 
 help: ## Show this help message
