@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import time
 
 from utils import check_tool_available, find_serial_port, print_header, run_command
 
@@ -73,6 +74,8 @@ class SerialMonitor:
                             print(line)
                         except Exception as e:
                             print(f"[ERROR] {e}")
+                    else:
+                        time.sleep(0.01)
         except KeyboardInterrupt:
             print("\n[INFO] Monitoring stopped")
             return True
