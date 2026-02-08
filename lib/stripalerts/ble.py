@@ -38,6 +38,7 @@ class BLEManager:
         self.app = app_instance
         self.name = name
         self._connection = None
+        self._tasks = []
         self._buffers = {
             _CHAR_SSID: bytearray(),
             _CHAR_PASS: bytearray(),
@@ -79,36 +80,45 @@ class BLEManager:
         """Start advertising and handling connections."""
         log_info("Starting BLE task...")
         # Start handler tasks
-        asyncio.create_task(self._monitor_write(self.char_ssid, "wifi_ssid"))
-        asyncio.create_task(self._monitor_write(self.char_pass, "wifi_password"))
-        asyncio.create_task(self._monitor_write(self.char_api, "api_url"))
-        asyncio.create_task(self._monitor_wifi_test())
+        self._tasks = [
+            asyncio.create_task(self._monitor_write(self.char_ssid, "wifi_ssid")),
+            asyncio.create_task(self._monitor_write(self.char_pass, "wifi_password")),
+            asyncio.create_task(self._monitor_write(self.char_api, "api_url")),
+            asyncio.create_task(self._monitor_wifi_test()),
+        ]
 
-        # Main advertising loop
-        while True:
-            try:
-                log_info(f"BLE Advertising as {self.name}")
-                async with await aioble.advertise(
-                    interval_us=250000,
-                    name=self.name,
-                    services=[_SERVICE_UUID],
-                ) as connection:
-                    self._connection = connection
-                    log_info(f"BLE Connected: {connection.device}")
+        try:
+            # Main advertising loop
+            while True:
+                try:
+                    log_info(f"BLE Advertising as {self.name}")
+                    async with await aioble.advertise(
+                        interval_us=250000,
+                        name=self.name,
+                        services=[_SERVICE_UUID],
+                    ) as connection:
+                        self._connection = connection
+                        log_info(f"BLE Connected: {connection.device}")
 
-                    # On connection, maybe send current status or networks?
-                    # Trigger a background scan and send networks
-                    asyncio.create_task(self._send_networks())
+                        # On connection, maybe send current status or networks?
+                        # Trigger a background scan and send networks
+                        asyncio.create_task(self._send_networks())
 
-                    await connection.disconnected()
-                    self._connection = None
-                    log_info("BLE Disconnected")
-            except asyncio.CancelledError:
-                log_info("BLE task cancelled")
-                break
-            except Exception as e:
-                log_error(f"BLE Advertise error: {e}")
-                await asyncio.sleep(1)
+                        await connection.disconnected()
+                        self._connection = None
+                        log_info("BLE Disconnected")
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    log_error(f"BLE Advertise error: {e}")
+                    await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            log_info("BLE task cancelled")
+        finally:
+            for t in self._tasks:
+                t.cancel()
+            await asyncio.gather(*self._tasks, return_exceptions=True)
+            self._tasks = []
 
     async def _monitor_write(self, char, config_key):
         """Monitor characteristic for writes and update config."""
