@@ -126,7 +126,7 @@ class BLEManager:
                     decoded = self._buffers[uuid].decode("utf-8")
                     settings[config_key] = decoded
                     # Do not save on every chunk to avoid flash wear
-                    
+
                     val_log = "***" if "password" in config_key else decoded[:10]
                     log_info(f"Updated {config_key}: {val_log}...")
                 except Exception as e:

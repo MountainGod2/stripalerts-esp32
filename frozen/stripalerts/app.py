@@ -170,7 +170,6 @@ class App:
             else:
                 log_error("BLE failed, staying in error mode")
 
-
         try:
             log_info(f"App started in {self.mode} mode.")
             while self._running:

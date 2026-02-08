@@ -60,7 +60,9 @@ class FirmwareBuilder:
         """Initialize MicroPython submodule if needed."""
         # Check if submodule is populated
         if (self.micropython_dir / "py" / "mpconfig.h").exists():
-            print(f"[OK] MicroPython submodule seems populated at {self.micropython_dir}")
+            print(
+                f"[OK] MicroPython submodule seems populated at {self.micropython_dir}"
+            )
             return True
 
         print("Initializing MicroPython submodule...")
