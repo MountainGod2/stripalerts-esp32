@@ -34,7 +34,7 @@ class Config:
     def load(self) -> None:
         """Load configuration from disk."""
         try:
-            with open(CONFIG_FILE, "r") as f:
+            with open(CONFIG_FILE) as f:
                 self._data.update(json.load(f))
         except (OSError, ValueError) as e:
             log_warning(f"Using default config ({e})")
