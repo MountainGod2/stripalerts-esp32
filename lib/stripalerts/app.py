@@ -222,10 +222,15 @@ class App:
             if not t.done():
                 t.cancel()
 
+        if self._revert_task and not self._revert_task.done():
+            self._revert_task.cancel()
+            self._tasks.append(self._revert_task)
+
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
             self._tasks = []
 
+        self._revert_task = None
         self.led.clear()
         log_info("Shutdown complete.")
 
