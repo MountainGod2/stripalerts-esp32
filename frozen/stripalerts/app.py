@@ -132,8 +132,7 @@ class App:
                 self.api = ChaturbateAPI(api_url, self.events)
                 self.events.on("api_event", self._handle_api_event)
                 return
-            else:
-                log_info("WiFi Connect Failed.")
+            log_info("WiFi Connect Failed.")
         else:
             log_info("Missing Configuration (SSID or API URL).")
 
