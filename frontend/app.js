@@ -23,6 +23,7 @@ const state = {
 
 let qrScanner = null;
 let qrActive = false;
+let wifiTestTimer = null;
 
 // --- UI Helpers ---
 
@@ -209,6 +210,12 @@ const onNetworksUpdate = (networks) => {
 
 const onWifiTestUpdate = (result) => {
   console.log("WiFi Test Result:", result);
+  // Clear timeout to avoid stale "Test timed out" if we moved on
+  if (wifiTestTimer) {
+    clearTimeout(wifiTestTimer);
+    wifiTestTimer = null;
+  }
+
   if (state.currentStep !== STEPS.WIFI) return;
 
   const btn = document.getElementById("wifiNextBtn");
@@ -280,7 +287,8 @@ const wifiNext = async () => {
     await ble.write("wifiTest", "test");
 
     // Response handled by onWifiTestUpdate or timeout
-    setTimeout(() => {
+    wifiTestTimer = setTimeout(() => {
+      wifiTestTimer = null;
       if (btn.disabled) {
         btn.disabled = false;
         btn.textContent = "Continue";
@@ -291,6 +299,10 @@ const wifiNext = async () => {
       }
     }, 15000);
   } catch (e) {
+    if (wifiTestTimer) {
+      clearTimeout(wifiTestTimer);
+      wifiTestTimer = null;
+    }
     btn.disabled = false;
     btn.textContent = "Continue";
     showError("wifiError", e.message);
