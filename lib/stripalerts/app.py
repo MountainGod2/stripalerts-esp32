@@ -185,15 +185,23 @@ class App:
 
         try:
             log_info(f"App started in {self.mode} mode.")
-            while self._running:
-                await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks, return_exceptions=True)
+            for t in tasks:
+                if t.done() and not t.cancelled():
+                    exc = t.exception()
+                    if exc:
+                        log_error(f"Task failed: {exc}")
+                        # raise exc # OR re-raise if you want restart loop
         except asyncio.CancelledError:
             log_info("Stopping...")
+        except Exception as e:
+            log_error(f"App runtime error: {e}")
         finally:
             self._running = False
             for t in tasks:
                 t.cancel()
             self.led.clear()
+            log_info("Shutdown complete.")
 
     async def shutdown(self):
         self._running = False
