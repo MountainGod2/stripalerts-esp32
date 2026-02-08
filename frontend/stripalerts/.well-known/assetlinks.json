@@ -1,0 +1,11 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.stripalerts.twa",
+        "sha256_cert_fingerprints": [
+          "47:E0:30:3D:34:03:B6:81:C2:CE:C6:93:8F:30:B5:39:62:EE:E1:E2:F0:19:72:DE:69:BC:32:1E:69:24:B2:5C",
+          "CB:F3:F8:BB:FE:89:B4:EF:55:0D:67:A9:B3:DB:44:F5:4D:EF:2F:83:34:FC:9D:1E:D9:5F:4A:4A:EB:41:F0:AE"
+        ]
+      }
+    }]

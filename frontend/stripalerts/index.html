@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a1117" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <title>StripAlerts Setup</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <main class="container">
+      <div class="app-header">
+        <div class="brand">StripAlerts</div>
+        <div class="app-subtitle">Quick setup in four steps</div>
+      </div>
+
+      <ol class="step-indicator" aria-label="Setup progress">
+        <li class="step active" data-step="1">
+          <div class="step-number">1</div>
+          <div class="step-label">Device</div>
+        </li>
+        <li class="step" data-step="2">
+          <div class="step-number">2</div>
+          <div class="step-label">WiFi</div>
+        </li>
+        <li class="step" data-step="3">
+          <div class="step-number">3</div>
+          <div class="step-label">API</div>
+        </li>
+        <li class="step" data-step="4">
+          <div class="step-number">4</div>
+          <div class="step-label">Done</div>
+        </li>
+      </ol>
+
+      <div id="step1" class="step-content active">
+        <h1>Find Your Device</h1>
+        <p class="subtitle hidden" id="scanSubtitle">
+          Looking for your device on Bluetooth...
+        </p>
+        <div class="loading hidden" id="scanLoading" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>Scanning for devices...</p>
+        </div>
+        <div id="deviceContainer">
+          <button class="button" id="manualScanBtn" type="button">
+            Scan for Device
+          </button>
+        </div>
+
+        <div class="message error" id="stepError" role="alert"></div>
+      </div>
+
+      <div id="step2" class="step-content hidden">
+        <h1>WiFi Network</h1>
+        <p class="subtitle">Select your network and enter password</p>
+
+        <div class="form-group">
+          <div class="flex-row">
+            <label class="mb-0">Available Networks</label>
+            <button
+              class="button secondary btn-sm"
+              id="rescanBtn"
+              type="button"
+            >
+              Rescan
+            </button>
+          </div>
+          <div id="networksList" class="network-list surface"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="wifiSsid">Network Name (SSID)</label>
+          <input
+            type="text"
+            id="wifiSsid"
+            placeholder="Your WiFi network name"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="wifiPassword">Password</label>
+          <input
+            type="password"
+            id="wifiPassword"
+            placeholder="Your WiFi password"
+            autocomplete="current-password"
+          />
+        </div>
+
+        <div class="message error" id="wifiError" role="alert"></div>
+
+        <div class="actions">
+          <button class="button" id="wifiNextBtn" type="button">
+            Continue
+          </button>
+          <button class="button secondary" id="wifiBackBtn" type="button">
+            Back
+          </button>
+        </div>
+      </div>
+
+      <div id="step3" class="step-content hidden">
+        <h1>Chaturbate API URL</h1>
+        <p class="subtitle">Scan the QR code or enter manually</p>
+
+        <div class="form-group">
+          <button class="button" id="scanQrBtn" type="button">
+            Start Camera
+          </button>
+          <div class="qr-container surface frame hidden" id="qrContainer">
+            <video id="qrPreview" playsinline autoplay muted></video>
+          </div>
+          <button class="button secondary hidden" id="stopQrBtn" type="button">
+            Stop Camera
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label for="apiUrl">API URL</label>
+          <input
+            type="text"
+            id="apiUrl"
+            placeholder="https://eventsapi.chaturbate.com/events/..."
+            autocomplete="off"
+            inputmode="url"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+        </div>
+
+        <div class="message error" id="apiError" role="alert"></div>
+        <div class="message info" id="apiInfo" aria-live="polite">
+          Code detected and entered above.
+        </div>
+
+        <div class="actions">
+          <button class="button" id="apiNextBtn" type="button">Continue</button>
+          <button class="button secondary" id="apiBackBtn" type="button">
+            Back
+          </button>
+        </div>
+      </div>
+
+      <div id="step4" class="step-content hidden">
+        <h1>Ready to Go</h1>
+        <p class="subtitle">Review and confirm your settings</p>
+
+        <div class="card confirm-card">
+          <div class="confirm-row">
+            <strong class="confirm-label">WiFi Network:</strong>
+            <div id="confirmSsid" class="confirm-value"></div>
+          </div>
+          <div class="confirm-row">
+            <strong class="confirm-label">Username:</strong>
+            <div id="confirmUsername" class="confirm-value"></div>
+          </div>
+          <div class="confirm-row">
+            <strong class="confirm-label">Testbed:</strong>
+            <div id="confirmTestbed" class="confirm-value"></div>
+          </div>
+        </div>
+
+        <div class="message info" id="confirmInfo" aria-live="polite">
+          Sending configuration to your device...
+        </div>
+        <div class="message success" id="confirmSuccess" aria-live="polite">
+          Setup complete! Your device is now configured.
+        </div>
+        <div class="message error" id="confirmError" role="alert"></div>
+
+        <div class="actions">
+          <button class="button" id="confirmBtn" type="button">
+            Confirm and Send
+          </button>
+          <button class="button secondary" id="confirmBackBtn" type="button">
+            Back
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
