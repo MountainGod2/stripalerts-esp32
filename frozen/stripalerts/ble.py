@@ -2,14 +2,13 @@
 
 import asyncio
 import json
-import struct
 
 import aioble
 import bluetooth
 from micropython import const
 
 from .config import settings
-from .utils import log_error, log_info, log_warning
+from .utils import log_error, log_info
 
 # UUIDs
 _SERVICE_UUID = bluetooth.UUID("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
@@ -129,7 +128,7 @@ class BLEManager:
 
                     val_log = "***" if "password" in config_key else decoded[:10]
                     log_info(f"Updated {config_key}: {val_log}...")
-                except Exception as e:
+                except Exception:
                     # Might be incomplete UTF-8 if split mid-multibyte
                     pass
 
@@ -194,7 +193,7 @@ class BLEManager:
         try:
             # Prepare networks list, fitting into one BLE packet (max ~250 bytes)
             # Frontend only displays top 5 anyway.
-            simple_list = []
+            simple_list: list[dict] = []
             for n in networks:
                 # Build entry (auth is unused by frontend, omitting to save space)
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
