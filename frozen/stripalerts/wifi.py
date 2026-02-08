@@ -134,9 +134,6 @@ class WiFiManager:
             log_error(f"Scan failed: {e}")
             return []
 
-        self._connected = False
-        return None
-
     def is_connected(self) -> bool:
         """Check if connected to WiFi.
 
@@ -154,9 +151,11 @@ class WiFiManager:
 
         """
         if self.sta.isconnected():
-            ip_config = self.sta.ipconfig("addr4")
-            if ip_config:
+            try:
+                ip_config = self.sta.ifconfig()
                 return str(ip_config[0])
+            except Exception:
+                pass
         return None
 
     def get_status(self) -> list:
