@@ -171,9 +171,16 @@ const onNetworksUpdate = (networks) => {
     el.className = "network-item";
     const strength =
       net.rssi > -60 ? "Strong" : net.rssi > -75 ? "Good" : "Weak";
-    el.innerHTML = `<span>${
-      net.ssid || "Unknown"
-    }</span><span class="network-strength">${strength}</span>`;
+
+    const ssidSpan = document.createElement("span");
+    ssidSpan.textContent = net.ssid || "Unknown";
+    el.appendChild(ssidSpan);
+
+    const strengthSpan = document.createElement("span");
+    strengthSpan.className = "network-strength";
+    strengthSpan.textContent = strength;
+    el.appendChild(strengthSpan);
+
     el.onclick = () => {
       document.getElementById("wifiSsid").value = net.ssid;
       document.getElementById("wifiPassword").focus();
