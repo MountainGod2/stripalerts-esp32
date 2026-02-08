@@ -7,6 +7,14 @@ authors = [{ name = "MountainGod2", email = "admin@reid.ca" }]
 requires-python = ">=3.9"
 dependencies = []
 
+[build-system]
+requires = ["uv_build==0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "stripalerts"
+module-root = "lib"
+
 [dependency-groups]
 dev = ["esptool==4.11.0", "mpremote==1.27.0", "pyserial==3.5", "ruff==0.15.0"]
 
@@ -15,7 +23,7 @@ dev = ["esptool==4.11.0", "mpremote==1.27.0", "pyserial==3.5", "ruff==0.15.0"]
 stubs = ["micropython-esp32-stubs==1.27.0.*"]
 
 [tool.ruff]
-exclude = ["firmware", "typings", ".*", "__*"]
+exclude = ["firmware", "typings"]
 target-version = "py39"
 line-length = 88
 lint.select = ["E", "F", "W", "I", "PYI"]
@@ -55,6 +63,3 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "aiohttp"
 ignore_missing_imports = true
-
-[tool.hatch.build.targets.wheel]
-packages = ["lib/stripalerts"]
