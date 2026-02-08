@@ -10,7 +10,7 @@
     ],
     "images": [],
     "mcu": "esp32s3",
-    "product": "StripAlerts ESP32S3",
+    "product": "StripAlerts MCU",
     "thumbnail": "",
     "url": "https://github.com/MountainGod2/stripalerts-esp32",
     "vendor": "StripAlerts"

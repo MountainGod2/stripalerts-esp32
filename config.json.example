@@ -1,0 +1,13 @@
+{
+    "led_pin": 48,
+    "num_pixels": 1,
+    "led_timing": 1,
+    "led_pattern": "rainbow",
+    "rainbow_step": 1,
+    "rainbow_delay": 0.1,
+    "api_url": "https://events.testbed.cb.dev/events/mountaingod2/test/",
+    "wifi_ssid": "YOUR_WIFI_SSID",
+    "wifi_password": "YOUR_WIFI_PASSWORD",
+    "ble_enabled": false,
+    "ble_name": "StripAlerts"
+}

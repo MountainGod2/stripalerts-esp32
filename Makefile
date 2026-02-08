@@ -8,7 +8,12 @@ BAUD ?= 460800
 CLEAN ?=
 
 # Tools
-PYTHON := python3
+VENV_PYTHON := .venv/bin/python
+ifneq ($(wildcard $(VENV_PYTHON)),)
+    PYTHON ?= $(VENV_PYTHON)
+else
+    PYTHON ?= python3
+endif
 CLI := $(PYTHON) tools/cli.py
 
 help: ## Show this help message

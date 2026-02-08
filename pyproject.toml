@@ -3,27 +3,69 @@ name = "stripalerts"
 version = "0.1.0"
 description = "MicroPython for the Chaturbate Events API on ESP32"
 readme = "README.md"
-authors = [
-    { name = "MountainGod2", email = "admin@reid.ca" }
-]
+authors = [{ name = "MountainGod2", email = "admin@reid.ca" }]
 requires-python = ">=3.9"
 dependencies = []
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build==0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "stripalerts"
+module-root = "lib"
 
 [dependency-groups]
 dev = [
-    "esptool>=4.8.1",
-    "mpremote>=1.27.0",
-    "pyserial>=3.5",
-    "ruff>=0.14.14",
+    "esptool==4.11.0",
+    "mpremote==1.27.0",
+    "pre-commit==4.3.0",
+    "pyserial==3.5",
+    "ruff==0.15.0",
 ]
 
+[project.optional-dependencies]
+# uv pip install -r pyproject.toml --extra stubs --target typings
+stubs = ["micropython-esp32-stubs==1.27.0.*"]
+
 [tool.ruff]
-# lint.select = ["ALL"]
-lint.ignore = ["COM812", "D203","D213","T201","FBT001"]
-format.exclude = ["firmware/*"]
-lint.exclude = ["firmware/*"]
+exclude = ["firmware", "typings"]
+target-version = "py39"
+line-length = 88
+lint.select = ["E", "F", "W", "I", "PYI"]
 lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
+format.quote-style = "double"
+format.indent-style = "space"
+
+[tool.pyright]
+include = ["src", "lib"]
+exclude = [".*", "__*", "**/typings"]
+typeCheckingMode = "basic"
+stubPath = "typings"
+typeshedPath = "typings"
+pythonPlatform = "Linux"
+pythonVersion = "3.9"
+reportMissingModuleSource = "none"
+reportUnnecessaryTypeIgnoreComment = "information"
+
+[tool.mypy]
+platform = "linux"
+python_version = "3.9"
+mypy_path = "typings"
+custom_typeshed_dir = "typings"
+files = "src, lib"
+exclude = [
+    "typings[\\/].*", # TOML basic string
+]
+follow_imports = "silent"
+follow_imports_for_stubs = true
+no_site_packages = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "aioble"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "aiohttp"
+ignore_missing_imports = true

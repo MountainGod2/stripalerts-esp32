@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -16,10 +17,9 @@ def find_serial_port() -> str | None:
     """
     print("Auto-detecting ESP32 device...")
 
-    # Try esptool chip_id first
     try:
         result = subprocess.run(
-            ["python", "-m", "esptool", "chip_id"],
+            [sys.executable, "-m", "esptool", "chip_id"],
             capture_output=True,
             text=True,
             check=False,
@@ -28,13 +28,12 @@ def find_serial_port() -> str | None:
         if result.returncode == 0:
             for line in result.stdout.split("\n"):
                 if "Serial port" in line:
-                    port = line.split()[-1]
+                    port = line.split()[-1].rstrip(":")
                     print(f"[OK] Found ESP32 on port: {port}")
                     return port
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    # Fallback to glob pattern matching
     ports = [
         str(p)
         for pattern in ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
@@ -61,7 +60,6 @@ def check_idf_prerequisites() -> tuple[bool, str | None, list[str]]:
     if not esp_idf_path:
         return False, None, []
 
-    # Try idf.py in PATH first
     try:
         result = subprocess.run(
             ["idf.py", "--version"],
@@ -75,19 +73,18 @@ def check_idf_prerequisites() -> tuple[bool, str | None, list[str]]:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
-    # Try idf.py in IDF_PATH/tools
     idf_py_path = Path(esp_idf_path) / "tools" / "idf.py"
     if idf_py_path.exists():
         try:
             result = subprocess.run(
-                ["python3", str(idf_py_path), "--version"],
+                [sys.executable, str(idf_py_path), "--version"],
                 capture_output=True,
                 text=True,
                 check=False,
                 timeout=5,
             )
             if result.returncode == 0:
-                return True, esp_idf_path, ["python3", str(idf_py_path)]
+                return True, esp_idf_path, [sys.executable, str(idf_py_path)]
         except subprocess.TimeoutExpired:
             pass
 
@@ -103,6 +100,7 @@ def check_tool_available(tool: str, version_flag: str = "--version") -> bool:
 
     Returns:
         True if tool is available, False otherwise
+
     """
     try:
         result = subprocess.run(

@@ -5,10 +5,22 @@ on:
     branches:
       - main
       - develop
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'frontend/**'
   pull_request:
     branches:
       - main
       - develop
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'frontend/**'
   workflow_dispatch:
 
 concurrency:
@@ -26,38 +38,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: 'pip'
-
       - name: Install uv
         uses: astral-sh/setup-uv@v4
-
-      - name: Export requirements
-        run: uv export --only-dev --format requirements.txt --output-file requirements.txt
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
+        with:
+          enable-cache: true
+          python-version: "3.11"
 
       - name: Ruff check
-        run: ruff check .
+        run: uv run ruff check .
 
       - name: Ruff format
-        run: ruff format --check .
+        run: uv run ruff format --check .
 
   build-firmware:
     name: Build firmware
     runs-on: ubuntu-latest
     env:
       ESP_IDF_VERSION: v5.5.1
-      MICROPYTHON_VER: v1.27.0
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - name: Install system dependencies
         run: |
@@ -66,45 +68,23 @@ jobs:
             git build-essential cmake ninja-build flex bison gperf \
             ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: 'pip'
-
       - name: Install uv
         uses: astral-sh/setup-uv@v4
-
-      - name: Export requirements
-        run: uv export --only-dev --format requirements.txt --output-file requirements.txt
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Cache MicroPython
-        id: cache-micropython
-        uses: actions/cache@v4
         with:
-          path: firmware/micropython
-          key: ${{ runner.os }}-micropython-${{ env.MICROPYTHON_VER }}-${{ hashFiles('.git/modules/firmware/micropython/HEAD') }}
-          restore-keys: |
-            ${{ runner.os }}-micropython-${{ env.MICROPYTHON_VER }}-
+          enable-cache: true
+          python-version: "3.11"
 
-      - name: Clone MicroPython
-        if: steps.cache-micropython.outputs.cache-hit != 'true'
+      - name: Install Python dependencies
         run: |
-          mkdir -p firmware
-          git clone --depth 1 --branch ${{ env.MICROPYTHON_VER }} \
-            https://github.com/micropython/micropython.git firmware/micropython
+          uv sync --frozen || uv sync
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Cache mpy-cross
         id: cache-mpy-cross
         uses: actions/cache@v4
         with:
           path: firmware/micropython/mpy-cross/build/mpy-cross
-          key: ${{ runner.os }}-mpy-cross-${{ hashFiles('firmware/micropython/py/*.[ch]', 'firmware/micropython/mpy-cross/**/*.[ch]') }}
+          key: ${{ runner.os }}-mpy-cross-${{ hashFiles('firmware/micropython/mpy-cross/**/*') }}
           restore-keys: |
             ${{ runner.os }}-mpy-cross-
 
@@ -149,7 +129,7 @@ jobs:
         if: success()
         run: |
           mkdir -p artifacts
-          
+
           # Try primary location first
           if [ -d "firmware/build" ] && [ -n "$(ls -A firmware/build/*.bin 2>/dev/null)" ]; then
             cp -v firmware/build/*.bin artifacts/
@@ -166,7 +146,7 @@ jobs:
               exit 1
             fi
           fi
-          
+
           ls -la artifacts
 
       - name: Upload firmware artifact

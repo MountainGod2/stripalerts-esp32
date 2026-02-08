@@ -2,3 +2,6 @@
 *
 # Except this file
 !.gitignore
+
+# Allow micropython submodule
+!micropython/

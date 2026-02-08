@@ -1,0 +1,108 @@
+"""Utility functions and helpers."""
+
+import gc
+import sys
+import time
+
+import esp32
+import micropython
+
+
+def log(level: str, message: str) -> None:
+    """Logging function.
+
+    Args:
+        level: Log level (INFO, WARNING, ERROR, DEBUG)
+        message: Message to log
+
+    """
+    timestamp = time.localtime()
+    print(
+        f"[{timestamp[3]:02d}:{timestamp[4]:02d}:{timestamp[5]:02d}] "
+        f"[{level}] {message}"
+    )
+
+
+def log_info(message: str) -> None:
+    """Log info message."""
+    log("INFO", message)
+
+
+def log_error(message: str) -> None:
+    """Log error message."""
+    log("ERROR", message)
+
+
+def log_warning(message: str) -> None:
+    """Log warning message."""
+    log("WARNING", message)
+
+
+def log_debug(message: str) -> None:
+    """Log debug message."""
+    log("DEBUG", message)
+
+
+@micropython.native
+def format_mac(mac_bytes: bytes) -> str:
+    """Format MAC address bytes as string.
+
+    Args:
+        mac_bytes: MAC address bytes
+
+    Returns:
+        Formatted MAC address string
+
+    """
+    return ":".join([f"{b:02x}" for b in mac_bytes])
+
+
+def free_memory() -> int:
+    """Get free memory in bytes.
+
+    Returns:
+        Free memory in bytes
+
+    """
+    gc.collect()
+    return gc.mem_free()
+
+
+def get_mcu_temperature() -> float:
+    """Get MCU internal temperature.
+
+    Returns:
+        Temperature in Celsius
+
+    """
+    try:
+        if hasattr(esp32, "mcu_temperature"):
+            return esp32.mcu_temperature()  # type: ignore
+        # Original ESP32 has raw_temperature() in Fahrenheit. Convert to Celsius.
+        if hasattr(esp32, "raw_temperature"):
+            f = esp32.raw_temperature()
+            return (f - 32.0) * 5.0 / 9.0
+        return 0.0
+    except Exception:
+        return 0.0
+
+
+def system_info() -> dict:
+    """Get system information.
+
+    Returns:
+        Dictionary with system information
+
+    """
+    info = {
+        "platform": sys.platform,
+        "version": sys.version,
+        "free_mem": free_memory(),
+        "mcu_temp": get_mcu_temperature(),
+    }
+
+    # Add flash_size if available
+    if hasattr(esp32, "flash_size"):
+        info["flash_size"] = esp32.flash_size()  # type: ignore
+
+    return info

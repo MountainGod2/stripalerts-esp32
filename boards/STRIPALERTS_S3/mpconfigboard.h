@@ -1,4 +1,4 @@
-#define MICROPY_HW_BOARD_NAME               "StripAlerts ESP32S3"
+#define MICROPY_HW_BOARD_NAME               "StripAlerts MCU"
 #define MICROPY_HW_MCU_NAME                 "ESP32S3"
 
 // Enable UART REPL for modules that have an external USB-UART and don't use native USB.
