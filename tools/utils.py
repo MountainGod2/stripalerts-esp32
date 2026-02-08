@@ -28,7 +28,7 @@ def find_serial_port() -> str | None:
         if result.returncode == 0:
             for line in result.stdout.split("\n"):
                 if "Serial port" in line:
-                    port = line.split()[-1]
+                    port = line.split()[-1].rstrip(":")
                     print(f"[OK] Found ESP32 on port: {port}")
                     return port
     except (subprocess.TimeoutExpired, FileNotFoundError):

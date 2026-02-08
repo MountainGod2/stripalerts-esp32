@@ -81,7 +81,7 @@ class FirmwareUploader:
         print("Erasing flash memory...")
         try:
             run_command(
-                [sys.executable, "-m", "esptool", "--port", port, "erase_flash"]
+                [sys.executable, "-m", "esptool", "--port", port, "erase-flash"]
             )
             print("[OK] Flash erased successfully")
             return True
@@ -103,7 +103,7 @@ class FirmwareUploader:
             port,
             "--baud",
             str(self.baud),
-            "write_flash",
+            "write-flash",
             "-z",
             hex(self.FLASH_ADDRESSES["bootloader"]),
             str(self.build_dir / "bootloader.bin"),
