@@ -24,3 +24,4 @@ repos:
     hooks:
       - id: prettier
         types_or: [javascript, css, html]
+        exclude: \.min\.(js|css)$

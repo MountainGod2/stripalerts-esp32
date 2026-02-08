@@ -129,7 +129,7 @@ jobs:
         if: success()
         run: |
           mkdir -p artifacts
-          
+
           # Try primary location first
           if [ -d "firmware/build" ] && [ -n "$(ls -A firmware/build/*.bin 2>/dev/null)" ]; then
             cp -v firmware/build/*.bin artifacts/
@@ -146,7 +146,7 @@ jobs:
               exit 1
             fi
           fi
-          
+
           ls -la artifacts
 
       - name: Upload firmware artifact
