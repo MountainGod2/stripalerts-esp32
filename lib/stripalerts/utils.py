@@ -72,15 +72,16 @@ def get_mcu_temperature() -> float:
     """Get MCU internal temperature.
 
     Returns:
-        Temperature in Celsius for ESP32-S3/S2/C3/C6, or Fahrenheit for original ESP32
+        Temperature in Celsius
 
     """
     try:
         if hasattr(esp32, "mcu_temperature"):
             return esp32.mcu_temperature()  # type: ignore
-        # Original ESP32 has raw_temperature() in Fahrenheit
+        # Original ESP32 has raw_temperature() in Fahrenheit. Convert to Celsius.
         if hasattr(esp32, "raw_temperature"):
-            return esp32.raw_temperature()
+            f = esp32.raw_temperature()
+            return (f - 32.0) * 5.0 / 9.0
         return 0.0
     except Exception:
         return 0.0
