@@ -1,4 +1,4 @@
-"""Manifest for StripAlerts ESP32S3 board."""
+"""Manifest for StripAlerts MCU."""
 
 # Include the base ESP32 manifest
 include("$(PORT_DIR)/boards/manifest.py")
