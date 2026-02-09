@@ -40,7 +40,7 @@ exclude = ["micropython", "typings"]
 target-version = "py39"
 line-length = 88
 lint.select = ["E", "F", "W", "I", "PYI"]
-lint.per-file-ignores = { "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
+lint.per-file-ignores = { "boards/STRIPALERTS/manifest.py" = ["F821"], "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
 format.quote-style = "double"
 format.indent-style = "space"
 

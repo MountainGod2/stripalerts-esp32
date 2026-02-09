@@ -2,7 +2,7 @@
 .DEFAULT_GOAL := help
 
 # Configuration
-BOARD ?= STRIPALERTS_S3
+BOARD ?= STRIPALERTS
 PORT ?=
 BAUD ?= 460800
 CLEAN ?=
@@ -34,7 +34,7 @@ help: ## Show this help message
 	@echo "  CLEAN=1          Clean before building"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make build BOARD=ESP32_GENERIC"
+	@echo "  make build BOARD=STRIPALERTS"
 	@echo "  make flash PORT=/dev/ttyUSB0"
 	@echo "  make deploy CLEAN=1"
 

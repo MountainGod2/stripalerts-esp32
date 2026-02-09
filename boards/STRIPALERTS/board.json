@@ -1,0 +1,16 @@
+{
+    "deploy": [
+        "../deploy.md"
+    ],
+    "docs": "",
+    "features": [
+        "WiFi",
+        "BLE"
+    ],
+    "images": [],
+    "mcu": "esp32",
+    "product": "StripAlerts MCU",
+    "thumbnail": "",
+    "url": "https://github.com/MountainGod2/stripalerts-esp32",
+    "vendor": "StripAlerts"
+}

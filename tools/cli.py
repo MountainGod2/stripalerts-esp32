@@ -112,8 +112,8 @@ def main() -> int:
     build_parser = subparsers.add_parser("build", help="Build firmware")
     build_parser.add_argument(
         "--board",
-        default="ESP32_GENERIC_S3",
-        help="ESP32 board variant (default: ESP32_GENERIC_S3)",
+        default="STRIPALERTS",
+        help="ESP32 board variant (default: STRIPALERTS)",
     )
     build_parser.add_argument(
         "--clean", action="store_true", help="Clean before building"
@@ -129,7 +129,7 @@ def main() -> int:
         "--baud", "-b", type=int, default=460800, help="Baud rate"
     )
     flash_parser.add_argument(
-        "--board", default="ESP32_GENERIC_S3", help="ESP32 board variant"
+        "--board", default="STRIPALERTS", help="ESP32 board variant"
     )
     flash_parser.add_argument("--erase", action="store_true", help="Erase flash first")
     flash_parser.set_defaults(func=cmd_flash)
@@ -166,7 +166,7 @@ def main() -> int:
         "--port", "-p", help="Serial port (auto-detect if not set)"
     )
     deploy_parser.add_argument(
-        "--board", default="ESP32_GENERIC_S3", help="ESP32 board variant"
+        "--board", default="STRIPALERTS", help="ESP32 board variant"
     )
     deploy_parser.add_argument(
         "--baud", type=int, default=460800, help="Flash baud rate"

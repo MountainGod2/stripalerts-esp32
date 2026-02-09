@@ -245,7 +245,6 @@ class BLEManager:
             # Frontend only displays top 5 anyway.
             simple_list = []  # type: list[dict]
             for n in networks:
-                # Build entry (auth is unused by frontend, omitting to save space)
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
 
                 # Test if adding this keeps us under the limit
@@ -262,8 +261,7 @@ class BLEManager:
 
             json_str = json.dumps(simple_list)
 
-            # Send as one chunk if possible, otherwise truncate/split?
-            # Assuming MTU ~512 on ESP32 S3, this might fit.
+            # MTU size varies by device/stack; keep payload small.
             encoded = json_str.encode("utf-8")
             self.char_networks.write(encoded)
             if self._connection:

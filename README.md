@@ -1,10 +1,10 @@
 # StripAlerts
 
-MicroPython firmware for ESP32-S3 LED strip control via WiFi and BLE.
+MicroPython firmware for ESP32 LED strip control via WiFi and BLE.
 
 ## Hardware
 
-- ESP32-S3 development board
+- ESP32-based development board
 - WS2812B/NeoPixel LED strip
 
 ## Development
