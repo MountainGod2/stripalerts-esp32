@@ -3,6 +3,7 @@
 import asyncio
 
 import network
+
 from micropython import const
 
 from .constants import WIFI_CONNECT_TIMEOUT
