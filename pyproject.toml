@@ -27,6 +27,13 @@ dev = [
 [project.optional-dependencies]
 # uv pip install -r pyproject.toml --extra stubs --target typings
 stubs = ["micropython-esp32-stubs==1.27.0.*"]
+dev = [
+    "esptool==4.11.0",
+    "mpremote==1.27.0",
+    "pre-commit==4.3.0",
+    "pyserial==3.5",
+    "ruff==0.15.0",
+]
 
 [tool.ruff]
 exclude = ["micropython", "typings"]
