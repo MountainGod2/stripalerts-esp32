@@ -639,6 +639,13 @@ version = "0.1.0"
 source = { editable = "." }
 
 [package.optional-dependencies]
+dev = [
+    { name = "esptool" },
+    { name = "mpremote" },
+    { name = "pre-commit" },
+    { name = "pyserial" },
+    { name = "ruff" },
+]
 stubs = [
     { name = "micropython-esp32-stubs" },
 ]
@@ -653,8 +660,15 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "micropython-esp32-stubs", marker = "extra == 'stubs'", specifier = "==1.27.0.*" }]
-provides-extras = ["stubs"]
+requires-dist = [
+    { name = "esptool", marker = "extra == 'dev'", specifier = "==4.11.0" },
+    { name = "micropython-esp32-stubs", marker = "extra == 'stubs'", specifier = "==1.27.0.*" },
+    { name = "mpremote", marker = "extra == 'dev'", specifier = "==1.27.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = "==4.3.0" },
+    { name = "pyserial", marker = "extra == 'dev'", specifier = "==3.5" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = "==0.15.0" },
+]
+provides-extras = ["stubs", "dev"]
 
 [package.metadata.requires-dev]
 dev = [
