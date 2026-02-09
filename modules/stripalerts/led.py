@@ -3,8 +3,9 @@
 import asyncio
 
 import machine
-import micropython
 import neopixel
+
+import micropython
 from micropython import const
 
 _HUE_MAX = const(360)

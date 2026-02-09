@@ -5,6 +5,7 @@ import json
 
 import aioble
 import bluetooth
+
 from micropython import const
 
 from .config import settings

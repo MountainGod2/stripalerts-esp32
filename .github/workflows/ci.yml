@@ -83,15 +83,15 @@ jobs:
         id: cache-mpy-cross
         uses: actions/cache@v4
         with:
-          path: firmware/micropython/mpy-cross/build/mpy-cross
-          key: ${{ runner.os }}-mpy-cross-${{ hashFiles('firmware/micropython/mpy-cross/**/*') }}
+          path: micropython/mpy-cross/build/mpy-cross
+          key: ${{ runner.os }}-mpy-cross-${{ hashFiles('micropython/mpy-cross/**/*') }}
           restore-keys: |
             ${{ runner.os }}-mpy-cross-
 
       - name: Build mpy-cross
         if: steps.cache-mpy-cross.outputs.cache-hit != 'true'
         run: |
-          cd firmware/micropython/mpy-cross
+          cd micropython/mpy-cross
           make -j$(nproc)
 
       - name: Cache ESP-IDF
@@ -117,7 +117,7 @@ jobs:
 
       - name: Build firmware
         env:
-          MICROPY_MPYCROSS: ${{ github.workspace }}/firmware/micropython/mpy-cross/build/mpy-cross
+          MICROPY_MPYCROSS: ${{ github.workspace }}/micropython/mpy-cross/build/mpy-cross
         run: |
           source ~/esp/idf/export.sh
           # Verify environment is set
@@ -136,7 +136,7 @@ jobs:
           else
             # Fallback to board-specific build directory
             echo "Primary build directory not found, checking fallback..."
-            BOARD_BUILD_DIR="firmware/micropython/ports/esp32/build-STRIPALERTS_S3"
+            BOARD_BUILD_DIR="micropython/ports/esp32/build-STRIPALERTS_S3"
             if [ -d "$BOARD_BUILD_DIR" ]; then
               cp -v "$BOARD_BUILD_DIR/micropython.bin" artifacts/firmware.bin
               cp -v "$BOARD_BUILD_DIR/partition_table/partition-table.bin" artifacts/

@@ -27,7 +27,7 @@ class FirmwareBuilder:
         """
         self.root_dir = root_dir
         self.firmware_dir = root_dir / "firmware"
-        self.micropython_dir = self.firmware_dir / "micropython"
+        self.micropython_dir = root_dir / "micropython"
         self.lib_dir = root_dir / "modules"
         self.board = board
         self.clean = clean
@@ -74,7 +74,7 @@ class FirmwareBuilder:
                     "update",
                     "--init",
                     "--recursive",
-                    "firmware/micropython",
+                    "micropython",
                 ],
                 cwd=self.root_dir,
             )

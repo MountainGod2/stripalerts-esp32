@@ -27,7 +27,7 @@ class BuildCleaner:
         self.all_clean = all_clean
         self.firmware_dir = root_dir / "firmware"
         self.build_dir = self.firmware_dir / "build"
-        self.micropython_dir = self.firmware_dir / "micropython"
+        self.micropython_dir = root_dir / "micropython"
 
     def clean_build_artifacts(self) -> None:
         """Clean build artifacts."""
@@ -51,7 +51,7 @@ class BuildCleaner:
 
         for pattern in ["**/__pycache__", "**/*.pyc", "**/*.pyo", "**/*.pyd"]:
             for path in self.root_dir.glob(pattern):
-                if "firmware/micropython" in str(path):
+                if "micropython" in str(path):
                     continue
                 try:
                     if path.is_dir():

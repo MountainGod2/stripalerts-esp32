@@ -33,6 +33,10 @@ env/
 *.swo
 *~
 
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+
 # MicroPython
 *.mpy
 firmware/build/*.bin
