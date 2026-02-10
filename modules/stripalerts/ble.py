@@ -78,6 +78,32 @@ class BLEManager:
         aioble.register_services(self.service)
         log_info(f"BLE Service registered: {_SERVICE_UUID}")
 
+    def _apply_buffer_to_settings(self, uuid, config_key) -> None:
+        if not self._buffers[uuid]:
+            return
+
+        try:
+            decoded = self._buffers[uuid].decode("utf-8")
+        except Exception:
+            return
+
+        settings[config_key] = decoded
+
+    def _flush_pending_writes(self) -> None:
+        """Apply latest buffered values and cancel pending debounce tasks."""
+        key_map = {
+            _CHAR_SSID: "wifi_ssid",
+            _CHAR_PASS: "wifi_password",
+            _CHAR_API: "api_url",
+        }
+
+        for uuid, config_key in key_map.items():
+            task = self._write_tasks.get(uuid)
+            if task:
+                task.cancel()
+                self._write_tasks.pop(uuid, None)
+            self._apply_buffer_to_settings(uuid, config_key)
+
     async def start(self):
         """Start advertising and handling connections."""
         log_info("Starting BLE task...")
@@ -155,6 +181,8 @@ class BLEManager:
                     self._buffers[uuid] = bytearray(data)
                 elif flag == _FLAG_APPEND:
                     self._buffers[uuid].extend(data)
+                else:
+                    continue
 
                 # Debounce save
                 if uuid in self._write_tasks:
@@ -218,6 +246,8 @@ class BLEManager:
 
                 elif command == "save":
                     # Persist settings to disk
+                    await self._notify_status("Saving")
+                    self._flush_pending_writes()
                     settings.save()
                     await self._notify_status("Saved")
                     log_info("Configuration complete. Rebooting in 3s...")
