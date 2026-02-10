@@ -165,6 +165,7 @@ const onStatusUpdate = (status) => {
       state.isConfigEventsComplete = true;
 
       hideElement("confirmInfo");
+      hideElement("confirmRebootInfo");
       showElement("confirmSuccess");
       document
         .getElementById("confirmSuccess")
@@ -382,12 +383,14 @@ const sendConfig = async () => {
       if (state.waitingForSave) {
         state.waitingForSave = false;
         btn.disabled = false;
+        hideElement("confirmRebootInfo");
         showError("confirmError", "Save timed out. Please try again.");
       }
     }, 10000);
   } catch (e) {
     state.waitingForSave = false;
     btn.disabled = false;
+    hideElement("confirmRebootInfo");
     showError("confirmError", e.message);
   }
 };
