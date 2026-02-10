@@ -30,7 +30,7 @@ make monitor  # Serial monitor
 
 ```json
 {
-  "led_pin": 16,
+  "led_pin": 48,
   "num_pixels": 60,
   "led_pattern": "rainbow",
   "api_url": "https://events.testbed.cb.dev/events/USERNAME/APITOKEN/",

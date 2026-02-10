@@ -7,5 +7,5 @@
     "rainbow_delay": 0.01,
     "api_url": "https://events.testbed.cb.dev/events/mountaingod2/test/",
     "wifi_ssid": "",
-    "wifi_password": "",
+    "wifi_password": ""
 }
