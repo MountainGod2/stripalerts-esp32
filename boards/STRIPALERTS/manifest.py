@@ -2,8 +2,12 @@
 
 # Include the base ESP32 manifest
 include("$(PORT_DIR)/boards/manifest.py")
+
 require("aioble")
 require("aiohttp")
 
 # Freeze StripAlerts package
-freeze("$(MPY_DIR)/../modules/stripalerts", opt=3)
+freeze(
+    "$(MPY_DIR)/../modules",
+    opt=3,
+)

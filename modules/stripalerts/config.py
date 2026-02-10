@@ -19,8 +19,6 @@ DEFAULTS = {
     "api_url": "https://events.testbed.cb.dev/events/mountaingod2/test/",
     "wifi_ssid": "",
     "wifi_password": "",
-    "ble_enabled": False,
-    "ble_name": "StripAlerts",
 }
 
 

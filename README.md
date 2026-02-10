@@ -33,6 +33,7 @@ make monitor  # Serial monitor
   "led_pin": 48,
   "num_pixels": 60,
   "led_pattern": "rainbow",
+  "api_url": "https://events.testbed.cb.dev/events/USERNAME/APITOKEN/",
   "wifi_ssid": "SSID",
   "wifi_password": "PASSWORD"
 }

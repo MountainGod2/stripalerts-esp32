@@ -19,6 +19,7 @@ const state = {
   deviceReady: false,
   isConfigEventsComplete: false,
   waitingForSave: false,
+  wifiTestSuccess: false,
 };
 
 let qrScanner = null;
@@ -54,6 +55,11 @@ const showStep = (stepNum) => {
     .classList.add("active");
 
   state.currentStep = stepNum;
+
+  if (stepNum === STEPS.CONFIRM) {
+    hideError("confirmError");
+    showElement("confirmRebootInfo");
+  }
 };
 
 const markStepComplete = (stepNum) => {
@@ -159,6 +165,7 @@ const onStatusUpdate = (status) => {
       state.isConfigEventsComplete = true;
 
       hideElement("confirmInfo");
+      hideElement("confirmRebootInfo");
       showElement("confirmSuccess");
       document
         .getElementById("confirmSuccess")
@@ -170,6 +177,13 @@ const onStatusUpdate = (status) => {
         hideElement("confirmBackBtn");
       }, 500); // Small delay to let animation start
     }
+  }
+
+  if (status.startsWith("Save failed") && state.currentStep === STEPS.CONFIRM) {
+    state.waitingForSave = false;
+    const btn = document.getElementById("confirmBtn");
+    btn.disabled = false;
+    showError("confirmError", status);
   }
 };
 
@@ -221,11 +235,13 @@ const onWifiTestUpdate = (result) => {
   const btn = document.getElementById("wifiNextBtn");
 
   if (result === "success") {
+    state.wifiTestSuccess = true;
     btn.disabled = false;
     btn.textContent = "Continue";
     markStepComplete(STEPS.WIFI);
     showStep(STEPS.API);
   } else if (result === "failed") {
+    state.wifiTestSuccess = false;
     btn.disabled = false;
     btn.textContent = "Continue";
     showError("wifiError", "Connection failed. Check password.");
@@ -278,6 +294,7 @@ const wifiNext = async () => {
   const btn = document.getElementById("wifiNextBtn");
   btn.disabled = true;
   btn.textContent = "Testing WiFi...";
+  state.wifiTestSuccess = false;
 
   try {
     await ble.write("ssid", ssid);
@@ -334,6 +351,18 @@ const sendConfig = async () => {
   const btn = document.getElementById("confirmBtn");
   btn.disabled = true;
 
+  hideError("confirmError");
+
+  if (!state.wifiTestSuccess) {
+    btn.disabled = false;
+    return showError("confirmError", "WiFi test has not succeeded.");
+  }
+
+  if (!isValidApiUrl(state.apiUrl)) {
+    btn.disabled = false;
+    return showError("confirmError", "API URL is invalid.");
+  }
+
   try {
     await ble.write("ssid", state.ssid);
     await new Promise((r) => setTimeout(r, 100));
@@ -354,12 +383,14 @@ const sendConfig = async () => {
       if (state.waitingForSave) {
         state.waitingForSave = false;
         btn.disabled = false;
+        hideElement("confirmRebootInfo");
         showError("confirmError", "Save timed out. Please try again.");
       }
     }, 10000);
   } catch (e) {
     state.waitingForSave = false;
     btn.disabled = false;
+    hideElement("confirmRebootInfo");
     showError("confirmError", e.message);
   }
 };
