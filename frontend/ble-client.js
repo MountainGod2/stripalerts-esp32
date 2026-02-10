@@ -145,9 +145,14 @@ export class BleClient {
     // Utf8 safe chunking
     while (offset < allBytes.length) {
       let end = Math.min(offset + CHUNK_SIZE, allBytes.length);
-      while (end > offset && (allBytes[end] & 0xc0) === 0x80) {
+      while (end > offset && (allBytes[end - 1] & 0xc0) === 0x80) {
         end--;
       }
+
+      if (end === offset) {
+        end = Math.min(offset + CHUNK_SIZE, allBytes.length);
+      }
+
       chunks.push(allBytes.subarray(offset, end));
       offset = end;
     }

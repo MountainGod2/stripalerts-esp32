@@ -104,6 +104,9 @@ class BLEManager:
                 self._write_tasks.pop(uuid, None)
             self._apply_buffer_to_settings(uuid, config_key)
 
+    def _has_required_config(self) -> bool:
+        return bool(settings["wifi_ssid"]) and bool(settings["api_url"])
+
     async def start(self):
         """Start advertising and handling connections."""
         log_info("Starting BLE task...")
@@ -248,6 +251,11 @@ class BLEManager:
                     # Persist settings to disk
                     await self._notify_status("Saving")
                     self._flush_pending_writes()
+
+                    if not self._has_required_config():
+                        await self._notify_status("Save failed: missing fields")
+                        continue
+
                     settings.save()
                     await self._notify_status("Saved")
                     log_info("Configuration complete. Rebooting in 3s...")
