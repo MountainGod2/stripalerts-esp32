@@ -11,7 +11,7 @@ except ImportError:
     TYPE_CHECKING = False
 
 if TYPE_CHECKING:
-    from typing import Optional
+    from typing import List, Optional
 
 from .api import ChaturbateAPI
 from .ble import BLEManager
@@ -41,7 +41,10 @@ class App:
         self.ble: Optional[BLEManager] = None
         self.mode = "BOOT"  # BOOT, NORMAL, PROVISIONING
 
-        self._tasks: list[asyncio.Task] = []
+        if TYPE_CHECKING:
+            self._tasks: List[asyncio.Task] = []
+        else:
+            self._tasks = []
         self._running = False
         self._revert_task = None
         self._current_hold_color: Optional[tuple[int, int, int]] = None
@@ -128,6 +131,7 @@ class App:
 
     async def setup(self) -> None:
         """Initialize components."""
+        self.wdt.feed()
         log_info("Setting up...")
 
         # Set default pattern (Rainbow)
@@ -142,6 +146,7 @@ class App:
         password = settings["wifi_password"]
         api_url = settings["api_url"]
 
+        self.wdt.feed()
         if ssid and api_url:
             log_info(f"Config found. Connecting to {ssid}...")
             if await self.wifi.connect(ssid, password):
@@ -161,11 +166,7 @@ class App:
         # Indicate Provisioning Mode (Blue Pulse?)
         self.led.set_pattern(solid_pattern(self.led, (0, 0, 255)))
 
-        try:
-            self.ble = BLEManager(self.wifi)
-        except ImportError:
-            log_error("BLE module not found. Cannot provision.")
-            self.led.set_pattern(solid_pattern(self.led, (255, 0, 0)))  # Red Error
+        self.ble = BLEManager(self.wifi)
 
     async def run(self) -> None:
         """Main loop."""
@@ -185,14 +186,11 @@ class App:
             else:
                 log_error("BLE failed, staying in error mode")
 
-        # Initialize Watchdog Timer (10 second timeout)
-        wdt = machine.WDT(timeout=10000)
-
         try:
             log_info(f"App started in {self.mode} mode.")
             while self._running:
                 # Feed Watchdog
-                wdt.feed()
+                self.wdt.feed()
 
                 # Basic monitoring
                 await asyncio.sleep(1)
@@ -239,5 +237,6 @@ class App:
 
     async def start(self):
         """Start the application."""
+        self.wdt = machine.WDT(timeout=10000)
         await self.setup()
         await self.run()
