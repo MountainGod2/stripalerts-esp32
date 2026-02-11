@@ -35,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
         with:
           enable-cache: true
           python-version: "3.11"
@@ -56,7 +56,7 @@ jobs:
       ESP_IDF_VERSION: v5.5.1
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: recursive
 
@@ -68,7 +68,7 @@ jobs:
             ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
         with:
           enable-cache: true
           python-version: "3.11"
@@ -80,7 +80,7 @@ jobs:
 
       - name: Cache mpy-cross
         id: cache-mpy-cross
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: micropython/mpy-cross/build/mpy-cross
           key: ${{ runner.os }}-mpy-cross-${{ hashFiles('micropython/mpy-cross/**/*') }}
@@ -95,7 +95,7 @@ jobs:
 
       - name: Cache ESP-IDF
         id: cache-esp-idf
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/esp/idf
@@ -149,7 +149,7 @@ jobs:
           ls -la artifacts
 
       - name: Upload firmware artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: firmware-${{ github.sha }}
           path: artifacts/*.bin
