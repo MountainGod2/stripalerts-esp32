@@ -19,11 +19,6 @@ if TYPE_CHECKING:
     from typing import Optional
 
 
-try:
-    from typing import TYPE_CHECKING
-except ImportError:
-    TYPE_CHECKING = False
-
 _CONNECT_CHECK_INTERVAL_MS = const(100)
 
 
