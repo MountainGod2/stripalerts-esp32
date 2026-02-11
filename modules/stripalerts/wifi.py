@@ -56,7 +56,11 @@ class WiFiManager:
         log_info("WiFi AP mode disabled")
 
     async def connect(
-        self, ssid: str, password: str, timeout: int = WIFI_CONNECT_TIMEOUT
+        self,
+        ssid: str,
+        password: str,
+        timeout: int = WIFI_CONNECT_TIMEOUT,
+        wdt: "object | None" = None,
     ) -> bool:
         """Connect to WiFi network.
 
@@ -82,6 +86,8 @@ class WiFiManager:
 
         iterations = (timeout * 1000) // _CONNECT_CHECK_INTERVAL_MS
         for _ in range(iterations):
+            if wdt:
+                wdt.feed()
             if self.sta.isconnected():
                 ip_addr = self.sta.ifconfig()[0]
                 log_info(f"Connected! IP: {ip_addr}")
