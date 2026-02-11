@@ -221,6 +221,8 @@ class App:
     async def shutdown(self):
         self._running = False
         log_info("Shutting down...")
+        if self.wdt:
+            self.wdt.feed()
 
         for t in self._tasks:
             if not t.done():
@@ -231,6 +233,8 @@ class App:
             self._tasks.append(self._revert_task)
 
         if self._tasks:
+            if self.wdt:
+                self.wdt.feed()
             await asyncio.gather(*self._tasks, return_exceptions=True)
             self._tasks = []
 
