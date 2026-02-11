@@ -18,6 +18,9 @@ MAX_PIN = const(48)
 WIFI_CONNECT_TIMEOUT = const(10)
 HTTP_REQUEST_TIMEOUT = const(5)
 
+# Trigger Tokens
+TRIGGER_TOKEN_AMOUNT = const(35)
+
 # Event queue size
 MAX_EVENT_QUEUE_SIZE = const(50)
 
