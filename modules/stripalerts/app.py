@@ -67,13 +67,14 @@ class App:
         message = tip_data.get("message", "").lower()
         log_info(f"Tip received: {tokens}")
 
+        # Standard tip flash effect
+        await self._activate_flash_effect()
+
         # Check for color trigger (35 tokens + color in message)
         found_color = self._parse_color_trigger(tokens, message)
 
         if found_color:
             await self._activate_hold_color(found_color)
-        else:
-            await self._activate_flash_effect()
 
     def _parse_color_trigger(
         self, tokens: int, message: str
