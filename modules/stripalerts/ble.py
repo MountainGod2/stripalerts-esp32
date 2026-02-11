@@ -11,7 +11,6 @@ from micropython import const
 from .config import settings
 from .utils import log_error, log_info
 
-# UUIDs
 _SERVICE_UUID = bluetooth.UUID("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_SSID = bluetooth.UUID("6e400002-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_PASS = bluetooth.UUID("6e400003-b5a3-f393-e0a9-e50e24dcca9e")
@@ -20,7 +19,6 @@ _CHAR_STATUS = bluetooth.UUID("6e400005-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_NETWORKS = bluetooth.UUID("6e400006-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_WIFITEST = bluetooth.UUID("6e400007-b5a3-f393-e0a9-e50e24dcca9e")
 
-# Flags for chunked writes
 _FLAG_START = const(0x01)
 _FLAG_APPEND = const(0x02)
 
@@ -35,8 +33,8 @@ def decode_utf8(data):
 
 
 class BLEManager:
-    def __init__(self, app_instance, name="StripAlerts-Setup"):
-        self.app = app_instance
+    def __init__(self, wifi_manager, name="StripAlerts-Setup"):
+        self.wifi = wifi_manager
         self.name = name
         self._connection = None
         self._tasks = []
@@ -240,7 +238,7 @@ class BLEManager:
                         continue
 
                     # Try to connect
-                    success = await self.app.wifi.connect(ssid, password)
+                    success = await self.wifi.connect(ssid, password)
                     if success:
                         await self._write_test_result("success")
                     else:
@@ -276,7 +274,7 @@ class BLEManager:
     async def _send_networks(self):
         """Scan and send networks."""
         await self._notify_status("Scanning Networks...")
-        networks = await self.app.wifi.scan()
+        networks = await self.wifi.scan()
 
         try:
             # Prepare networks list, fitting into one BLE packet (max ~250 bytes)

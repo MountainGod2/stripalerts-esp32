@@ -8,6 +8,8 @@ import neopixel
 import micropython
 from micropython import const
 
+from .utils import log_error
+
 _HUE_MAX = const(360)
 
 
@@ -89,7 +91,7 @@ class LEDController:
                     await asyncio.sleep(0.1)
                 except Exception as e:
                     # Log error but don't crash loop
-                    print(f"LED Pattern Error: {e}")
+                    log_error(f"LED Pattern Error: {e}")
                     self._pattern_gen = None
                     await asyncio.sleep(1)
             else:

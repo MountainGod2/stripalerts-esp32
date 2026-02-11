@@ -2,6 +2,7 @@
 
 import asyncio
 
+import machine
 import network
 
 from micropython import const
@@ -9,7 +10,15 @@ from micropython import const
 from .constants import WIFI_CONNECT_TIMEOUT
 from .utils import log_error, log_info
 
-# Connection check interval
+try:
+    from typing import TYPE_CHECKING
+except ImportError:
+    TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    from typing import Optional
+
+
 _CONNECT_CHECK_INTERVAL_MS = const(100)
 
 
@@ -57,7 +66,11 @@ class WiFiManager:
         log_info("WiFi AP mode disabled")
 
     async def connect(
-        self, ssid: str, password: str, timeout: int = WIFI_CONNECT_TIMEOUT
+        self,
+        ssid: str,
+        password: str,
+        timeout: int = WIFI_CONNECT_TIMEOUT,
+        wdt: Optional[machine.WDT] = None,
     ) -> bool:
         """Connect to WiFi network.
 
@@ -83,6 +96,8 @@ class WiFiManager:
 
         iterations = (timeout * 1000) // _CONNECT_CHECK_INTERVAL_MS
         for _ in range(iterations):
+            if wdt:
+                wdt.feed()
             if self.sta.isconnected():
                 ip_addr = self.sta.ifconfig()[0]
                 log_info(f"Connected! IP: {ip_addr}")

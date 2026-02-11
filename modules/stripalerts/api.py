@@ -21,7 +21,6 @@ class ChaturbateAPI:
         self._running = True
         log_info("Starting API polling task")
 
-        # Create session once and reuse
         async with aiohttp.ClientSession() as session:
             while self._running:
                 try:
@@ -43,7 +42,6 @@ class ChaturbateAPI:
                     await asyncio.sleep(5)
                     return
 
-                # Read JSON response
                 data = await response.json()
                 self._process_response(data)
 

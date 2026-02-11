@@ -8,7 +8,6 @@ from .utils import log_error, log_warning
 
 CONFIG_FILE = const("/config.json")
 
-# Default configuration
 DEFAULTS = {
     "led_pin": 48,
     "num_pixels": 60,
