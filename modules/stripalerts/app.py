@@ -77,7 +77,7 @@ class App:
 
     def _parse_color_trigger(
         self, tokens: int, message: str
-    ) -> "Optional[tuple[int, int, int]]":
+    ) -> Optional[tuple[int, int, int]]:
         """Check if tip triggers a specific color hold."""
         if tokens == TRIGGER_TOKEN_AMOUNT:
             for name, color in COLOR_MAP.items():
@@ -85,7 +85,7 @@ class App:
                     return color
         return None
 
-    async def _activate_hold_color(self, color: "tuple[int, int, int]"):
+    async def _activate_hold_color(self, color: tuple[int, int, int]):
         """Activate a solid color hold for 10 minutes."""
         log_info(f"Color trigger received: {color}")
         if self._revert_task:
