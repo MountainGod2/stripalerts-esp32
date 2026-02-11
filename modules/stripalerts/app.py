@@ -3,6 +3,8 @@
 import asyncio
 import gc
 
+import machine
+
 try:
     from typing import TYPE_CHECKING
 except ImportError:
@@ -11,11 +13,10 @@ except ImportError:
 if TYPE_CHECKING:
     from typing import Optional
 
-    from .ble import BLEManager
-
 from .api import ChaturbateAPI
+from .ble import BLEManager
 from .config import settings
-from .constants import COLOR_MAP
+from .constants import COLOR_MAP, TRIGGER_TOKEN_AMOUNT
 from .events import EventManager
 from .led import LEDController, rainbow_pattern, solid_pattern
 from .utils import log_error, log_info
@@ -41,7 +42,7 @@ class App:
         self.ble: Optional[BLEManager] = None
         self.mode = "BOOT"  # BOOT, NORMAL, PROVISIONING
 
-        self._tasks: list = []
+        self._tasks: list[asyncio.Task] = []
         self._running = False
         self._revert_task = None
         self._current_hold_color: Optional[tuple[int, int, int]] = None
@@ -75,7 +76,7 @@ class App:
         self, tokens: int, message: str
     ) -> "Optional[tuple[int, int, int]]":
         """Check if tip triggers a specific color hold."""
-        if tokens == 35:
+        if tokens == TRIGGER_TOKEN_AMOUNT:
             for name, color in COLOR_MAP.items():
                 if name in message:
                     return color
@@ -163,9 +164,7 @@ class App:
         self.led.set_pattern(solid_pattern(self.led, (0, 0, 255)))
 
         try:
-            from .ble import BLEManager
-
-            self.ble = BLEManager(self)
+            self.ble = BLEManager(self.wifi)
         except ImportError:
             log_error("BLE module not found. Cannot provision.")
             self.led.set_pattern(solid_pattern(self.led, (255, 0, 0)))  # Red Error
@@ -188,9 +187,15 @@ class App:
             else:
                 log_error("BLE failed, staying in error mode")
 
+        # Initialize Watchdog Timer (10 second timeout)
+        wdt = machine.WDT(timeout=10000)
+
         try:
             log_info(f"App started in {self.mode} mode.")
             while self._running:
+                # Feed Watchdog
+                wdt.feed()
+
                 # Basic monitoring
                 await asyncio.sleep(1)
 
