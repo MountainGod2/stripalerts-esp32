@@ -5,14 +5,6 @@ import gc
 
 import machine
 
-try:
-    from typing import TYPE_CHECKING
-except ImportError:
-    TYPE_CHECKING = False
-
-if TYPE_CHECKING:
-    from typing import List, Optional
-
 from .api import ChaturbateAPI
 from .ble import BLEManager
 from .config import settings
@@ -21,6 +13,14 @@ from .events import EventManager
 from .led import LEDController, rainbow_pattern, solid_pattern
 from .utils import log_error, log_info
 from .wifi import WiFiManager
+
+try:
+    from typing import TYPE_CHECKING
+except ImportError:
+    TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    from typing import List, Optional
 
 
 class App:
@@ -152,7 +152,7 @@ class App:
             self.wdt.feed()
         if ssid and api_url:
             log_info(f"Config found. Connecting to {ssid}...")
-            if await self.wifi.connect(ssid, password):
+            if await self.wifi.connect(ssid, password, wdt=self.wdt):
                 if self.wdt:
                     self.wdt.feed()
                 log_info("WiFi Connected.")
@@ -242,7 +242,34 @@ class App:
         if self._tasks:
             if self.wdt:
                 self.wdt.feed()
-            await asyncio.gather(*self._tasks, return_exceptions=True)
+
+            gather_task = asyncio.create_task(
+                asyncio.gather(*self._tasks, return_exceptions=True)
+            )
+
+            feeder_task = None
+            if self.wdt:
+
+                async def _feed_watchdog_until_done():
+                    try:
+                        while not gather_task.done():
+                            if self.wdt:
+                                self.wdt.feed()
+                            await asyncio.sleep(1)
+                    except asyncio.CancelledError:
+                        pass
+
+                feeder_task = asyncio.create_task(_feed_watchdog_until_done())
+
+            await gather_task
+
+            if feeder_task and not feeder_task.done():
+                feeder_task.cancel()
+                try:
+                    await feeder_task
+                except asyncio.CancelledError:
+                    pass
+
             self._tasks = []
 
         self._revert_task = None
