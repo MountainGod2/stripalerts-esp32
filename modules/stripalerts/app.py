@@ -48,6 +48,7 @@ class App:
         self._running = False
         self._revert_task = None
         self._current_hold_color: Optional[tuple[int, int, int]] = None
+        self.wdt: Optional[machine.WDT] = None
 
     async def _handle_api_event(self, event: dict):
         """Handle API events."""
@@ -131,7 +132,8 @@ class App:
 
     async def setup(self) -> None:
         """Initialize components."""
-        self.wdt.feed()
+        if self.wdt:
+            self.wdt.feed()
         log_info("Setting up...")
 
         # Set default pattern (Rainbow)
@@ -146,17 +148,20 @@ class App:
         password = settings["wifi_password"]
         api_url = settings["api_url"]
 
-        self.wdt.feed()
+        if self.wdt:
+            self.wdt.feed()
         if ssid and api_url:
             log_info(f"Config found. Connecting to {ssid}...")
             if await self.wifi.connect(ssid, password):
-                self.wdt.feed()
+                if self.wdt:
+                    self.wdt.feed()
                 log_info("WiFi Connected.")
                 self.mode = "NORMAL"
                 self.api = ChaturbateAPI(api_url, self.events)
                 self.events.on("api_event", self._handle_api_event)
                 return
-            self.wdt.feed()
+            if self.wdt:
+                self.wdt.feed()
             log_info("WiFi Connect Failed.")
         else:
             log_info("Missing Configuration (SSID or API URL).")
@@ -168,7 +173,8 @@ class App:
         # Indicate Provisioning Mode (Blue Pulse?)
         self.led.set_pattern(solid_pattern(self.led, (0, 0, 255)))
 
-        self.wdt.feed()
+        if self.wdt:
+            self.wdt.feed()
         self.ble = BLEManager(self.wifi)
 
     async def run(self) -> None:
@@ -193,7 +199,8 @@ class App:
             log_info(f"App started in {self.mode} mode.")
             while self._running:
                 # Feed Watchdog
-                self.wdt.feed()
+                if self.wdt:
+                    self.wdt.feed()
 
                 # Basic monitoring
                 await asyncio.sleep(1)
