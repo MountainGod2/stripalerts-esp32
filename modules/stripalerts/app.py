@@ -150,11 +150,13 @@ class App:
         if ssid and api_url:
             log_info(f"Config found. Connecting to {ssid}...")
             if await self.wifi.connect(ssid, password):
+                self.wdt.feed()
                 log_info("WiFi Connected.")
                 self.mode = "NORMAL"
                 self.api = ChaturbateAPI(api_url, self.events)
                 self.events.on("api_event", self._handle_api_event)
                 return
+            self.wdt.feed()
             log_info("WiFi Connect Failed.")
         else:
             log_info("Missing Configuration (SSID or API URL).")
@@ -166,6 +168,7 @@ class App:
         # Indicate Provisioning Mode (Blue Pulse?)
         self.led.set_pattern(solid_pattern(self.led, (0, 0, 255)))
 
+        self.wdt.feed()
         self.ble = BLEManager(self.wifi)
 
     async def run(self) -> None:
