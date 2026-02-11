@@ -35,8 +35,8 @@ def decode_utf8(data):
 
 
 class BLEManager:
-    def __init__(self, app_instance, name="StripAlerts-Setup"):
-        self.app = app_instance
+    def __init__(self, wifi_manager, name="StripAlerts-Setup"):
+        self.wifi = wifi_manager
         self.name = name
         self._connection = None
         self._tasks = []
@@ -240,7 +240,7 @@ class BLEManager:
                         continue
 
                     # Try to connect
-                    success = await self.app.wifi.connect(ssid, password)
+                    success = await self.wifi.connect(ssid, password)
                     if success:
                         await self._write_test_result("success")
                     else:
@@ -276,7 +276,7 @@ class BLEManager:
     async def _send_networks(self):
         """Scan and send networks."""
         await self._notify_status("Scanning Networks...")
-        networks = await self.app.wifi.scan()
+        networks = await self.wifi.scan()
 
         try:
             # Prepare networks list, fitting into one BLE packet (max ~250 bytes)
