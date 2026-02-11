@@ -9,7 +9,6 @@ from micropython import const
 from .constants import WIFI_CONNECT_TIMEOUT
 from .utils import log_error, log_info
 
-# Connection check interval
 _CONNECT_CHECK_INTERVAL_MS = const(100)
 
 

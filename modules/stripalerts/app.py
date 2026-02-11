@@ -30,7 +30,6 @@ class App:
         gc.collect()
         self.events = EventManager()
 
-        # Initialize Hardware
         self.led = LEDController(
             pin=settings["led_pin"],
             num_pixels=settings["num_pixels"],
@@ -94,7 +93,6 @@ class App:
 
     async def _activate_flash_effect(self):
         """Flash green for a standard tip."""
-        # Default behavior: Flash Green
         self.led.set_pattern(solid_pattern(self.led, (0, 255, 0)))
         await asyncio.sleep(2)
 

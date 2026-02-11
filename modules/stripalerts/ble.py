@@ -11,7 +11,6 @@ from micropython import const
 from .config import settings
 from .utils import log_error, log_info
 
-# UUIDs
 _SERVICE_UUID = bluetooth.UUID("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_SSID = bluetooth.UUID("6e400002-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_PASS = bluetooth.UUID("6e400003-b5a3-f393-e0a9-e50e24dcca9e")
@@ -20,7 +19,6 @@ _CHAR_STATUS = bluetooth.UUID("6e400005-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_NETWORKS = bluetooth.UUID("6e400006-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_WIFITEST = bluetooth.UUID("6e400007-b5a3-f393-e0a9-e50e24dcca9e")
 
-# Flags for chunked writes
 _FLAG_START = const(0x01)
 _FLAG_APPEND = const(0x02)
 
