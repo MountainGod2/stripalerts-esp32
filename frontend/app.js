@@ -293,9 +293,7 @@ const wifiNext = async () => {
 
   try {
     await ble.write("ssid", ssid);
-    await new Promise((r) => setTimeout(r, 100));
     await ble.write("password", password);
-    await new Promise((r) => setTimeout(r, 100));
     await ble.write("wifiTest", "test");
 
     // Response handled by onWifiTestUpdate or timeout
