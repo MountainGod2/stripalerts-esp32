@@ -11,6 +11,15 @@ from micropython import const
 from .config import settings
 from .utils import log_error, log_info
 
+try:
+    from typing import TYPE_CHECKING
+except ImportError:
+    TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    pass
+
+
 _SERVICE_UUID = bluetooth.UUID("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_SSID = bluetooth.UUID("6e400002-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_PASS = bluetooth.UUID("6e400003-b5a3-f393-e0a9-e50e24dcca9e")
@@ -33,9 +42,10 @@ def decode_utf8(data):
 
 
 class BLEManager:
-    def __init__(self, wifi_manager, name="StripAlerts-Setup"):
+    def __init__(self, wifi_manager, name="StripAlerts-Setup", initial_networks=None):
         self.wifi = wifi_manager
         self.name = name
+        self.cached_networks = initial_networks if initial_networks else []
         self._connection = None
         self._tasks = []
         self._buffers = {
@@ -129,9 +139,10 @@ class BLEManager:
                         self._connection = connection
                         log_info(f"BLE Connected: {connection.device}")
 
-                        # On connection, maybe send current status or networks?
-                        # Trigger a background scan and send networks
-                        self._tasks.append(asyncio.create_task(self._send_networks()))
+                        # On connection, immediately send cached or fresh networks
+                        self._tasks.append(
+                            asyncio.create_task(self._send_networks(allow_cache=True))
+                        )
 
                         await connection.disconnected()
                         self._connection = None
@@ -221,14 +232,11 @@ class BLEManager:
                 log_info(f"Received command: {command}")
 
                 if command == "rescan":
-                    await self._send_networks()
+                    await self._send_networks(allow_cache=False)
 
                 elif command == "test":
                     await self._notify_status("Testing WiFi...")
                     # Notify logic in app.js expects "success" or "failed"
-                    # for the TEST result
-                    # BUT it *also* listens to status updates for UI.
-                    # Wait, onWifiTestNotify checks for "success" / "failed".
 
                     ssid = settings["wifi_ssid"]
                     password = settings["wifi_password"]
@@ -271,14 +279,22 @@ class BLEManager:
         if self._connection:
             self.char_wifitest.notify(self._connection)
 
-    async def _send_networks(self):
+    async def _send_networks(self, allow_cache=False):
         """Scan and send networks."""
-        await self._notify_status("Scanning Networks...")
-        networks = await self.wifi.scan()
+
+        networks = []  # type: list[dict]
+
+        if allow_cache and self.cached_networks:
+            log_info("Using cached networks")
+            networks = self.cached_networks
+            # Clear cache so next request (e.g. rescan button) forces fresh scan
+            self.cached_networks = []
+        else:
+            await self._notify_status("Scanning Networks...")
+            networks = await self.wifi.scan()
 
         try:
             # Prepare networks list, fitting into one BLE packet (max ~250 bytes)
-            # Frontend only displays top 5 anyway.
             simple_list = []  # type: list[dict]
             for n in networks:
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}

@@ -10,7 +10,7 @@ from .ble import BLEManager
 from .config import settings
 from .constants import COLOR_MAP, TRIGGER_TOKEN_AMOUNT
 from .events import EventManager
-from .led import LEDController, rainbow_pattern, solid_pattern
+from .led import LEDController, blink_pattern, rainbow_pattern, solid_pattern
 from .utils import log_error, log_info
 from .wifi import WiFiManager
 
@@ -46,7 +46,7 @@ class App:
         else:
             self._tasks = []
         self._running = False
-        self._revert_task = None
+        self._current_effect_task = None
         self._current_hold_color: Optional[tuple[int, int, int]] = None
         self.wdt: Optional[machine.WDT] = None
 
@@ -67,14 +67,16 @@ class App:
         message = tip_data.get("message", "").lower()
         log_info(f"Tip received: {tokens}")
 
-        # Standard tip flash effect
-        await self._activate_flash_effect()
-
         # Check for color trigger (35 tokens + color in message)
         found_color = self._parse_color_trigger(tokens, message)
 
-        if found_color:
-            await self._activate_hold_color(found_color)
+        # Launch effect as background task to avoid blocking event loop
+        if self._current_effect_task and not self._current_effect_task.done():
+            self._current_effect_task.cancel()
+
+        self._current_effect_task = asyncio.create_task(
+            self._process_tip_effect(found_color)
+        )
 
     def _parse_color_trigger(
         self, tokens: int, message: str
@@ -86,50 +88,45 @@ class App:
                     return color
         return None
 
-    async def _activate_hold_color(self, color: tuple[int, int, int]):
-        """Activate a solid color hold for 10 minutes."""
-        log_info(f"Color trigger received: {color}")
-        if self._revert_task:
-            self._revert_task.cancel()
-
-        self._current_hold_color = color
-        self.led.set_pattern(solid_pattern(self.led, color))
-        self._revert_task = asyncio.create_task(self._revert_to_rainbow(600))
-
-    async def _activate_flash_effect(self):
-        """Flash green for a standard tip."""
-        self.led.set_pattern(solid_pattern(self.led, (0, 255, 0)))
-        await asyncio.sleep(2)
-
-        # Restore previous state or rainbow
-        if self._revert_task and self._current_hold_color:
-            self.led.set_pattern(solid_pattern(self.led, self._current_hold_color))
-        else:
-            self.led.set_pattern(
-                rainbow_pattern(
-                    self.led,
-                    step=settings["rainbow_step"],
-                    delay=settings["rainbow_delay"],
-                )
-            )
-
-    async def _revert_to_rainbow(self, delay: int):
-        """Revert to rainbow pattern after delay."""
+    async def _process_tip_effect(
+        self, hold_color: "Optional[tuple[int, int, int]]" = None
+    ):
+        """Handle the visual sequence for a tip."""
         try:
-            await asyncio.sleep(delay)
-            log_info("Reverting to rainbow pattern")
-            self.led.set_pattern(
-                rainbow_pattern(
-                    self.led,
-                    step=settings["rainbow_step"],
-                    delay=settings["rainbow_delay"],
+            # Flash Green (Standard Tip Effect)
+            self.led.set_pattern(solid_pattern(self.led, (0, 255, 0)))
+            await asyncio.sleep(2)
+
+            # If it's a color trigger, switch to that color and hold
+            if hold_color:
+                log_info(f"Setting hold color: {hold_color}")
+                self._current_hold_color = hold_color
+                self.led.set_pattern(solid_pattern(self.led, hold_color))
+
+                # Hold for 10 minutes
+                await asyncio.sleep(600)
+
+                # Revert after hold
+                log_info("Hold complete, reverting to rainbow")
+                self._current_hold_color = None
+
+            # Restore State
+            if self._current_hold_color:
+                self.led.set_pattern(solid_pattern(self.led, self._current_hold_color))
+            else:
+                self.led.set_pattern(
+                    rainbow_pattern(
+                        self.led,
+                        step=settings["rainbow_step"],
+                        delay=settings["rainbow_delay"],
+                    )
                 )
-            )
-            self._current_hold_color = None
+
         except asyncio.CancelledError:
+            # Task was cancelled (new tip came in)
             pass
-        finally:
-            self._revert_task = None
+        except Exception as e:
+            log_error(f"Effect error: {e}")
 
     async def setup(self) -> None:
         """Initialize components."""
@@ -171,12 +168,20 @@ class App:
         self.mode = "PROVISIONING"
         log_info("Entering Provisioning Mode...")
 
-        # Indicate Provisioning Mode (Blue Pulse?)
-        self.led.set_pattern(solid_pattern(self.led, (0, 0, 255)))
+        self.led.set_pattern(blink_pattern(self.led, (0, 0, 255)))
 
         if self.wdt:
             self.wdt.feed()
-        self.ble = BLEManager(self.wifi)
+
+        # Perform initial scan before starting BLE loop to avoid blocking connection
+        log_info("Performing initial WiFi scan...")
+        initial_networks = []
+        try:
+            initial_networks = await self.wifi.scan()
+        except Exception as e:
+            log_error(f"Initial scan failed: {e}")
+
+        self.ble = BLEManager(self.wifi, initial_networks=initial_networks)
 
     async def run(self) -> None:
         """Main loop."""
@@ -236,9 +241,9 @@ class App:
             if not t.done():
                 t.cancel()
 
-        if self._revert_task and not self._revert_task.done():
-            self._revert_task.cancel()
-            self._tasks.append(self._revert_task)
+        if self._current_effect_task and not self._current_effect_task.done():
+            self._current_effect_task.cancel()
+            self._tasks.append(self._current_effect_task)
 
         if self._tasks:
             if self.wdt:
@@ -273,7 +278,7 @@ class App:
 
             self._tasks = []
 
-        self._revert_task = None
+        self._current_effect_task = None
         self.led.clear()
         log_info("Shutdown complete.")
 
