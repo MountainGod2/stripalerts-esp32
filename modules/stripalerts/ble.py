@@ -54,7 +54,7 @@ class BLEManager:
             _CHAR_API: bytearray(),
             _CHAR_WIFITEST: bytearray(),
         }
-        self._write_tasks = {}
+        self._debounce_events = {}
 
         # Service Definition
         self.service = aioble.Service(_SERVICE_UUID)
@@ -98,7 +98,7 @@ class BLEManager:
         settings[config_key] = decoded
 
     def _flush_pending_writes(self) -> None:
-        """Apply latest buffered values and cancel pending debounce tasks."""
+        """Apply latest buffered values immediately."""
         key_map = {
             _CHAR_SSID: "wifi_ssid",
             _CHAR_PASS: "wifi_password",
@@ -106,10 +106,6 @@ class BLEManager:
         }
 
         for uuid, config_key in key_map.items():
-            task = self._write_tasks.get(uuid)
-            if task:
-                task.cancel()
-                self._write_tasks.pop(uuid, None)
             self._apply_buffer_to_settings(uuid, config_key)
 
     def _has_required_config(self) -> bool:
@@ -163,22 +159,35 @@ class BLEManager:
     async def _monitor_write(self, char, config_key):
         """Monitor characteristic for writes and update config."""
         uuid = char.uuid
+        self._debounce_events[uuid] = asyncio.Event()
 
-        async def _save_debounced():
-            await asyncio.sleep(0.5)
+        async def _save_worker():
             try:
-                decoded = self._buffers[uuid].decode("utf-8")
-                settings[config_key] = decoded
-                # Do not save on every chunk to avoid flash wear
+                while True:
+                    await self._debounce_events[uuid].wait()
+                    self._debounce_events[uuid].clear()
 
-                val_log = "***" if "password" in config_key else decoded[:10]
-                log_info(f"Updated {config_key}: {val_log}...")
-            except Exception:
-                # Might be incomplete UTF-8 if split mid-multibyte
+                    # Debounce: Wait until silence for 0.5s
+                    while True:
+                        await asyncio.sleep(0.5)
+                        if self._debounce_events[uuid].is_set():
+                            self._debounce_events[uuid].clear()
+                            continue
+                        break
+
+                    # Update setting
+                    try:
+                        decoded = self._buffers[uuid].decode("utf-8")
+                        settings[config_key] = decoded
+                        val_log = "***" if "password" in config_key else decoded[:10]
+                        log_info(f"Updated {config_key}: {val_log}...")
+                    except Exception:
+                        pass
+            except asyncio.CancelledError:
                 pass
 
-            if uuid in self._write_tasks:
-                del self._write_tasks[uuid]
+        worker_task = asyncio.create_task(_save_worker())
+        self._tasks.append(worker_task)
 
         while True:
             try:
@@ -196,13 +205,8 @@ class BLEManager:
                 else:
                     continue
 
-                # Debounce save
-                if uuid in self._write_tasks:
-                    t = self._write_tasks[uuid]
-                    if t:
-                        t.cancel()
-
-                self._write_tasks[uuid] = asyncio.create_task(_save_debounced())
+                # Signal update
+                self._debounce_events[uuid].set()
 
             except Exception as e:
                 log_error(f"Write error on {config_key}: {e}")
