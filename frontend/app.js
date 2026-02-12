@@ -123,9 +123,6 @@ const handleDisconnect = async () => {
       console.log("Attempting to reconnect...");
       await ble.connect();
       console.log("Reconnected");
-      if (state.currentStep === STEPS.WIFI) {
-        // Trigger rescan?
-      }
     } catch (e) {
       console.error("Reconnect failed", e);
       showError("stepError", "Device disconnected. Tap Scan to reconnect.");
@@ -268,8 +265,6 @@ const startScan = async () => {
 
     markStepComplete(STEPS.DEVICE);
 
-    // Wait for ready?
-    // We can just proceed to WiFi step which will show networks when they arrive
     showStep(STEPS.WIFI);
   } catch (e) {
     hideElement("scanLoading");
