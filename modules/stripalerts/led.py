@@ -8,6 +8,7 @@ import neopixel
 import micropython
 from micropython import const
 
+from .constants import LED_BRIGHTNESS
 from .utils import log_error
 
 _HUE_MAX = const(360)
@@ -70,7 +71,10 @@ class LEDController:
 
     def fill(self, color: "tuple[int, int, int]") -> None:
         """Fill strip with color immediately."""
-        self.np.fill(color)
+        r = int(color[0] * LED_BRIGHTNESS)
+        g = int(color[1] * LED_BRIGHTNESS)
+        b = int(color[2] * LED_BRIGHTNESS)
+        self.np.fill((r, g, b))
         self.np.write()
 
     async def run(self) -> None:

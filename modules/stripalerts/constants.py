@@ -18,6 +18,9 @@ HTTP_REQUEST_TIMEOUT = const(5)
 # Trigger Tokens
 TRIGGER_TOKEN_AMOUNT = const(35)
 
+# LED Brightness (0.0 - 1.0)
+LED_BRIGHTNESS = 0.5
+
 # Event queue size
 MAX_EVENT_QUEUE_SIZE = const(50)
 
