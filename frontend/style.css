@@ -1,26 +1,26 @@
 :root {
-  --bg-color: oklch(0.15 0.02 250);
-  --text-color: oklch(0.97 0.01 250);
-  --container-bg: oklch(0.19 0.03 250);
-  --surface-bg: oklch(0.16 0.03 250);
-  --border-color: oklch(0.26 0.03 250);
-  --accent-color: oklch(0.62 0.2 260);
-  --accent-strong: oklch(0.68 0.18 260);
-  --complete-color: oklch(0.65 0.15 160);
-  --text-muted: oklch(0.62 0.05 250);
-  --text-secondary: oklch(0.76 0.03 250);
-  --input-border: oklch(0.3 0.03 250);
-  --input-focus: oklch(0.72 0.16 260);
-  --input-focus-bg: oklch(0.2 0.04 250);
-  --success-text: oklch(0.86 0.12 160);
-  --success-border: oklch(0.68 0.15 160);
-  --success-bg: oklch(0.65 0.15 160 / 0.18);
-  --error-text: oklch(0.82 0.15 20);
-  --error-border: oklch(0.68 0.18 20);
-  --error-bg: oklch(0.68 0.18 20 / 0.18);
-  --info-text: oklch(0.78 0.12 260);
-  --info-border: oklch(0.62 0.2 260);
-  --info-bg: oklch(0.62 0.2 260 / 0.16);
+  --bg-color: #0c6a93;
+  --text-color: #ffffff;
+  --container-bg: #113844;
+  --surface-bg: rgba(0, 0, 0, 0.2);
+  --border-color: #2f85ac;
+  --accent-color: #f47321;
+  --accent-strong: #d65d10;
+  --complete-color: #f0bd22;
+  --text-muted: #a0cce0;
+  --text-secondary: #2f85ac;
+  --input-border: #2f85ac;
+  --input-focus: #f0bd22;
+  --input-focus-bg: rgba(255, 255, 255, 0.05);
+  --success-text: #a6e3a1;
+  --success-border: #2e7d32;
+  --success-bg: rgba(46, 125, 50, 0.2);
+  --error-text: #ffb4ab;
+  --error-border: #93000a;
+  --error-bg: rgba(147, 0, 10, 0.2);
+  --info-text: #e1f5fe;
+  --info-border: #2f85ac;
+  --info-bg: rgba(47, 133, 172, 0.2);
 
   --space-1: 0.5rem;
   --space-2: 0.75rem;
@@ -46,10 +46,10 @@ body {
     sans-serif;
   background: radial-gradient(
       circle at top,
-      oklch(0.62 0.2 260 / 0.15),
+      rgba(47, 133, 172, 0.2),
       transparent 55%
     )
-    var(--bg-color);
+    #051014;
   color: var(--text-color);
   min-block-size: 100dvh;
   display: flex;
@@ -63,7 +63,7 @@ body {
 .container {
   background: var(--container-bg);
   border-radius: var(--radius-lg);
-  box-shadow: 0 1.5rem 4.375rem oklch(0.05 0 0 / 0.55);
+  box-shadow: 0 1.5rem 4.375rem rgba(0, 0, 0, 0.55);
   max-inline-size: 35rem;
   inline-size: 100%;
   padding-block: 2.5rem;
@@ -138,15 +138,15 @@ body {
 
 .step.active .step-number {
   background: var(--accent-color);
-  color: white;
+  color: var(--text-color);
   border-color: var(--accent-color);
   transform: scale(1.06);
-  box-shadow: 0 0 0.875rem oklch(0.62 0.2 260 / 0.35);
+  box-shadow: 0 0 0.875rem rgba(244, 115, 33, 0.35);
 }
 
 .step.complete .step-number {
   background: var(--complete-color);
-  color: oklch(0.15 0 0);
+  color: var(--container-bg);
   border-color: var(--complete-color);
 }
 
@@ -230,7 +230,7 @@ input:focus {
   outline: none;
   border-color: var(--input-focus);
   background: var(--input-focus-bg);
-  box-shadow: 0 0 0 3px oklch(0.62 0.2 260 / 0.2);
+  box-shadow: 0 0 0 3px rgba(240, 189, 34, 0.2);
 }
 
 input:focus-visible {
@@ -250,7 +250,7 @@ input::placeholder {
     var(--accent-color),
     var(--accent-strong)
   );
-  color: oklch(0.15 0 0);
+  color: var(--text-color);
   border: 1px solid transparent;
   border-radius: 0.625rem;
   font-size: 0.9375rem;
@@ -265,7 +265,7 @@ input::placeholder {
 
 .button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 0.625rem 1.25rem oklch(0.62 0.2 260 / 0.25);
+  box-shadow: 0 0.625rem 1.25rem rgba(244, 115, 33, 0.25);
 }
 
 .button:active:not(:disabled) {
@@ -287,12 +287,12 @@ input::placeholder {
 .button.secondary:hover {
   border-color: var(--text-secondary);
   color: var(--text-color);
-  background: oklch(1 0 0 / 0.04);
+  background: rgba(255, 255, 255, 0.04);
   box-shadow: none;
 }
 
 .button:focus-visible {
-  outline: 3px solid oklch(0.62 0.2 260 / 0.35);
+  outline: 3px solid rgba(244, 115, 33, 0.35);
   outline-offset: 2px;
 }
 
@@ -336,11 +336,11 @@ input::placeholder {
   block-size: 2.75rem;
   margin-block: 0 1rem;
   margin-inline: auto;
-  border: 3px solid oklch(1 0 0 / 0.12);
+  border: 3px solid rgba(255, 255, 255, 0.12);
   border-inline-start-color: var(--accent-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  box-shadow: 0 0 0.9375rem oklch(0 0 0 / 0.2);
+  box-shadow: 0 0 0.9375rem rgba(0, 0, 0, 0.2);
 }
 
 @keyframes spin {
