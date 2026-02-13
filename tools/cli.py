@@ -24,9 +24,7 @@ from utils import print_header, print_success
 def cmd_build(args) -> int:
     """Build command handler."""
     root_dir = Path(__file__).parent.parent.resolve()
-    builder = FirmwareBuilder(
-        root_dir, args.board, clean=args.clean, output_dir=args.output_dir
-    )
+    builder = FirmwareBuilder(root_dir, args.board, clean=args.clean)
     return 0 if builder.build() else 1
 
 
@@ -114,8 +112,8 @@ def main() -> int:
     build_parser = subparsers.add_parser("build", help="Build firmware")
     build_parser.add_argument(
         "--board",
-        default="STRIPALERTS",
-        help="ESP32 board variant (default: STRIPALERTS)",
+        default="STRIPALERTS_S3",
+        help="ESP32 board variant (default: STRIPALERTS_S3)",
     )
     build_parser.add_argument(
         "--clean", action="store_true", help="Clean before building"
@@ -131,7 +129,7 @@ def main() -> int:
         "--baud", "-b", type=int, default=460800, help="Baud rate"
     )
     flash_parser.add_argument(
-        "--board", default="STRIPALERTS", help="ESP32 board variant"
+        "--board", default="STRIPALERTS_S3", help="ESP32 board variant"
     )
     flash_parser.add_argument("--erase", action="store_true", help="Erase flash first")
     flash_parser.set_defaults(func=cmd_flash)
@@ -168,7 +166,7 @@ def main() -> int:
         "--port", "-p", help="Serial port (auto-detect if not set)"
     )
     deploy_parser.add_argument(
-        "--board", default="STRIPALERTS", help="ESP32 board variant"
+        "--board", default="STRIPALERTS_S3", help="ESP32 board variant"
     )
     deploy_parser.add_argument(
         "--baud", type=int, default=460800, help="Flash baud rate"
