@@ -129,7 +129,9 @@ def main() -> int:
         "--baud", "-b", type=int, default=460800, help="Baud rate"
     )
     flash_parser.add_argument(
-        "--board", default="STRIPALERTS_S3", help="ESP32 board variant"
+        "--board",
+        default="STRIPALERTS_S3",
+        help="ESP32 board variant (default: STRIPALERTS_S3)",
     )
     flash_parser.add_argument("--erase", action="store_true", help="Erase flash first")
     flash_parser.set_defaults(func=cmd_flash)
@@ -166,7 +168,9 @@ def main() -> int:
         "--port", "-p", help="Serial port (auto-detect if not set)"
     )
     deploy_parser.add_argument(
-        "--board", default="STRIPALERTS_S3", help="ESP32 board variant"
+        "--board",
+        default="STRIPALERTS_S3",
+        help="ESP32 board variant (default: STRIPALERTS_S3)",
     )
     deploy_parser.add_argument(
         "--baud", type=int, default=460800, help="Flash baud rate"
