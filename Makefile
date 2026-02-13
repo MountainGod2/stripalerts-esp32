@@ -2,7 +2,8 @@
 .DEFAULT_GOAL := help
 
 # Configuration
-BOARD ?= STRIPALERTS
+BOARD ?= STRIPALERTS_S3
+OUT_DIR := dist
 PORT ?=
 BAUD ?= 460800
 CLEAN ?=
@@ -34,7 +35,7 @@ help: ## Show this help message
 	@echo "  CLEAN=1          Clean before building"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make build BOARD=STRIPALERTS"
+	@echo "  make build BOARD=STRIPALERTS_S3"
 	@echo "  make flash PORT=/dev/ttyUSB0"
 	@echo "  make deploy CLEAN=1"
 
@@ -47,8 +48,15 @@ check: ## Check prerequisites
 	fi
 	@echo "[OK] Prerequisites check passed"
 
-build: check ## Build firmware
+build: check ## Build firmware and collect artifacts
+	@echo "Building for $(BOARD)..."
 	@$(CLI) build --board $(BOARD) $(if $(CLEAN),--clean)
+	@mkdir -p $(OUT_DIR)
+	@echo "Collecting artifacts into $(OUT_DIR)/"
+	cp micropython/ports/esp32/build-$(BOARD)/micropython.bin $(OUT_DIR)/firmware.bin
+	cp micropython/ports/esp32/build-$(BOARD)/micropython.elf $(OUT_DIR)/firmware.elf
+	cp micropython/ports/esp32/build-$(BOARD)/bootloader/bootloader.bin $(OUT_DIR)/bootloader.bin
+	cp micropython/ports/esp32/build-$(BOARD)/partition_table/partition-table.bin $(OUT_DIR)/partition-table.bin
 
 flash: ## Flash firmware to device
 	@$(CLI) flash --board $(BOARD) --baud $(BAUD) --erase $(if $(PORT),--port $(PORT))
