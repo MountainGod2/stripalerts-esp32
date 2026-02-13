@@ -41,7 +41,7 @@ check: ## Check prerequisites
 	@$(CLI) --help > /dev/null 2>&1 || \
 		(echo "[ERROR] Python tools not found. Run: uv sync" && exit 1)
 	@if [ -z "$$IDF_PATH" ]; then \
-		echo "[ERROR] IDF_PATH not set. Run: source \$$IDF_PATH/export.sh"; \
+		echo "[ERROR] IDF_PATH not set. Run: source <esp-idf-path>/export.sh"; \
 		exit 1; \
 	fi
 	@echo "[OK] Prerequisites check passed"
