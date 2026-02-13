@@ -16,13 +16,21 @@ if TYPE_CHECKING:
 class FirmwareBuilder:
     """Builds ESP32 MicroPython firmware with frozen modules."""
 
-    def __init__(self, root_dir: Path, board: str, *, clean: bool = False) -> None:
+    def __init__(
+        self,
+        root_dir: Path,
+        board: str,
+        *,
+        clean: bool = False,
+        output_dir: Path | None = None,
+    ) -> None:
         """Initialize the firmware builder.
 
         Args:
             root_dir: Root directory of the project
             board: Target ESP32 board variant
             clean: Whether to clean before building
+            output_dir: Optional directory to copy firmware artifacts to
 
         """
         self.root_dir = root_dir
@@ -33,6 +41,7 @@ class FirmwareBuilder:
         self.clean = clean
         self.esp32_port_dir = self.micropython_dir / "ports" / "esp32"
         self.idf_py_cmd = ["idf.py"]
+        self.output_dir = output_dir or (root_dir / "firmware" / "build")
 
     def check_prerequisites(self) -> bool:
         """Check if all prerequisites are met."""
@@ -144,7 +153,7 @@ class FirmwareBuilder:
 
     def copy_firmware_artifacts(self) -> None:
         """Copy firmware artifacts to build directory."""
-        build_dir = self.root_dir / "firmware" / "build"
+        build_dir = self.output_dir
         build_dir.mkdir(parents=True, exist_ok=True)
 
         board_build_dir = self.esp32_port_dir / f"build-{self.board}"

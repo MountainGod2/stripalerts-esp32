@@ -24,7 +24,9 @@ from utils import print_header, print_success
 def cmd_build(args) -> int:
     """Build command handler."""
     root_dir = Path(__file__).parent.parent.resolve()
-    builder = FirmwareBuilder(root_dir, args.board, clean=args.clean)
+    builder = FirmwareBuilder(
+        root_dir, args.board, clean=args.clean, output_dir=args.output_dir
+    )
     return 0 if builder.build() else 1
 
 
