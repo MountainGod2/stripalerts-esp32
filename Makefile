@@ -5,6 +5,7 @@
 BOARD ?= STRIPALERTS_S3
 PORT ?=
 BAUD ?= 460800
+MONITOR_BAUD ?= 115200
 
 # Tools
 VENV_PYTHON := .venv/bin/python
@@ -57,7 +58,7 @@ upload: ## Upload application files to device
 	@$(CLI) upload $(if $(PORT),--port $(PORT))
 
 monitor: ## Monitor serial output
-	@$(CLI) monitor $(if $(PORT),--port $(PORT)) --baud $(BAUD)
+	@$(CLI) monitor $(if $(PORT),--port $(PORT)) --baud $(MONITOR_BAUD)
 
 clean: ## Clean build artifacts
 	@$(CLI) clean
