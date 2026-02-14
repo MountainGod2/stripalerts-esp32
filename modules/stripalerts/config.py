@@ -4,6 +4,7 @@ import json
 
 from micropython import const
 
+from .board_config import get_board_defaults
 from .utils import log_error, log_warning
 
 CONFIG_FILE = const("/config.json")
@@ -19,6 +20,9 @@ DEFAULTS = {
     "wifi_ssid": "",
     "wifi_password": "",
 }
+
+# Apply board-specific defaults
+DEFAULTS.update(get_board_defaults())
 
 
 class Config:
