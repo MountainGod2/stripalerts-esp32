@@ -28,7 +28,6 @@ class FirmwareBuilder:
         self.root_dir = root_dir
         self.dist_dir = root_dir / "dist"
         self.micropython_dir = root_dir / "micropython"
-        self.lib_dir = root_dir / "modules"
         self.board = board
         self.clean = clean
         self.esp32_port_dir = self.micropython_dir / "ports" / "esp32"
@@ -110,6 +109,11 @@ class FirmwareBuilder:
             print(f"Cleaning build directory: {build_dir}")
             shutil.rmtree(build_dir)
             print("[OK] Build directory cleaned")
+
+        if self.dist_dir.exists():
+            print(f"Cleaning dist directory: {self.dist_dir}")
+            shutil.rmtree(self.dist_dir)
+            print("[OK] Dist directory cleaned")
 
     def build_firmware(self) -> bool:
         """Build the ESP32 firmware."""

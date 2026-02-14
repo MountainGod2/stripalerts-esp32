@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -188,3 +189,48 @@ def print_success(message: str, width: int = 60) -> None:
     print("\n" + "=" * width)
     print(f"[SUCCESS] {message}")
     print("=" * width)
+
+
+def get_root_dir() -> Path:
+    """Get the project root directory.
+
+    Returns:
+        Path to the project root directory
+
+    """
+    # Assuming this file is in tools/utils.py
+    return Path(__file__).parent.parent.resolve()
+
+
+def check_mpremote() -> bool:
+    """Check if mpremote is available.
+
+    Returns:
+        True if mpremote is available
+
+    """
+    if not check_tool_available("mpremote"):
+        print("[ERROR] mpremote not found")
+        print("Install with: uv sync")
+        return False
+    return True
+
+
+def soft_reset_device(port: str) -> bool:
+    """Perform a soft reset on the device to ensure clean REPL state.
+
+    Args:
+        port: Serial port
+
+    Returns:
+        True if successful
+
+    """
+    try:
+        # Don't capture output to avoid hanging
+        cmd = ["mpremote", "connect", port, "soft-reset"]
+        subprocess.run(cmd, check=True, capture_output=True, timeout=5)
+        time.sleep(2)
+        return True
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return False

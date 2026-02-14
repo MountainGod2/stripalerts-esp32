@@ -56,13 +56,13 @@ upload: ## Upload application files to device
 	@$(CLI) upload $(if $(PORT),--port $(PORT))
 
 monitor: ## Monitor serial output
-	@$(CLI) monitor $(if $(PORT),--port $(PORT))
+	@$(CLI) monitor $(if $(PORT),--port $(PORT)) --baud 115200
 
 clean: ## Clean build artifacts
 	@$(CLI) clean
 
-clean-all: ## Clean everything including MicroPython
+clean-all: check ## Clean everything including MicroPython
 	@$(CLI) clean --all
 
-deploy: check ## Full deployment (build + flash + upload + monitor)
-	@$(CLI) deploy --board $(BOARD) --baud $(BAUD) $(if $(CLEAN),--clean) $(if $(PORT),--port $(PORT))
+deploy: ## Full deployment (build + flash + upload + monitor)
+	@$(CLI) deploy --board $(BOARD) --baud $(BAUD) $(if $(ERASE),--erase) $(if $(CLEAN),--clean) $(if $(PORT),--port $(PORT))

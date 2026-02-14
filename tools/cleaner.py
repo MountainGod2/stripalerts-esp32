@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from typing import TYPE_CHECKING
 
-from utils import print_header, print_success
+from utils import print_header, print_success, run_command
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -25,18 +25,17 @@ class BuildCleaner:
         """
         self.root_dir = root_dir
         self.all_clean = all_clean
-        self.firmware_dir = root_dir / "firmware"
-        self.build_dir = self.firmware_dir / "build"
+        self.dist_dir = root_dir / "dist"
         self.micropython_dir = root_dir / "micropython"
 
     def clean_build_artifacts(self) -> None:
         """Clean build artifacts."""
         print("Cleaning build artifacts...")
 
-        if self.build_dir.exists():
-            print(f"  Removing: {self.build_dir}")
-            shutil.rmtree(self.build_dir)
-            print("  [OK] Removed build directory")
+        if self.dist_dir.exists():
+            print(f"  Removing: {self.dist_dir}")
+            shutil.rmtree(self.dist_dir)
+            print("  [OK] Removed dist directory")
 
         if self.micropython_dir.exists():
             esp32_port_dir = self.micropython_dir / "ports" / "esp32"
@@ -73,25 +72,26 @@ class BuildCleaner:
         mpy_cross_dir = self.micropython_dir / "mpy-cross"
         if (mpy_cross_dir / "Makefile").exists():
             try:
-                subprocess.run(
+                print("  Cleaning mpy-cross...")
+                run_command(
                     ["make", "clean"],
                     cwd=mpy_cross_dir,
-                    capture_output=True,
-                    check=False,
                 )
                 print("  [OK] Cleaned mpy-cross")
-            except Exception as e:
+            except subprocess.CalledProcessError as e:
                 print(f"  [WARNING] Failed to clean mpy-cross: {e}")
 
         # Clean ESP32 port
         esp32_dir = self.micropython_dir / "ports" / "esp32"
         if (esp32_dir / "Makefile").exists():
             try:
-                subprocess.run(
-                    ["make", "clean"], cwd=esp32_dir, capture_output=True, check=False
+                print("  Cleaning esp32 port...")
+                run_command(
+                    ["make", "clean"],
+                    cwd=esp32_dir,
                 )
                 print("  [OK] Cleaned esp32 port")
-            except Exception as e:
+            except subprocess.CalledProcessError as e:
                 print(f"  [WARNING] Failed to clean esp32 port: {e}")
 
     def clean(self) -> bool:
