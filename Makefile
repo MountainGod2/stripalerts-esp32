@@ -30,6 +30,7 @@ help: ## Show this help message
 	@echo "  BOARD=<board>    Board variant (default: $(BOARD))"
 	@echo "  PORT=<port>      Serial port (auto-detect if not set)"
 	@echo "  BAUD=<rate>      Baud rate (default: $(BAUD))"
+	@echo "  ERASE=1          Erase flash before flashing"
 	@echo "  CLEAN=1          Clean before building"
 	@echo ""
 	@echo "Examples:"
@@ -50,18 +51,18 @@ build: check ## Build firmware
 	@$(CLI) build --board $(BOARD) $(if $(CLEAN),--clean)
 
 flash: ## Flash firmware to device
-	@$(CLI) flash --board $(BOARD) --baud $(BAUD) --erase $(if $(PORT),--port $(PORT))
+	@$(CLI) flash --board $(BOARD) --baud $(BAUD) $(if $(ERASE),--erase) $(if $(PORT),--port $(PORT))
 
 upload: ## Upload application files to device
 	@$(CLI) upload $(if $(PORT),--port $(PORT))
 
 monitor: ## Monitor serial output
-	@$(CLI) monitor $(if $(PORT),--port $(PORT)) --baud 115200
+	@$(CLI) monitor $(if $(PORT),--port $(PORT)) --baud $(BAUD)
 
 clean: ## Clean build artifacts
 	@$(CLI) clean
 
-clean-all: check ## Clean everything including MicroPython
+clean-all: ## Clean everything including MicroPython
 	@$(CLI) clean --all
 
 deploy: ## Full deployment (build + flash + upload + monitor)

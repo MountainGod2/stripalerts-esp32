@@ -40,9 +40,17 @@ class BuildCleaner:
         if self.micropython_dir.exists():
             esp32_port_dir = self.micropython_dir / "ports" / "esp32"
             if esp32_port_dir.exists():
-                for build_dir in esp32_port_dir.glob("build-*"):
-                    print(f"  Removing: {build_dir.name}")
-                    shutil.rmtree(build_dir)
+                dirs_to_clean = list(esp32_port_dir.glob("build-*"))
+                if (esp32_port_dir / "build").exists():
+                    dirs_to_clean.append(esp32_port_dir / "build")
+
+                for build_dir in dirs_to_clean:
+                    if build_dir.is_dir():
+                        print(f"  Removing: {build_dir.name}")
+                        try:
+                            shutil.rmtree(build_dir)
+                        except Exception as e:
+                            print(f"  [WARNING] Failed to remove {build_dir.name}: {e}")
 
     def clean_python_cache(self) -> None:
         """Clean Python cache files."""
@@ -84,15 +92,18 @@ class BuildCleaner:
         # Clean ESP32 port
         esp32_dir = self.micropython_dir / "ports" / "esp32"
         if (esp32_dir / "Makefile").exists():
-            try:
-                print("  Cleaning esp32 port...")
-                run_command(
-                    ["make", "clean"],
-                    cwd=esp32_dir,
-                )
-                print("  [OK] Cleaned esp32 port")
-            except subprocess.CalledProcessError as e:
-                print(f"  [WARNING] Failed to clean esp32 port: {e}")
+            if shutil.which("idf.py") is None:
+                print("  [INFO] idf.py not found, artifacts removed manually.")
+            else:
+                try:
+                    print("  Cleaning esp32 port...")
+                    run_command(
+                        ["make", "clean"],
+                        cwd=esp32_dir,
+                    )
+                    print("  [OK] Cleaned esp32 port")
+                except subprocess.CalledProcessError as e:
+                    print(f"  [WARNING] Failed to clean esp32 port: {e}")
 
     def clean(self) -> bool:
         """Execute the cleaning process."""
