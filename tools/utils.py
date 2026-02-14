@@ -236,5 +236,6 @@ def soft_reset_device(port: str) -> bool:
         subprocess.CalledProcessError,
         subprocess.TimeoutExpired,
         FileNotFoundError,
-    ):
+    ) as e:
+        print(f"[WARNING] Soft reset failed: {e}")
         return False
