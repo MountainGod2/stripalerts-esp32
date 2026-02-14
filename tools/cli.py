@@ -79,7 +79,7 @@ def cmd_deploy(args) -> int:
     if not args.skip_upload:
         print_header("STEP 3: Uploading Application Files")
         # Wait for device to stabilize after flashing
-        time.sleep(2)
+        time.sleep(args.stabilize_seconds)
         file_uploader = FileUploader(root_dir, args.port)
         if not file_uploader.upload_files():
             print("\n[ERROR] File upload failed")
@@ -184,6 +184,12 @@ def main() -> int:
     )
     deploy_parser.add_argument(
         "--skip-monitor", action="store_true", help="Skip monitor step"
+    )
+    deploy_parser.add_argument(
+        "--stabilize-seconds",
+        type=float,
+        default=3.0,
+        help="Seconds to wait for device stabilization after flash (default: 3.0)",
     )
     deploy_parser.set_defaults(func=cmd_deploy)
 
