@@ -11,26 +11,25 @@ import argparse
 import sys
 import time
 import traceback
-from pathlib import Path
 
 from builder import FirmwareBuilder
 from cleaner import BuildCleaner
 from monitor import SerialMonitor
 from uploader import FileUploader, FirmwareUploader
-from utils import print_header, print_success
+from utils import get_root_dir, print_header, print_success
 
 
 # Command handlers
 def cmd_build(args) -> int:
     """Build command handler."""
-    root_dir = Path(__file__).parent.parent.resolve()
+    root_dir = get_root_dir()
     builder = FirmwareBuilder(root_dir, args.board, clean=args.clean)
     return 0 if builder.build() else 1
 
 
 def cmd_flash(args) -> int:
     """Flash firmware command handler."""
-    root_dir = Path(__file__).parent.parent.resolve()
+    root_dir = get_root_dir()
     uploader = FirmwareUploader(
         root_dir, args.board, args.port, args.baud, erase=args.erase
     )
@@ -39,7 +38,7 @@ def cmd_flash(args) -> int:
 
 def cmd_upload(args) -> int:
     """Upload application files command handler."""
-    root_dir = Path(__file__).parent.parent.resolve()
+    root_dir = get_root_dir()
     uploader = FileUploader(root_dir, args.port)
     return 0 if uploader.upload_files() else 1
 
@@ -52,16 +51,15 @@ def cmd_monitor(args) -> int:
 
 def cmd_clean(args) -> int:
     """Clean command handler."""
-    root_dir = Path(__file__).parent.parent.resolve()
+    root_dir = get_root_dir()
     cleaner = BuildCleaner(root_dir, all_clean=args.all)
     return 0 if cleaner.clean() else 1
 
 
 def cmd_deploy(args) -> int:
     """Deploy command handler (build + flash + upload + monitor)."""
-    root_dir = Path(__file__).parent.parent.resolve()
+    root_dir = get_root_dir()
 
-    # Step 1: Build
     if not args.skip_build:
         print_header("STEP 1: Building Firmware")
         builder = FirmwareBuilder(root_dir, args.board, clean=args.clean)
@@ -69,7 +67,6 @@ def cmd_deploy(args) -> int:
             print("\n[ERROR] Build failed")
             return 1
 
-    # Step 2: Flash firmware
     if not args.skip_flash:
         print_header("STEP 2: Flashing Firmware")
         uploader = FirmwareUploader(
@@ -79,18 +76,15 @@ def cmd_deploy(args) -> int:
             print("\n[ERROR] Flash failed")
             return 1
 
-    # Step 3: Upload application files
     if not args.skip_upload:
         print_header("STEP 3: Uploading Application Files")
         # Wait for device to stabilize after flashing
-        print("Waiting for device to stabilize...")
-        time.sleep(3)
+        time.sleep(args.stabilize_seconds)
         file_uploader = FileUploader(root_dir, args.port)
         if not file_uploader.upload_files():
             print("\n[ERROR] File upload failed")
             return 1
 
-    # Step 4: Monitor
     if not args.skip_monitor:
         print_header("STEP 4: Monitoring Device")
         monitor = SerialMonitor(args.port, 115200)
@@ -112,8 +106,8 @@ def main() -> int:
     build_parser = subparsers.add_parser("build", help="Build firmware")
     build_parser.add_argument(
         "--board",
-        default="STRIPALERTS",
-        help="ESP32 board variant (default: STRIPALERTS)",
+        default="STRIPALERTS_S3",
+        help="ESP32 board variant (default: STRIPALERTS_S3)",
     )
     build_parser.add_argument(
         "--clean", action="store_true", help="Clean before building"
@@ -129,7 +123,9 @@ def main() -> int:
         "--baud", "-b", type=int, default=460800, help="Baud rate"
     )
     flash_parser.add_argument(
-        "--board", default="STRIPALERTS", help="ESP32 board variant"
+        "--board",
+        default="STRIPALERTS_S3",
+        help="ESP32 board variant (default: STRIPALERTS_S3)",
     )
     flash_parser.add_argument("--erase", action="store_true", help="Erase flash first")
     flash_parser.set_defaults(func=cmd_flash)
@@ -166,7 +162,9 @@ def main() -> int:
         "--port", "-p", help="Serial port (auto-detect if not set)"
     )
     deploy_parser.add_argument(
-        "--board", default="STRIPALERTS", help="ESP32 board variant"
+        "--board",
+        default="STRIPALERTS_S3",
+        help="ESP32 board variant (default: STRIPALERTS_S3)",
     )
     deploy_parser.add_argument(
         "--baud", type=int, default=460800, help="Flash baud rate"
@@ -186,6 +184,12 @@ def main() -> int:
     )
     deploy_parser.add_argument(
         "--skip-monitor", action="store_true", help="Skip monitor step"
+    )
+    deploy_parser.add_argument(
+        "--stabilize-seconds",
+        type=float,
+        default=3.0,
+        help="Seconds to wait for device stabilization after flash (default: 3.0)",
     )
     deploy_parser.set_defaults(func=cmd_deploy)
 

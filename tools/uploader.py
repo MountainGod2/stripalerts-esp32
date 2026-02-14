@@ -8,12 +8,13 @@ import time
 from typing import TYPE_CHECKING, ClassVar
 
 from utils import (
-    check_tool_available,
+    check_mpremote,
     find_serial_port,
     get_chip_type,
     print_header,
     print_success,
     run_command,
+    soft_reset_device,
 )
 
 if TYPE_CHECKING:
@@ -53,20 +54,20 @@ class FirmwareUploader:
         self.baud = baud
         self.board = board
         self.erase = erase
-        self.build_dir = root_dir / "firmware" / "build"
+        self.dist_dir = root_dir / "dist"
         self.chip = get_chip_type(board)
 
     def check_firmware_files(self) -> bool:
         """Verify that required firmware files exist."""
         print("Checking firmware files...")
 
-        if not self.build_dir.exists():
-            print(f"[ERROR] Build directory not found: {self.build_dir}")
+        if not self.dist_dir.exists():
+            print(f"[ERROR] Dist directory not found: {self.dist_dir}")
             print("Run 'build' command first")
             return False
 
         required_files = ["bootloader.bin", "partition-table.bin", "firmware.bin"]
-        missing = [f for f in required_files if not (self.build_dir / f).exists()]
+        missing = [f for f in required_files if not (self.dist_dir / f).exists()]
 
         if missing:
             print(f"[ERROR] Missing firmware files: {', '.join(missing)}")
@@ -106,11 +107,11 @@ class FirmwareUploader:
             "write-flash",
             "-z",
             hex(self.FLASH_ADDRESSES["bootloader"]),
-            str(self.build_dir / "bootloader.bin"),
+            str(self.dist_dir / "bootloader.bin"),
             hex(self.FLASH_ADDRESSES["partition-table"]),
-            str(self.build_dir / "partition-table.bin"),
+            str(self.dist_dir / "partition-table.bin"),
             hex(self.FLASH_ADDRESSES["firmware"]),
-            str(self.build_dir / "firmware.bin"),
+            str(self.dist_dir / "firmware.bin"),
         ]
 
         try:
@@ -158,25 +159,6 @@ class FileUploader:
         self.root_dir = root_dir
         self.src_dir = root_dir / "src"
         self.port = port
-
-    def check_mpremote(self) -> bool:
-        """Check if mpremote is available."""
-        if not check_tool_available("mpremote"):
-            print("[ERROR] mpremote not found")
-            print("Install with: pip install mpremote")
-            return False
-        print("[OK] mpremote found")
-        return True
-
-    def soft_reset_device(self, port: str) -> bool:
-        """Perform a soft reset on the device to ensure clean REPL state."""
-        try:
-            cmd = ["mpremote", "connect", port, "soft-reset"]
-            subprocess.run(cmd, check=True, capture_output=True, timeout=5)
-            time.sleep(2)
-            return True
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            return False
 
     def upload_file(self, local_path: Path, remote_path: str, port: str) -> bool:
         """Upload a single file to the device with retry logic."""
@@ -235,7 +217,7 @@ class FileUploader:
         """Upload all application files to device."""
         print_header("StripAlerts Application File Uploader")
 
-        if not self.check_mpremote():
+        if not check_mpremote():
             return False
 
         port = self.port or find_serial_port()
@@ -249,7 +231,9 @@ class FileUploader:
 
         print(f"Uploading files from {self.src_dir}...")
         print("\nPerforming soft reset to ensure clean state...")
-        self.soft_reset_device(port)
+        if not soft_reset_device(port):
+            print("[ERROR] Failed to soft reset device")
+            return False
 
         # Upload boot.py and main.py
         for filename in ["boot.py", "main.py"]:

@@ -26,9 +26,8 @@ class FirmwareBuilder:
 
         """
         self.root_dir = root_dir
-        self.firmware_dir = root_dir / "firmware"
+        self.dist_dir = root_dir / "dist"
         self.micropython_dir = root_dir / "micropython"
-        self.lib_dir = root_dir / "modules"
         self.board = board
         self.clean = clean
         self.esp32_port_dir = self.micropython_dir / "ports" / "esp32"
@@ -111,6 +110,11 @@ class FirmwareBuilder:
             shutil.rmtree(build_dir)
             print("[OK] Build directory cleaned")
 
+        if self.dist_dir.exists():
+            print(f"Cleaning dist directory: {self.dist_dir}")
+            shutil.rmtree(self.dist_dir)
+            print("[OK] Dist directory cleaned")
+
     def build_firmware(self) -> bool:
         """Build the ESP32 firmware."""
         print(f"Building firmware for {self.board}...")
@@ -143,9 +147,8 @@ class FirmwareBuilder:
             return False
 
     def copy_firmware_artifacts(self) -> None:
-        """Copy firmware artifacts to build directory."""
-        build_dir = self.root_dir / "firmware" / "build"
-        build_dir.mkdir(parents=True, exist_ok=True)
+        """Copy firmware artifacts to dist directory."""
+        self.dist_dir.mkdir(parents=True, exist_ok=True)
 
         board_build_dir = self.esp32_port_dir / f"build-{self.board}"
         firmware_files = {
@@ -157,7 +160,7 @@ class FirmwareBuilder:
         for src_path, dest_name in firmware_files.items():
             src = board_build_dir / src_path
             if src.exists():
-                dest = build_dir / dest_name
+                dest = self.dist_dir / dest_name
                 shutil.copy2(src, dest)
                 print(f"[OK] Copied {dest_name}")
 
@@ -165,7 +168,7 @@ class FirmwareBuilder:
         if micropython_bin.exists():
             version = self._get_version()
             versioned_name = f"stripalerts-{version}-{self.board}.bin"
-            shutil.copy2(micropython_bin, build_dir / versioned_name)
+            shutil.copy2(micropython_bin, self.dist_dir / versioned_name)
             print(f"[OK] Created versioned firmware: {versioned_name}")
 
     def _get_version(self) -> str:
@@ -191,5 +194,5 @@ class FirmwareBuilder:
         if not self.build_firmware():
             return False
 
-        print_success(f"Build completed - {self.root_dir / 'firmware' / 'build'}")
+        print_success(f"Build completed - artifacts in {self.dist_dir}")
         return True
