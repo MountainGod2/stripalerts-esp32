@@ -231,7 +231,9 @@ class FileUploader:
 
         print(f"Uploading files from {self.src_dir}...")
         print("\nPerforming soft reset to ensure clean state...")
-        soft_reset_device(port)
+        if not soft_reset_device(port):
+            print("[ERROR] Failed to soft reset device")
+            return False
 
         # Upload boot.py and main.py
         for filename in ["boot.py", "main.py"]:
