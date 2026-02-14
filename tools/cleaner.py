@@ -34,8 +34,11 @@ class BuildCleaner:
 
         if self.dist_dir.exists():
             print(f"  Removing: {self.dist_dir}")
-            shutil.rmtree(self.dist_dir)
-            print("  [OK] Removed dist directory")
+            try:
+                shutil.rmtree(self.dist_dir)
+                print("  [OK] Removed dist directory")
+            except Exception as e:
+                print(f"  [ERROR] Failed to remove {self.dist_dir}: {e}")
 
         if self.micropython_dir.exists():
             esp32_port_dir = self.micropython_dir / "ports" / "esp32"
