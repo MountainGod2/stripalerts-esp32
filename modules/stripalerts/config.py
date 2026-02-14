@@ -1,10 +1,10 @@
 """Configuration management."""
 
 import json
+import os
 
 from micropython import const
 
-from .board_config import get_board_defaults
 from .utils import log_error, log_warning
 
 CONFIG_FILE = const("/config.json")
@@ -21,8 +21,23 @@ DEFAULTS = {
     "wifi_password": "",
 }
 
-# Apply board-specific defaults
-DEFAULTS.update(get_board_defaults())
+
+def get_board_defaults():
+    """Return board-specific defaults based on runtime detection."""
+    machine = os.uname().machine
+    if "ESP32S3" in machine:
+        return {
+            "led_pin": 48,
+        }
+    return {
+        "led_pin": 16,
+    }
+
+
+try:
+    DEFAULTS.update(get_board_defaults())
+except Exception as e:
+    log_warning(f"Failed to get board defaults: {e}")
 
 
 class Config:
