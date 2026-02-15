@@ -25,17 +25,13 @@ def hsv_to_rgb(h: float, s: int = 255, v: int = 255):
     if s == 0:
         return (v, v, v)
 
-    h_float = float(h)
-    while h_float >= _HUE_MAX:
-        h_float -= _HUE_MAX
-    while h_float < 0:
-        h_float += _HUE_MAX
+    h_float = float(h) % _HUE_MAX
 
     region = int(h_float // 60)
     remainder = h_float - (region * 60)
 
     # Map remainder (0-60) to 0-255
-    f = int(remainder * 4.25)
+    f = int(remainder * 255 / 60)
 
     p = (v * (255 - s)) >> 8
     q = (v * (255 - ((s * f) >> 8))) >> 8
