@@ -227,8 +227,9 @@ def soft_reset_device(port: str) -> bool:
 
     """
     try:
+        # Don't capture output to avoid hanging
         cmd = ["mpremote", "connect", port, "soft-reset"]
-        subprocess.run(cmd, check=True, timeout=10)
+        subprocess.run(cmd, check=True, timeout=5)
         time.sleep(2)
         return True
     except (
