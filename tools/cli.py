@@ -78,7 +78,6 @@ def cmd_deploy(args) -> int:
 
     if not args.skip_upload:
         print_header("STEP 3: Uploading Application Files")
-        # Wait for device to stabilize after flashing
         time.sleep(args.stabilize_seconds)
         file_uploader = FileUploader(root_dir, args.port)
         if not file_uploader.upload_files():
@@ -188,8 +187,8 @@ def main() -> int:
     deploy_parser.add_argument(
         "--stabilize-seconds",
         type=float,
-        default=3.0,
-        help="Seconds to wait for device stabilization after flash (default: 3.0)",
+        default=5.0,
+        help="Seconds to wait for device stabilization after flash (default: 5.0)",
     )
     deploy_parser.set_defaults(func=cmd_deploy)
 
