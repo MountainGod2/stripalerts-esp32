@@ -10,7 +10,7 @@ from .utils import log_error, log_warning
 CONFIG_FILE = const("/config.json")
 
 DEFAULTS = {
-    "led_pin": 48,
+    "led_pin": 16,
     "num_pixels": 60,
     "led_timing": 1,
     "led_pattern": "rainbow",
@@ -21,21 +21,12 @@ DEFAULTS = {
     "wifi_password": "",
 }
 
-
-def get_board_defaults():
-    """Return board-specific defaults based on runtime detection."""
-    machine = os.uname().machine
-    if "ESP32S3" in machine:
-        return {
-            "led_pin": 48,
-        }
-    return {
-        "led_pin": 16,
-    }
-
-
 try:
-    DEFAULTS.update(get_board_defaults())
+    machine = os.uname().machine
+    board_defaults: dict = {
+        "led_pin": 48 if "ESP32S3" in machine else 16,
+    }
+    DEFAULTS.update(board_defaults)
 except Exception as e:
     log_warning(f"Failed to get board defaults: {e}")
 
