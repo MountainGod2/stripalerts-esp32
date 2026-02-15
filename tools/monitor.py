@@ -17,30 +17,23 @@ class SerialMonitor:
     """Monitors ESP32 serial output."""
 
     def __init__(self, port: str | None = None, baud: int = 115200) -> None:
-        """Initialize the serial monitor.
-
-        Args:
-            port: Serial port (auto-detected if None)
-            baud: Baud rate for monitoring
-
-        """
+        """Initialize serial monitor for ESP32 device."""
         self.port = port
         self.baud = baud
 
     def monitor(self) -> bool:
-        """Execute the monitoring process."""
+        """Start monitoring serial output (mpremote or pyserial)."""
         port = self.port or find_serial_port()
         if not port:
             print("[ERROR] Could not detect ESP32 device")
             return False
 
-        # Try mpremote first, fallback to pyserial
         if check_tool_available("mpremote"):
             return self._monitor_mpremote(port)
         return self._monitor_pyserial(port)
 
     def _monitor_mpremote(self, port: str) -> bool:
-        """Monitor using mpremote tool."""
+        """Monitor serial output using mpremote."""
         print_header(f"Serial Monitor (mpremote)\nPort: {port} | Baud: {self.baud}")
         print("Press Ctrl+C to exit\n")
 
@@ -52,7 +45,7 @@ class SerialMonitor:
         return True
 
     def _monitor_pyserial(self, port: str) -> bool:
-        """Monitor using pyserial."""
+        """Monitor serial output using pyserial library."""
         if serial is None:
             print("[ERROR] pyserial not installed")
             print("Install with: pip install pyserial")

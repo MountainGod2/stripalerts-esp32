@@ -14,6 +14,7 @@ from utils import (
     print_header,
     print_success,
     run_command,
+    soft_reset_device,
 )
 
 if TYPE_CHECKING:
@@ -38,16 +39,7 @@ class FirmwareUploader:
         *,
         erase: bool = False,
     ) -> None:
-        """Initialize the firmware uploader.
-
-        Args:
-            root_dir: Root directory of the project
-            board: Target ESP32 board variant
-            port: Serial port (auto-detected if None)
-            baud: Baud rate for flashing
-            erase: Whether to erase flash before uploading
-
-        """
+        """Initialize firmware uploader for ESP32 board variant."""
         self.root_dir = root_dir
         self.port = port
         self.baud = baud
@@ -57,7 +49,7 @@ class FirmwareUploader:
         self.chip = get_chip_type(board)
 
     def check_firmware_files(self) -> bool:
-        """Verify that required firmware files exist."""
+        """Verify required firmware files exist in dist/."""
         print("Checking firmware files...")
 
         if not self.dist_dir.exists():
@@ -77,7 +69,7 @@ class FirmwareUploader:
         return True
 
     def erase_flash(self, port: str) -> bool:
-        """Erase the flash memory."""
+        """Erase device flash memory via esptool."""
         print("Erasing flash memory...")
         try:
             run_command(
@@ -90,7 +82,7 @@ class FirmwareUploader:
             return False
 
     def upload_firmware(self, port: str) -> bool:
-        """Upload firmware to device."""
+        """Flash bootloader, partition table, and firmware to device."""
         print(f"Uploading firmware to {port} at {self.baud} baud...")
 
         cmd = [
@@ -122,7 +114,7 @@ class FirmwareUploader:
             return False
 
     def upload(self) -> bool:
-        """Execute the upload process."""
+        """Execute complete firmware upload workflow."""
         print_header("StripAlerts ESP32 Firmware Uploader")
 
         if not self.check_firmware_files():
@@ -148,34 +140,35 @@ class FileUploader:
     """Uploads application files to ESP32 filesystem."""
 
     def __init__(self, root_dir: Path, port: str | None = None) -> None:
-        """Initialize the file uploader.
-
-        Args:
-            root_dir: Root directory of the project
-            port: Serial port (auto-detected if None)
-
-        """
+        """Initialize file uploader for application code."""
         self.root_dir = root_dir
         self.src_dir = root_dir / "src"
         self.port = port
 
-    def upload_file(self, local_path: Path, remote_path: str, port: str) -> bool:
-        """Upload a single file to the device with retry logic."""
-        print(f"  Uploading {local_path.name} -> {remote_path}")
+    def build_upload_command(
+        self, port: str, files: list[tuple[Path, str]]
+    ) -> list[str]:
+        """Build mpremote command to interrupt program and upload all files."""
+        cmd = ["mpremote", "connect", port, "exec", ""]
+        for local_path, remote_path in files:
+            cmd.extend(["fs", "cp", str(local_path), f":{remote_path}"])
+        return cmd
+
+    def upload_files_batch(self, port: str, files: list[tuple[Path, str]]) -> bool:
+        """Upload files in single mpremote session with retry logic."""
+        if not files:
+            return True
+
+        print(f"\nUploading {len(files)} file(s) in a single session...")
+        for local_path, remote_path in files:
+            print(f"  {local_path.name} -> {remote_path}")
 
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                cmd = [
-                    "mpremote",
-                    "connect",
-                    port,
-                    "fs",
-                    "cp",
-                    str(local_path),
-                    f":{remote_path}",
-                ]
-                subprocess.run(cmd, check=True, capture_output=True, timeout=30)
+                cmd = self.build_upload_command(port, files)
+                subprocess.run(cmd, check=True, capture_output=True, timeout=60)
+                print("  [OK] All files uploaded successfully")
                 return True
             except subprocess.TimeoutExpired:
                 print(
@@ -184,12 +177,9 @@ class FileUploader:
                 if attempt < max_retries - 1:
                     time.sleep(2)
                     continue
-                print(
-                    f"  [ERROR] Failed to upload {local_path.name} after "
-                    f"{max_retries} attempts"
-                )
+                print(f"  [ERROR] Failed to upload files after {max_retries} attempts")
                 return False
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as e:
                 if attempt < max_retries - 1:
                     print(
                         f"  [WARNING] Upload failed (attempt {attempt + 1}/"
@@ -198,22 +188,15 @@ class FileUploader:
                     time.sleep(2)
                 else:
                     print(
-                        f"  [ERROR] Failed to upload {local_path.name} after "
-                        f"{max_retries} attempts"
+                        f"  [ERROR] Failed to upload files after {max_retries} attempts"
                     )
+                    if e.stderr:
+                        print(f"  Error: {e.stderr.decode('utf-8', errors='ignore')}")
                     return False
         return False
 
-    def create_remote_dir(self, remote_path: str, port: str) -> None:
-        """Create a directory on the device (ignore if exists)."""
-        try:
-            cmd = ["mpremote", "connect", port, "fs", "mkdir", f":{remote_path}"]
-            subprocess.run(cmd, check=True, capture_output=True)
-        except subprocess.CalledProcessError:
-            pass
-
     def upload_files(self) -> bool:
-        """Upload all application files to device."""
+        """Upload boot.py, main.py, and config.json, then soft-reset device."""
         print_header("StripAlerts Application File Uploader")
 
         if not check_mpremote():
@@ -228,38 +211,40 @@ class FileUploader:
             print(f"[ERROR] Source directory not found: {self.src_dir}")
             return False
 
-        print(f"Uploading files from {self.src_dir}...")
-        print("\nStopping running program to ensure clean state...")
+        print(f"Preparing to upload files from {self.src_dir}...")
 
-        try:
-            subprocess.run(
-                ["mpremote", "connect", port, "raw-repl"],
-                check=True,
-                timeout=5,
-                capture_output=True,
-            )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            print("[WARNING] Failed to enter raw REPL.")
+        files_to_upload: list[tuple[Path, str]] = []
 
-        # Upload boot.py and main.py
         for filename in ["boot.py", "main.py"]:
             file_path = self.src_dir / filename
-            if file_path.exists() and not self.upload_file(
-                file_path, f"/{filename}", port
-            ):
-                return False
+            if file_path.exists():
+                files_to_upload.append((file_path, f"/{filename}"))
+            else:
+                print(f"[WARNING] {filename} not found, skipping")
 
-        # Handle configuration file
         config_file = self.root_dir / "config.json"
         example_config = self.root_dir / "config.json.example"
 
         if config_file.exists():
-            if not self.upload_file(config_file, "/config.json", port):
-                return False
+            files_to_upload.append((config_file, "/config.json"))
         elif example_config.exists():
-            print(f"config.json not found, using {example_config.name}")
-            if not self.upload_file(example_config, "/config.json", port):
-                return False
+            print(f"[INFO] config.json not found, using {example_config.name}")
+            files_to_upload.append((example_config, "/config.json"))
+        else:
+            print("[WARNING] No config file found, skipping")
+
+        if not files_to_upload:
+            print("[ERROR] No files to upload")
+            return False
+
+        if not self.upload_files_batch(port, files_to_upload):
+            return False
+
+        print("\nRestarting device to run uploaded code...")
+        if soft_reset_device(port):
+            print("[OK] Device restarted successfully")
+        else:
+            print("[INFO] Please manually reset the device to run new code")
 
         print_success("All files uploaded")
         return True

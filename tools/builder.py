@@ -17,14 +17,7 @@ class FirmwareBuilder:
     """Builds ESP32 MicroPython firmware with frozen modules."""
 
     def __init__(self, root_dir: Path, board: str, *, clean: bool = False) -> None:
-        """Initialize the firmware builder.
-
-        Args:
-            root_dir: Root directory of the project
-            board: Target ESP32 board variant
-            clean: Whether to clean before building
-
-        """
+        """Initialize firmware builder for ESP32 board variant."""
         self.root_dir = root_dir
         self.dist_dir = root_dir / "dist"
         self.micropython_dir = root_dir / "micropython"
@@ -34,7 +27,7 @@ class FirmwareBuilder:
         self.idf_py_cmd = ["idf.py"]
 
     def check_prerequisites(self) -> bool:
-        """Check if all prerequisites are met."""
+        """Verify ESP-IDF is installed and configured."""
         print("Checking prerequisites...")
 
         success, idf_path, idf_cmd = check_idf_prerequisites()
@@ -56,7 +49,7 @@ class FirmwareBuilder:
         return True
 
     def setup_micropython(self) -> bool:
-        """Initialize MicroPython submodule if needed."""
+        """Initialize MicroPython git submodule if not populated."""
         # Check if submodule is populated
         if (self.micropython_dir / "py" / "mpconfig.h").exists():
             print(
@@ -84,7 +77,7 @@ class FirmwareBuilder:
             return False
 
     def build_mpy_cross(self) -> bool:
-        """Build the mpy-cross compiler."""
+        """Build mpy-cross compiler if not already built."""
         mpy_cross_dir = self.micropython_dir / "mpy-cross"
         mpy_cross_bin = mpy_cross_dir / "build" / "mpy-cross"
 
@@ -103,7 +96,7 @@ class FirmwareBuilder:
             return False
 
     def clean_build(self) -> None:
-        """Clean the build directory."""
+        """Remove build and dist directories."""
         build_dir = self.esp32_port_dir / f"build-{self.board}"
         if build_dir.exists():
             print(f"Cleaning build directory: {build_dir}")
@@ -116,7 +109,7 @@ class FirmwareBuilder:
             print("[OK] Dist directory cleaned")
 
     def build_firmware(self) -> bool:
-        """Build the ESP32 firmware."""
+        """Build MicroPython firmware with frozen modules for board."""
         print(f"Building firmware for {self.board}...")
 
         if self.clean:
@@ -124,7 +117,6 @@ class FirmwareBuilder:
 
         make_args = [f"BOARD={self.board}"]
 
-        # Check for custom board directory
         custom_board_path = self.root_dir / "boards" / self.board
         if custom_board_path.exists():
             print(f"Using custom board definition from: {custom_board_path}")
@@ -147,7 +139,7 @@ class FirmwareBuilder:
             return False
 
     def copy_firmware_artifacts(self) -> None:
-        """Copy firmware artifacts to dist directory."""
+        """Copy bootloader, partition table, and firmware to dist/."""
         self.dist_dir.mkdir(parents=True, exist_ok=True)
 
         board_build_dir = self.esp32_port_dir / f"build-{self.board}"
@@ -172,7 +164,7 @@ class FirmwareBuilder:
             print(f"[OK] Created versioned firmware: {versioned_name}")
 
     def _get_version(self) -> str:
-        """Extract version from pyproject.toml."""
+        """Extract version from pyproject.toml or return 'dev'."""
         pyproject_path = self.root_dir / "pyproject.toml"
         if pyproject_path.exists():
             content = pyproject_path.read_text()
@@ -182,7 +174,7 @@ class FirmwareBuilder:
         return "dev"
 
     def build(self) -> bool:
-        """Execute the complete build process."""
+        """Execute complete build workflow."""
         print_header("StripAlerts ESP32 Firmware Builder")
 
         if not self.check_prerequisites():

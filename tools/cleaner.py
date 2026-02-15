@@ -16,20 +16,14 @@ class BuildCleaner:
     """Cleans build artifacts and caches."""
 
     def __init__(self, root_dir: Path, *, all_clean: bool = False) -> None:
-        """Initialize the build cleaner.
-
-        Args:
-            root_dir: Root directory of the project
-            all_clean: Whether to clean everything including MicroPython
-
-        """
+        """Initialize build cleaner for project artifacts."""
         self.root_dir = root_dir
         self.all_clean = all_clean
         self.dist_dir = root_dir / "dist"
         self.micropython_dir = root_dir / "micropython"
 
     def clean_build_artifacts(self) -> None:
-        """Clean build artifacts."""
+        """Remove dist/ and build-* directories."""
         print("Cleaning build artifacts...")
 
         if self.dist_dir.exists():
@@ -56,7 +50,7 @@ class BuildCleaner:
                             print(f"  [WARNING] Failed to remove {build_dir.name}: {e}")
 
     def clean_python_cache(self) -> None:
-        """Clean Python cache files."""
+        """Remove __pycache__ and *.pyc files."""
         print("Cleaning Python cache files...")
 
         for pattern in ["**/__pycache__", "**/*.pyc", "**/*.pyo", "**/*.pyd"]:
@@ -73,13 +67,12 @@ class BuildCleaner:
                     print(f"  [WARNING] Failed to remove {path}: {e}")
 
     def clean_micropython(self) -> None:
-        """Clean MicroPython build artifacts (non-destructive)."""
+        """Run 'make clean' in mpy-cross and esp32 port directories."""
         if not self.micropython_dir.exists():
             return
 
         print(f"Cleaning MicroPython artifacts in: {self.micropython_dir}")
 
-        # Clean mpy-cross
         mpy_cross_dir = self.micropython_dir / "mpy-cross"
         if (mpy_cross_dir / "Makefile").exists():
             try:
@@ -92,7 +85,6 @@ class BuildCleaner:
             except subprocess.CalledProcessError as e:
                 print(f"  [WARNING] Failed to clean mpy-cross: {e}")
 
-        # Clean ESP32 port
         esp32_dir = self.micropython_dir / "ports" / "esp32"
         if (esp32_dir / "Makefile").exists():
             if shutil.which("idf.py") is None:
@@ -109,7 +101,7 @@ class BuildCleaner:
                     print(f"  [WARNING] Failed to clean esp32 port: {e}")
 
     def clean(self) -> bool:
-        """Execute the cleaning process."""
+        """Execute full cleaning workflow."""
         print_header("StripAlerts ESP32 Build Cleaner")
 
         self.clean_build_artifacts()

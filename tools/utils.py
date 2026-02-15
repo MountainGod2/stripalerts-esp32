@@ -10,12 +10,7 @@ from pathlib import Path
 
 
 def find_serial_port() -> str | None:
-    """Auto-detect ESP32 serial port.
-
-    Returns:
-        Serial port path if found, None otherwise
-
-    """
+    """Auto-detect ESP32 serial port via esptool or /dev scanning."""
     print("Auto-detecting ESP32 device...")
 
     try:
@@ -51,12 +46,7 @@ def find_serial_port() -> str | None:
 
 
 def check_idf_prerequisites() -> tuple[bool, str | None, list[str]]:
-    """Check ESP-IDF prerequisites.
-
-    Returns:
-        Tuple of (success, idf_path, idf_py_command)
-
-    """
+    """Check ESP-IDF installation and return (success, idf_path, idf_py_command)."""
     esp_idf_path = os.environ.get("IDF_PATH")
     if not esp_idf_path:
         return False, None, []
@@ -93,16 +83,7 @@ def check_idf_prerequisites() -> tuple[bool, str | None, list[str]]:
 
 
 def check_tool_available(tool: str, version_flag: str = "--version") -> bool:
-    """Check if a command-line tool is available.
-
-    Args:
-        tool: Tool name or command
-        version_flag: Flag to check version (default: --version)
-
-    Returns:
-        True if tool is available, False otherwise
-
-    """
+    """Check if command-line tool is available by running version check."""
     try:
         result = subprocess.run(
             [tool, version_flag],
@@ -123,34 +104,12 @@ def run_command(
     *,
     check: bool = True,
 ) -> subprocess.CompletedProcess:
-    """Run a command with error handling.
-
-    Args:
-        cmd: Command and arguments
-        cwd: Working directory
-        env: Environment variables
-        check: Raise exception on non-zero return code
-
-    Returns:
-        CompletedProcess instance
-
-    Raises:
-        subprocess.CalledProcessError: If check=True and command fails
-
-    """
+    """Run command with optional working directory and environment."""
     return subprocess.run(cmd, cwd=str(cwd) if cwd else None, env=env, check=check)
 
 
 def get_chip_type(board: str) -> str:
-    """Determine ESP32 chip type from board name.
-
-    Args:
-        board: Board variant name
-
-    Returns:
-        Chip type string for esptool
-
-    """
+    """Map board name to esptool chip type (esp32, esp32s3, etc.)."""
     board_upper = board.upper()
     if "S3" in board_upper:
         return "esp32s3"
@@ -166,49 +125,26 @@ def get_chip_type(board: str) -> str:
 
 
 def print_header(title: str, width: int = 60) -> None:
-    """Print a formatted header.
-
-    Args:
-        title: Header title
-        width: Total width of header
-
-    """
+    """Print formatted header with title."""
     print("\n" + "=" * width)
     print(title)
     print("=" * width + "\n")
 
 
 def print_success(message: str, width: int = 60) -> None:
-    """Print a success message with formatting.
-
-    Args:
-        message: Success message
-        width: Total width of box
-
-    """
+    """Print formatted success message."""
     print("\n" + "=" * width)
     print(f"[SUCCESS] {message}")
     print("=" * width)
 
 
 def get_root_dir() -> Path:
-    """Get the project root directory.
-
-    Returns:
-        Path to the project root directory
-
-    """
-    # Assuming this file is in tools/utils.py
+    """Get project root directory (assumes tools/utils.py location)."""
     return Path(__file__).parent.parent.resolve()
 
 
 def check_mpremote() -> bool:
-    """Check if mpremote is available.
-
-    Returns:
-        True if mpremote is available
-
-    """
+    """Check if mpremote is installed and available."""
     if not check_tool_available("mpremote"):
         print("[ERROR] mpremote not found")
         print("Install with: uv sync")
@@ -217,20 +153,11 @@ def check_mpremote() -> bool:
 
 
 def soft_reset_device(port: str) -> bool:
-    """Perform a soft reset on the device to ensure clean REPL state.
-
-    Args:
-        port: Serial port
-
-    Returns:
-        True if successful
-
-    """
+    """Soft-reset device to restart and run uploaded code."""
     try:
-        # Don't capture output to avoid hanging
         cmd = ["mpremote", "connect", port, "soft-reset"]
-        subprocess.run(cmd, check=True, timeout=5)
-        time.sleep(2)
+        subprocess.run(cmd, check=True, timeout=5, capture_output=True)
+        time.sleep(1)
         return True
     except (
         subprocess.CalledProcessError,
