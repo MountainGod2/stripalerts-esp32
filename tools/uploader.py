@@ -145,55 +145,55 @@ class FileUploader:
         self.src_dir = root_dir / "src"
         self.port = port
 
-    def build_upload_command(
-        self, port: str, files: list[tuple[Path, str]]
-    ) -> list[str]:
-        """Build mpremote command to interrupt program and upload all files."""
-        cmd = ["mpremote", "connect", port, "exec", ""]
-        for local_path, remote_path in files:
-            cmd.extend(["fs", "cp", str(local_path), f":{remote_path}"])
-        return cmd
-
-    def upload_files_batch(self, port: str, files: list[tuple[Path, str]]) -> bool:
-        """Upload files in single mpremote session with retry logic."""
-        if not files:
-            return True
-
-        print(f"\nUploading {len(files)} file(s) in a single session...")
-        for local_path, remote_path in files:
-            print(f"  {local_path.name} -> {remote_path}")
-
+    def upload_file(self, port: str, local_path: Path, remote_path: str) -> bool:
+        """Upload single file with interrupt and retry logic."""
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                cmd = self.build_upload_command(port, files)
-                subprocess.run(cmd, check=True, capture_output=True, timeout=60)
-                print("  [OK] All files uploaded successfully")
+                cmd = [
+                    "mpremote",
+                    "connect",
+                    port,
+                    "exec",
+                    "",
+                    "fs",
+                    "cp",
+                    str(local_path),
+                    f":{remote_path}",
+                ]
+                subprocess.run(cmd, check=True, capture_output=True, timeout=30)
                 return True
             except subprocess.TimeoutExpired:
-                print(
-                    f"  [WARNING] Upload timeout (attempt {attempt + 1}/{max_retries})"
-                )
                 if attempt < max_retries - 1:
-                    time.sleep(2)
+                    time.sleep(1)
                     continue
-                print(f"  [ERROR] Failed to upload files after {max_retries} attempts")
+                print(f"    [ERROR] Timeout uploading {local_path.name}")
                 return False
             except subprocess.CalledProcessError as e:
                 if attempt < max_retries - 1:
-                    print(
-                        f"  [WARNING] Upload failed (attempt {attempt + 1}/"
-                        f"{max_retries}), retrying..."
-                    )
-                    time.sleep(2)
+                    time.sleep(1)
                 else:
-                    print(
-                        f"  [ERROR] Failed to upload files after {max_retries} attempts"
-                    )
+                    print(f"    [ERROR] Failed to upload {local_path.name}")
                     if e.stderr:
-                        print(f"  Error: {e.stderr.decode('utf-8', errors='ignore')}")
+                        stderr = e.stderr.decode("utf-8", errors="ignore").strip()
+                        if stderr:
+                            print(f"    {stderr}")
                     return False
         return False
+
+    def upload_files_batch(self, port: str, files: list[tuple[Path, str]]) -> bool:
+        """Upload multiple files sequentially, interrupting program before each."""
+        if not files:
+            return True
+
+        print(f"\nUploading {len(files)} file(s)...")
+        for local_path, remote_path in files:
+            print(f"  {local_path.name} -> {remote_path}", end=" ", flush=True)
+            if not self.upload_file(port, local_path, remote_path):
+                return False
+            print("[OK]")
+
+        return True
 
     def upload_files(self) -> bool:
         """Upload boot.py, main.py, and config.json, then soft-reset device."""
