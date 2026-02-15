@@ -211,7 +211,30 @@ class FileUploader:
             print(f"[ERROR] Source directory not found: {self.src_dir}")
             return False
 
-        print(f"Preparing to upload files from {self.src_dir}...")
+        print("Interrupting any running application...")
+        try:
+            subprocess.run(
+                ["mpremote", "connect", port, "exec", ""],
+                check=True,
+                timeout=5,
+                capture_output=True,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            print("[WARNING] Could not interrupt device")
+
+        print("Clearing old application files...")
+        for old_file in ["/boot.py", "/main.py", "/config.json"]:
+            try:
+                subprocess.run(
+                    ["mpremote", "connect", port, "fs", "rm", f":{old_file}"],
+                    check=False,
+                    timeout=5,
+                    capture_output=True,
+                )
+            except subprocess.TimeoutExpired:
+                pass
+
+        print(f"\nPreparing to upload files from {self.src_dir}...")
 
         files_to_upload: list[tuple[Path, str]] = []
 
