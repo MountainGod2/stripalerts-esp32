@@ -14,7 +14,6 @@ from utils import (
     print_header,
     print_success,
     run_command,
-    soft_reset_device,
 )
 
 if TYPE_CHECKING:
@@ -230,10 +229,17 @@ class FileUploader:
             return False
 
         print(f"Uploading files from {self.src_dir}...")
-        print("\nPerforming soft reset to ensure clean state...")
-        if not soft_reset_device(port):
-            print("[ERROR] Failed to soft reset device")
-            return False
+        print("\nStopping running program to ensure clean state...")
+
+        try:
+            subprocess.run(
+                ["mpremote", "connect", port, "raw-repl"],
+                check=True,
+                timeout=5,
+                capture_output=True,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            print("[WARNING] Failed to enter raw REPL.")
 
         # Upload boot.py and main.py
         for filename in ["boot.py", "main.py"]:
