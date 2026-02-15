@@ -15,7 +15,7 @@ _HUE_MAX = const(360)
 
 
 @micropython.native
-def hsv_to_rgb(h: int, s: int = 255, v: int = 255):
+def hsv_to_rgb(h: float, s: int = 255, v: int = 255):
     """Convert HSV to RGB (0-255).
 
     Returns:
@@ -25,13 +25,17 @@ def hsv_to_rgb(h: int, s: int = 255, v: int = 255):
     if s == 0:
         return (v, v, v)
 
-    h = h % _HUE_MAX
-    region = h // 60
+    h_float = float(h)
+    while h_float >= _HUE_MAX:
+        h_float -= _HUE_MAX
+    while h_float < 0:
+        h_float += _HUE_MAX
 
-    # Calculate intermediate values
-    # Map remainder of 60 to 0-255: (h % 60) * 255 // 60
-    # Equivalent to (h % 60) * 4.25
-    f = (h % 60) * 17 // 4
+    region = int(h_float // 60)
+    remainder = h_float - (region * 60)
+
+    # Map remainder (0-60) to 0-255
+    f = int(remainder * 4.25)
 
     p = (v * (255 - s)) >> 8
     q = (v * (255 - ((s * f) >> 8))) >> 8
@@ -116,7 +120,7 @@ def rainbow_pattern(controller: LEDController, step: float = 1, delay: float = 0
     """Generator for rainbow effect."""
     hue = 0.0
     while True:
-        color = hsv_to_rgb(int(hue))
+        color = hsv_to_rgb(hue)
         controller.fill(color)
         hue = (hue + step) % 360
         yield delay
