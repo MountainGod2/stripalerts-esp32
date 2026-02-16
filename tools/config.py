@@ -79,6 +79,18 @@ class RetryConfig:
 
 
 @dataclass
+class ChipTypeMixin:
+    """Mixin providing chip_type property based on board name."""
+
+    board: str
+
+    @property
+    def chip_type(self) -> ChipType:
+        """Get chip type for this board."""
+        return ChipType.from_board(self.board)
+
+
+@dataclass
 class ProjectPaths:
     """Project directory paths."""
 
@@ -115,32 +127,22 @@ class ProjectPaths:
 
 
 @dataclass
-class BuildConfig:
+class BuildConfig(ChipTypeMixin):
     """Configuration for firmware building."""
 
     board: str = "STRIPALERTS_S3"
     clean: bool = False
     verbose: bool = False
 
-    @property
-    def chip_type(self) -> ChipType:
-        """Get chip type for this board."""
-        return ChipType.from_board(self.board)
-
 
 @dataclass
-class FlashingConfig:
+class FlashingConfig(ChipTypeMixin):
     """Configuration for firmware flashing."""
 
     board: str = "STRIPALERTS_S3"
     port: str | None = None
     baud: int = FlashConfig.DEFAULT_FLASH_BAUD
     erase: bool = False
-
-    @property
-    def chip_type(self) -> ChipType:
-        """Get chip type for this board."""
-        return ChipType.from_board(self.board)
 
 
 @dataclass
@@ -160,7 +162,7 @@ class UploadConfig:
 
 
 @dataclass
-class DeployConfig:
+class DeployConfig(ChipTypeMixin):
     """Configuration for full deployment workflow."""
 
     board: str = "STRIPALERTS_S3"
@@ -173,8 +175,3 @@ class DeployConfig:
     skip_upload: bool = False
     skip_monitor: bool = False
     stabilize_seconds: float = RetryConfig.DEVICE_STABILIZE_DELAY
-
-    @property
-    def chip_type(self) -> ChipType:
-        """Get chip type for this board."""
-        return ChipType.from_board(self.board)
