@@ -1,35 +1,18 @@
 # StripAlerts ESP32 Firmware Build System
-# Modern Makefile with best practices
-
 .PHONY: help install check build flash upload monitor clean clean-all deploy test lint format
 .DEFAULT_GOAL := help
 .SILENT: check
-
-# ============================================================================
-# Configuration
-# ============================================================================
 
 BOARD ?= STRIPALERTS_S3
 PORT ?=
 BAUD ?= 460800
 MONITOR_BAUD ?= 115200
 
-# ============================================================================
-# Tool Detection
-# ============================================================================
-
-# Prefer virtual environment Python if available
 VENV_PYTHON := .venv/bin/python
 PYTHON := $(if $(wildcard $(VENV_PYTHON)),$(VENV_PYTHON),python3)
-
-# CLI tool
 CLI := $(PYTHON) -m tools.cli
 
-# ============================================================================
-# Help & Documentation
-# ============================================================================
-
-help: ## Show this help message with available targets
+help:
 	@echo "=========================================================================="
 	@echo "StripAlerts ESP32 Firmware Build System"
 	@echo "=========================================================================="
@@ -62,10 +45,6 @@ help: ## Show this help message with available targets
 	@echo "  make build BOARD=STRIPALERTS VERBOSE=1"
 	@echo ""
 
-# ============================================================================
-# Development Setup
-# ============================================================================
-
 install: ## Install Python dependencies with uv
 	@echo "Installing dependencies..."
 	uv sync
@@ -79,10 +58,6 @@ check: ## Check prerequisites (ESP-IDF, tools, etc.)
 		exit 1; \
 	fi
 	@echo "Prerequisites check passed"
-
-# ============================================================================
-# Build & Flash
-# ============================================================================
 
 build: check ## Build firmware for specified board
 	$(CLI) build --board $(BOARD) $(if $(CLEAN),--clean) $(if $(VERBOSE),--verbose)
@@ -99,10 +74,6 @@ upload: ## Upload application files to device
 monitor: ## Monitor serial output from device
 	$(CLI) monitor $(if $(PORT),--port $(PORT)) --baud $(MONITOR_BAUD)
 
-# ============================================================================
-# Complete Workflows
-# ============================================================================
-
 deploy: ## Complete deployment (build → flash → upload → monitor)
 	$(CLI) deploy --board $(BOARD) \
 		$(if $(PORT),--port $(PORT)) \
@@ -113,19 +84,11 @@ deploy: ## Complete deployment (build → flash → upload → monitor)
 deploy-quick: ## Quick deployment (skip build/flash, only upload + monitor)
 	$(CLI) deploy --skip-build --skip-flash $(if $(PORT),--port $(PORT))
 
-# ============================================================================
-# Cleaning
-# ============================================================================
-
 clean: ## Clean build artifacts (dist/ and build-*)
 	$(CLI) clean
 
 clean-all: ## Deep clean including MicroPython artifacts
 	$(CLI) clean --all
-
-# ============================================================================
-# Code Quality
-# ============================================================================
 
 lint: ## Run ruff linter on tools and source code
 	@echo "Running linter..."
@@ -144,10 +107,6 @@ typecheck: ## Run type checking with pyright
 
 test: lint typecheck ## Run all code quality checks
 
-# ============================================================================
-# Development Utilities
-# ============================================================================
-
 watch: ## Build in watch mode (rebuild on file changes)
 	@echo "Watching for changes (experimental)..."
 	@while true; do \
@@ -163,10 +122,6 @@ ls: ## List files on device filesystem
 
 reset: ## Soft-reset device
 	mpremote connect $(if $(PORT),$(PORT),auto) soft-reset
-
-# ============================================================================
-# Information
-# ============================================================================
 
 info: ## Show build configuration and tool information
 	@echo "Build Configuration:"
