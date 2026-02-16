@@ -53,7 +53,7 @@ class RetryConfig:
 
     MAX_RETRIES: ClassVar[int] = 3
     RETRY_DELAY: ClassVar[float] = 1.0
-    OPERATION_TIMEOUT: ClassVar[int] = 30
+    OPERATION_TIMEOUT: ClassVar[int] = 60
     DEVICE_STABILIZE_DELAY: ClassVar[float] = 5.0
 
 
