@@ -21,7 +21,7 @@ help:
 	@echo "  1. Source ESP-IDF environment:"
 	@echo "     source \$$IDF_PATH/export.sh"
 	@echo "  2. Install Python dependencies:"
-	@echo "     uv sync"
+	@echo "     uv sync --all-extras"
 	@echo ""
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -47,7 +47,7 @@ help:
 
 install: ## Install Python dependencies with uv
 	@echo "Installing dependencies..."
-	uv sync
+	uv sync --all-extras --frozen
 	@echo "Dependencies installed successfully"
 
 check: ## Check prerequisites (ESP-IDF, tools, etc.)
@@ -100,9 +100,9 @@ format: ## Format code with ruff
 	$(PYTHON) -m ruff format tools/ src/ modules/
 	@echo "Formatting complete"
 
-typecheck: ## Run type checking with pyright
+typecheck: ## Run type checking with mypy
 	@echo "Running type checker..."
-	$(PYTHON) -m pyright tools/ src/ modules/
+	$(PYTHON) -m mypy src/ modules/
 	@echo "Type checking complete"
 
 test: lint typecheck ## Run all code quality checks

@@ -35,7 +35,7 @@ exclude = ["micropython", "typings"]
 target-version = "py39"
 line-length = 100
 lint.select = ["E", "F", "W", "I", "PYI", "PERF", "RUF", "FBT", "D"]
-lint.ignore = ["D203", "D213"]
+lint.ignore = ["D203", "D213", "RUF005"]
 lint.per-file-ignores = { "boards/*/manifest.py" = [
     "F821",
 ], "tools/*.py" = [
