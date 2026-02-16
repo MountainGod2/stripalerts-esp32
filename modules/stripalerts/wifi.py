@@ -2,14 +2,6 @@
 
 import asyncio
 
-import machine
-import network
-
-from micropython import const
-
-from .constants import WIFI_CONNECT_TIMEOUT
-from .utils import log_error, log_info
-
 try:
     from typing import TYPE_CHECKING
 except ImportError:
@@ -18,6 +10,13 @@ except ImportError:
 if TYPE_CHECKING:
     from typing import Optional
 
+import machine
+import network
+
+from micropython import const
+
+from .constants import WIFI_CONNECT_TIMEOUT
+from .utils import log_error, log_info
 
 _CONNECT_CHECK_INTERVAL_MS = const(100)
 
@@ -52,9 +51,7 @@ class WiFiManager:
         self.ap.active(True)  # noqa: FBT003
 
         if password:
-            self.ap.config(
-                essid=ssid, password=password, authmode=network.AUTH_WPA_WPA2_PSK
-            )
+            self.ap.config(essid=ssid, password=password, authmode=network.AUTH_WPA_WPA2_PSK)
         else:
             self.ap.config(essid=ssid, authmode=network.AUTH_OPEN)
 
@@ -78,6 +75,7 @@ class WiFiManager:
             ssid: Network SSID
             password: Network password
             timeout: Connection timeout in seconds
+            wdt: Optional watchdog timer to feed during connection
 
         Returns:
             True if connected, False otherwise

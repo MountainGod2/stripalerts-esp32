@@ -35,6 +35,7 @@ class Config:
     """Simple configuration manager."""
 
     def __init__(self) -> None:
+        """Initialize configuration manager and load settings."""
         self._data = DEFAULTS.copy()
         self.load()
 
@@ -55,12 +56,15 @@ class Config:
             log_error(f"Save failed: {e}")
 
     def __getitem__(self, key):
+        """Get configuration value by key."""
         return self._data.get(key, DEFAULTS.get(key))
 
     def __setitem__(self, key, value):
+        """Set configuration value by key."""
         self._data[key] = value
 
     def get(self, key, default=None):
+        """Get configuration value with optional default."""
         return self._data.get(key, default)
 
 

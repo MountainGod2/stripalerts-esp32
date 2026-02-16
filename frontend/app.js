@@ -266,6 +266,14 @@ const startScan = async () => {
     markStepComplete(STEPS.DEVICE);
 
     showStep(STEPS.WIFI);
+
+    // Request initial network scan after connection is fully established
+    try {
+      await new Promise((r) => setTimeout(r, 500));
+      await ble.write("wifiTest", "rescan");
+    } catch (e) {
+      console.error("Initial network scan failed:", e);
+    }
   } catch (e) {
     hideElement("scanLoading");
     showElement("deviceContainer");
@@ -293,7 +301,10 @@ const wifiNext = async () => {
 
   try {
     await ble.write("ssid", ssid);
+    await new Promise((r) => setTimeout(r, 100));
     await ble.write("password", password);
+    // Wait for backend debounce to complete before testing
+    await new Promise((r) => setTimeout(r, 600));
     await ble.write("wifiTest", "test");
 
     // Response handled by onWifiTestUpdate or timeout

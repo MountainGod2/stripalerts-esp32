@@ -3,14 +3,6 @@
 import asyncio
 import json
 
-import aioble
-import bluetooth
-
-from micropython import const
-
-from .config import settings
-from .utils import log_error, log_info
-
 try:
     from typing import TYPE_CHECKING
 except ImportError:
@@ -19,6 +11,13 @@ except ImportError:
 if TYPE_CHECKING:
     pass
 
+import aioble
+import bluetooth
+
+from micropython import const
+
+from .config import settings
+from .utils import log_error, log_info
 
 _SERVICE_UUID = bluetooth.UUID("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_SSID = bluetooth.UUID("6e400002-b5a3-f393-e0a9-e50e24dcca9e")
@@ -33,6 +32,15 @@ _FLAG_APPEND = const(0x02)
 
 
 def decode_utf8(data):
+    """Decode UTF-8 data to string.
+
+    Args:
+        data: Bytes or string data to decode
+
+    Returns:
+        Decoded string or empty string on error
+
+    """
     try:
         if isinstance(data, (bytes, bytearray)):
             return data.decode("utf-8")
@@ -42,7 +50,17 @@ def decode_utf8(data):
 
 
 class BLEManager:
+    """Manages BLE provisioning and WiFi configuration."""
+
     def __init__(self, wifi_manager, name="StripAlerts-Setup", initial_networks=None):
+        """Initialize BLE manager.
+
+        Args:
+            wifi_manager: WiFi manager instance
+            name: BLE device name for advertising
+            initial_networks: Optional list of cached networks
+
+        """
         self.wifi = wifi_manager
         self.name = name
         self.cached_networks = initial_networks if initial_networks else []
@@ -59,18 +77,10 @@ class BLEManager:
         # Service Definition
         self.service = aioble.Service(_SERVICE_UUID)
 
-        self.char_ssid = aioble.Characteristic(
-            self.service, _CHAR_SSID, write=True, capture=True
-        )
-        self.char_pass = aioble.Characteristic(
-            self.service, _CHAR_PASS, write=True, capture=True
-        )
-        self.char_api = aioble.Characteristic(
-            self.service, _CHAR_API, write=True, capture=True
-        )
-        self.char_status = aioble.Characteristic(
-            self.service, _CHAR_STATUS, read=True, notify=True
-        )
+        self.char_ssid = aioble.Characteristic(self.service, _CHAR_SSID, write=True, capture=True)
+        self.char_pass = aioble.Characteristic(self.service, _CHAR_PASS, write=True, capture=True)
+        self.char_api = aioble.Characteristic(self.service, _CHAR_API, write=True, capture=True)
+        self.char_status = aioble.Characteristic(self.service, _CHAR_STATUS, read=True, notify=True)
         self.char_networks = aioble.Characteristic(
             self.service, _CHAR_NETWORKS, read=True, notify=True
         )
@@ -143,7 +153,7 @@ class BLEManager:
                         await connection.disconnected()
                         self._connection = None
                         log_info("BLE Disconnected")
-                except asyncio.CancelledError:
+                except asyncio.CancelledError:  # noqa: PERF203
                     raise
                 except Exception as e:
                     log_error(f"BLE Advertise error: {e}")
@@ -191,7 +201,7 @@ class BLEManager:
 
         while True:
             try:
-                conn, value = await char.written()
+                _conn, value = await char.written()
                 if not value or len(value) < 1:
                     continue
 
@@ -215,7 +225,7 @@ class BLEManager:
         """Listen for WiFi test commands."""
         while True:
             try:
-                conn, value = await self.char_wifitest.written()
+                _conn, value = await self.char_wifitest.written()
                 if not value or len(value) < 1:
                     continue
 
@@ -241,6 +251,8 @@ class BLEManager:
                 elif command == "test":
                     await self._notify_status("Testing WiFi...")
                     # Notify logic in app.js expects "success" or "failed"
+
+                    self._flush_pending_writes()
 
                     ssid = settings["wifi_ssid"]
                     password = settings["wifi_password"]
@@ -283,9 +295,8 @@ class BLEManager:
         if self._connection:
             self.char_wifitest.notify(self._connection)
 
-    async def _send_networks(self, allow_cache=False):
+    async def _send_networks(self, *, allow_cache: bool = False):
         """Scan and send networks."""
-
         networks = []  # type: list[dict]
 
         if allow_cache and self.cached_networks:
@@ -302,8 +313,6 @@ class BLEManager:
             simple_list = []  # type: list[dict]
             for n in networks:
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
-
-                # Test if adding this keeps us under the limit
                 temp_list = simple_list + [entry]
                 json_str = json.dumps(temp_list)
 

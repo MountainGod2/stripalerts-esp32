@@ -63,7 +63,7 @@ class EventManager:
                 for handler in handlers[event_type]:
                     try:
                         await handler(data)
-                    except Exception as e:
+                    except Exception as e:  # noqa: PERF203
                         log_error(f"Error in event handler: {e}")
 
     async def run(self) -> None:

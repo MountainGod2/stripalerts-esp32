@@ -12,6 +12,13 @@ class ChaturbateAPI:
     """Handles connection to Chaturbate Events API."""
 
     def __init__(self, start_url: str, event_manager) -> None:
+        """Initialize the API client.
+
+        Args:
+            start_url: Initial URL for the events API
+            event_manager: Event manager instance for handling events
+
+        """
         self.current_url = start_url
         self.events = event_manager
         self._running = False

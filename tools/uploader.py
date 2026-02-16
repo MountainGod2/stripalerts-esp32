@@ -1,259 +1,253 @@
-"""Firmware and file uploaders for StripAlerts ESP32."""
+"""Modern firmware and file uploaders for StripAlerts ESP32."""
 
 from __future__ import annotations
 
-import subprocess
 import sys
-import time
-from typing import TYPE_CHECKING, ClassVar
+from pathlib import Path
 
-from utils import (
-    check_mpremote,
-    find_serial_port,
-    get_chip_type,
+from .config import FlashConfig, FlashingConfig, ProjectPaths, UploadConfig
+from .console import (
+    StatusLogger,
+    print_file_operation,
     print_header,
+    print_info,
     print_success,
-    run_command,
-    soft_reset_device,
+    print_warning,
+    progress_bar,
 )
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from .device import ESP32Device, check_mpremote, get_or_find_port
+from .exceptions import CommandError, FlashError, UploadError
+from .subprocess_utils import retry, run_command
 
 
 class FirmwareUploader:
     """Uploads firmware to ESP32 devices."""
 
-    FLASH_ADDRESSES: ClassVar = {
-        "bootloader": 0x0,
-        "partition-table": 0x8000,
-        "firmware": 0x10000,
-    }
-
-    def __init__(
-        self,
-        root_dir: Path,
-        board: str,
-        port: str | None = None,
-        baud: int = 460800,
-        *,
-        erase: bool = False,
-    ) -> None:
-        """Initialize the firmware uploader.
+    def __init__(self, config: FlashingConfig, paths: ProjectPaths) -> None:
+        """Initialize firmware uploader.
 
         Args:
-            root_dir: Root directory of the project
-            board: Target ESP32 board variant
-            port: Serial port (auto-detected if None)
-            baud: Baud rate for flashing
-            erase: Whether to erase flash before uploading
-
+            config: Flashing configuration
+            paths: Project paths
         """
-        self.root_dir = root_dir
-        self.port = port
-        self.baud = baud
-        self.board = board
-        self.erase = erase
-        self.dist_dir = root_dir / "dist"
-        self.chip = get_chip_type(board)
+        self.config = config
+        self.paths = paths
 
-    def check_firmware_files(self) -> bool:
-        """Verify that required firmware files exist."""
-        print("Checking firmware files...")
+    def check_firmware_files(self) -> None:
+        """Verify required firmware files exist in dist/.
 
-        if not self.dist_dir.exists():
-            print(f"[ERROR] Dist directory not found: {self.dist_dir}")
-            print("Run 'build' command first")
-            return False
+        Raises:
+            FlashError: If firmware files are missing
+        """
+        if not self.paths.dist.exists():
+            raise FlashError(
+                f"Dist directory not found: {self.paths.dist}\nRun 'build' command first"
+            )
 
         required_files = ["bootloader.bin", "partition-table.bin", "firmware.bin"]
-        missing = [f for f in required_files if not (self.dist_dir / f).exists()]
+        missing = [f for f in required_files if not (self.paths.dist / f).exists()]
 
         if missing:
-            print(f"[ERROR] Missing firmware files: {', '.join(missing)}")
-            print("Please rebuild firmware")
-            return False
-
-        print("[OK] All firmware files found")
-        return True
-
-    def erase_flash(self, port: str) -> bool:
-        """Erase the flash memory."""
-        print("Erasing flash memory...")
-        try:
-            run_command(
-                [sys.executable, "-m", "esptool", "--port", port, "erase-flash"]
+            raise FlashError(
+                f"Missing firmware files: {', '.join(missing)}\nPlease rebuild firmware"
             )
-            print("[OK] Flash erased successfully")
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"[ERROR] Failed to erase flash: {e}")
-            return False
 
-    def upload_firmware(self, port: str) -> bool:
-        """Upload firmware to device."""
-        print(f"Uploading firmware to {port} at {self.baud} baud...")
+        print_success("All firmware files found")
 
-        cmd = [
-            sys.executable,
-            "-m",
-            "esptool",
-            "--chip",
-            self.chip,
-            "--port",
-            port,
-            "--baud",
-            str(self.baud),
-            "write-flash",
-            "-z",
-            hex(self.FLASH_ADDRESSES["bootloader"]),
-            str(self.dist_dir / "bootloader.bin"),
-            hex(self.FLASH_ADDRESSES["partition-table"]),
-            str(self.dist_dir / "partition-table.bin"),
-            hex(self.FLASH_ADDRESSES["firmware"]),
-            str(self.dist_dir / "firmware.bin"),
-        ]
+    def erase_flash(self, port: str) -> None:
+        """Erase device flash memory.
 
-        try:
-            run_command(cmd)
-            print("[OK] Firmware uploaded successfully")
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"[ERROR] Failed to upload firmware: {e}")
-            return False
+        Args:
+            port: Serial port
 
-    def upload(self) -> bool:
-        """Execute the upload process."""
-        print_header("StripAlerts ESP32 Firmware Uploader")
+        Raises:
+            FlashError: If erase fails
+        """
+        with StatusLogger("Erasing flash memory"):
+            try:
+                run_command(
+                    [sys.executable, "-m", "esptool", "--port", port, "erase-flash"],
+                    verbose=True,
+                )
+            except Exception as e:
+                raise FlashError(f"Failed to erase flash: {e}") from e
 
-        if not self.check_firmware_files():
-            return False
+    def upload_firmware(self, port: str) -> None:
+        """Flash bootloader, partition table, and firmware to device.
 
-        port = self.port or find_serial_port()
-        if not port:
-            print("[ERROR] Could not detect ESP32 device")
-            print("Specify port with --port option")
-            return False
+        Args:
+            port: Serial port
 
-        if self.erase and not self.erase_flash(port):
-            return False
+        Raises:
+            FlashError: If flashing fails
+        """
+        with StatusLogger(f"Uploading firmware to {port} at {self.config.baud} baud"):
+            cmd = [
+                sys.executable,
+                "-m",
+                "esptool",
+                "--chip",
+                self.config.chip_type.value,
+                "--port",
+                port,
+                "--baud",
+                str(self.config.baud),
+                "write-flash",
+                "-z",
+                hex(FlashConfig.get_bootloader_addr(self.config.chip_type)),
+                str(self.paths.dist / "bootloader.bin"),
+                hex(FlashConfig.PARTITION_TABLE_ADDR),
+                str(self.paths.dist / "partition-table.bin"),
+                hex(FlashConfig.FIRMWARE_ADDR),
+                str(self.paths.dist / "firmware.bin"),
+            ]
 
-        if not self.upload_firmware(port):
-            return False
+            try:
+                run_command(cmd, verbose=True)
+            except Exception as e:
+                raise FlashError(f"Failed to upload firmware: {e}") from e
 
+    def upload(self) -> None:
+        """Execute complete firmware upload workflow.
+
+        Raises:
+            FlashError: If upload fails
+        """
+        print_header("StripAlerts ESP32 Firmware Uploader", f"Board: {self.config.board}")
+
+        self.check_firmware_files()
+        port = get_or_find_port(self.config.port)
+
+        if self.config.erase:
+            self.erase_flash(port)
+
+        self.upload_firmware(port)
         print_success("Firmware upload completed")
-        return True
 
 
 class FileUploader:
     """Uploads application files to ESP32 filesystem."""
 
-    def __init__(self, root_dir: Path, port: str | None = None) -> None:
-        """Initialize the file uploader.
+    def __init__(self, config: UploadConfig, paths: ProjectPaths) -> None:
+        """Initialize file uploader.
 
         Args:
-            root_dir: Root directory of the project
-            port: Serial port (auto-detected if None)
-
+            config: Upload configuration
+            paths: Project paths
         """
-        self.root_dir = root_dir
-        self.src_dir = root_dir / "src"
-        self.port = port
+        self.config = config
+        self.paths = paths
 
-    def upload_file(self, local_path: Path, remote_path: str, port: str) -> bool:
-        """Upload a single file to the device with retry logic."""
-        print(f"  Uploading {local_path.name} -> {remote_path}")
+    @retry(exceptions=(CommandError, UploadError))
+    def upload_file(self, device: ESP32Device, local_path: Path, remote_path: str) -> None:
+        """Upload single file with automatic retry.
 
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                cmd = [
-                    "mpremote",
-                    "connect",
-                    port,
-                    "fs",
-                    "cp",
-                    str(local_path),
-                    f":{remote_path}",
-                ]
-                subprocess.run(cmd, check=True, capture_output=True, timeout=30)
-                return True
-            except subprocess.TimeoutExpired:
-                print(
-                    f"  [WARNING] Upload timeout (attempt {attempt + 1}/{max_retries})"
-                )
-                if attempt < max_retries - 1:
-                    time.sleep(2)
-                    continue
-                print(
-                    f"  [ERROR] Failed to upload {local_path.name} after "
-                    f"{max_retries} attempts"
-                )
-                return False
-            except subprocess.CalledProcessError:
-                if attempt < max_retries - 1:
-                    print(
-                        f"  [WARNING] Upload failed (attempt {attempt + 1}/"
-                        f"{max_retries}), retrying..."
-                    )
-                    time.sleep(2)
-                else:
-                    print(
-                        f"  [ERROR] Failed to upload {local_path.name} after "
-                        f"{max_retries} attempts"
-                    )
-                    return False
-        return False
+        Args:
+            device: ESP32 device
+            local_path: Local file path
+            remote_path: Remote file path
 
-    def create_remote_dir(self, remote_path: str, port: str) -> None:
-        """Create a directory on the device (ignore if exists)."""
+        Raises:
+            UploadError: If upload fails after retries
+        """
+        cmd = [
+            "mpremote",
+            "connect",
+            device.port,
+            "exec",
+            "",
+            "fs",
+            "cp",
+            str(local_path),
+            f":{remote_path}",
+        ]
+
         try:
-            cmd = ["mpremote", "connect", port, "fs", "mkdir", f":{remote_path}"]
-            subprocess.run(cmd, check=True, capture_output=True)
-        except subprocess.CalledProcessError:
-            pass
+            run_command(cmd, timeout=30, capture_output=True)
+            print_file_operation("Uploaded", f"{local_path.name} → {remote_path}")
+        except Exception as e:
+            raise UploadError(f"Failed to upload {local_path.name}: {e}") from e
 
-    def upload_files(self) -> bool:
-        """Upload all application files to device."""
-        print_header("StripAlerts Application File Uploader")
+    def prepare_device(self, device: ESP32Device) -> None:
+        """Prepare device by interrupting program and clearing old files.
 
-        if not check_mpremote():
-            return False
+        Args:
+            device: ESP32 device
+        """
+        print_info("Interrupting any running application...")
+        device.interrupt_program()
 
-        port = self.port or find_serial_port()
-        if not port:
-            print("[ERROR] Could not detect ESP32 device")
-            return False
+        print_info("Clearing old application files...")
+        old_files = ["/boot.py", "/main.py", "/config.json"]
+        for file_path in old_files:
+            device.remove_file(file_path)
 
-        if not self.src_dir.exists():
-            print(f"[ERROR] Source directory not found: {self.src_dir}")
-            return False
+    def collect_files(self) -> list[tuple[Path, str]]:
+        """Collect files to upload.
 
-        print(f"Uploading files from {self.src_dir}...")
-        print("\nPerforming soft reset to ensure clean state...")
-        if not soft_reset_device(port):
-            print("[ERROR] Failed to soft reset device")
-            return False
+        Returns:
+            List of (local_path, remote_path) tuples
+
+        Raises:
+            UploadError: If no files to upload
+        """
+        if not self.paths.src.exists():
+            raise UploadError(f"Source directory not found: {self.paths.src}")
+
+        files_to_upload: list[tuple[Path, str]] = []
 
         # Upload boot.py and main.py
-        for filename in ["boot.py", "main.py"]:
-            file_path = self.src_dir / filename
-            if file_path.exists() and not self.upload_file(
-                file_path, f"/{filename}", port
-            ):
-                return False
+        for filename in self.config.files:
+            file_path = self.paths.src / filename
+            if file_path.exists():
+                files_to_upload.append((file_path, f"/{filename}"))
+            else:
+                print_warning(f"{filename} not found, skipping")
 
-        # Handle configuration file
-        config_file = self.root_dir / "config.json"
-        example_config = self.root_dir / "config.json.example"
+        # Upload config.json
+        config_file = self.paths.root / "config.json"
+        example_config = self.paths.root / "config.json.example"
 
         if config_file.exists():
-            if not self.upload_file(config_file, "/config.json", port):
-                return False
+            files_to_upload.append((config_file, "/config.json"))
         elif example_config.exists():
-            print(f"config.json not found, using {example_config.name}")
-            if not self.upload_file(example_config, "/config.json", port):
-                return False
+            print_info(f"config.json not found, using {example_config.name}")
+            files_to_upload.append((example_config, "/config.json"))
+        else:
+            print_warning("No config file found, skipping")
+
+        if not files_to_upload:
+            raise UploadError("No files to upload")
+
+        return files_to_upload
+
+    def upload_files(self) -> None:
+        """Upload application files and restart device.
+
+        Raises:
+            UploadError: If upload fails
+        """
+        print_header("StripAlerts Application File Uploader")
+
+        check_mpremote()
+        port = get_or_find_port(self.config.port)
+        device = ESP32Device(port)
+
+        self.prepare_device(device)
+        files = self.collect_files()
+
+        print_info(f"Preparing to upload {len(files)} file(s)...")
+
+        with progress_bar("Uploading files") as progress:
+            task = progress.add_task("Uploading...", total=len(files))
+            for local_path, remote_path in files:
+                self.upload_file(device, local_path, remote_path)
+                progress.advance(task)
+
+        print_info("Restarting device to run uploaded code...")
+        if device.soft_reset():
+            print_success("Device restarted successfully")
+        else:
+            print_warning("Please manually reset the device to run new code")
 
         print_success("All files uploaded")
-        return True

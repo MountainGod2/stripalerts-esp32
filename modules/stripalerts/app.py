@@ -3,17 +3,6 @@
 import asyncio
 import gc
 
-import machine
-
-from .api import ChaturbateAPI
-from .ble import BLEManager
-from .config import settings
-from .constants import COLOR_MAP, TRIGGER_TOKEN_AMOUNT
-from .events import EventManager
-from .led import LEDController, blink_pattern, rainbow_pattern, solid_pattern
-from .utils import log_error, log_info
-from .wifi import WiFiManager
-
 try:
     from typing import TYPE_CHECKING
 except ImportError:
@@ -22,11 +11,29 @@ except ImportError:
 if TYPE_CHECKING:
     from typing import List, Optional
 
+import machine
+
+from .api import ChaturbateAPI
+from .ble import BLEManager
+from .config import settings
+from .constants import COLOR_MAP, TRIGGER_TOKEN_AMOUNT
+from .events import EventManager
+from .led import (
+    LEDController,
+    blink_pattern,
+    pulse_pattern,
+    rainbow_pattern,
+    solid_pattern,
+)
+from .utils import log_error, log_info
+from .wifi import WiFiManager
+
 
 class App:
     """Main application controller."""
 
     def __init__(self) -> None:
+        """Initialize the application."""
         gc.collect()
         self.events = EventManager()
 
@@ -40,11 +47,7 @@ class App:
         self.api: Optional[ChaturbateAPI] = None
         self.ble: Optional[BLEManager] = None
         self.mode = "BOOT"  # BOOT, NORMAL, PROVISIONING
-
-        if TYPE_CHECKING:
-            self._tasks: List[asyncio.Task] = []
-        else:
-            self._tasks = []
+        self._tasks: "List[asyncio.Task]" = []
         self._running = False
         self._current_effect_task = None
         self._current_hold_color: Optional[tuple[int, int, int]] = None
@@ -74,13 +77,9 @@ class App:
         if self._current_effect_task and not self._current_effect_task.done():
             self._current_effect_task.cancel()
 
-        self._current_effect_task = asyncio.create_task(
-            self._process_tip_effect(found_color)
-        )
+        self._current_effect_task = asyncio.create_task(self._process_tip_effect(found_color))
 
-    def _parse_color_trigger(
-        self, tokens: int, message: str
-    ) -> Optional[tuple[int, int, int]]:
+    def _parse_color_trigger(self, tokens: int, message: str) -> Optional[tuple[int, int, int]]:
         """Check if tip triggers a specific color hold."""
         if tokens == TRIGGER_TOKEN_AMOUNT:
             for name, color in COLOR_MAP.items():
@@ -88,14 +87,12 @@ class App:
                     return color
         return None
 
-    async def _process_tip_effect(
-        self, hold_color: "Optional[tuple[int, int, int]]" = None
-    ):
+    async def _process_tip_effect(self, hold_color: "Optional[tuple[int, int, int]]" = None):
         """Handle the visual sequence for a tip."""
         try:
-            # Flash Green (Standard Tip Effect)
-            self.led.set_pattern(solid_pattern(self.led, (0, 255, 0)))
-            await asyncio.sleep(2)
+            # Pulse Green (Standard Tip Effect)
+            self.led.set_pattern(pulse_pattern(self.led, (0, 255, 0), duration=2.0))
+            await asyncio.sleep(2.1)  # Slightly longer than pattern duration
 
             # If it's a color trigger, switch to that color and hold
             if hold_color:
@@ -114,11 +111,13 @@ class App:
             if self._current_hold_color:
                 self.led.set_pattern(solid_pattern(self.led, self._current_hold_color))
             else:
+                # Resume rainbow from saved position
                 self.led.set_pattern(
                     rainbow_pattern(
                         self.led,
                         step=settings["rainbow_step"],
                         delay=settings["rainbow_delay"],
+                        start_hue=self.led.rainbow_hue,
                     )
                 )
 
@@ -184,7 +183,7 @@ class App:
         self.ble = BLEManager(self.wifi, initial_networks=initial_networks)
 
     async def run(self) -> None:
-        """Main loop."""
+        """Run main loop."""
         self._running = True
 
         # LED is always running
@@ -232,6 +231,7 @@ class App:
             await self.shutdown()
 
     async def shutdown(self):
+        """Shut down the application and clean up resources."""
         self._running = False
         log_info("Shutting down...")
         if self.wdt:
@@ -249,9 +249,7 @@ class App:
             if self.wdt:
                 self.wdt.feed()
 
-            gather_task = asyncio.create_task(
-                asyncio.gather(*self._tasks, return_exceptions=True)
-            )
+            gather_task = asyncio.create_task(asyncio.gather(*self._tasks, return_exceptions=True))
 
             feeder_task = None
             if self.wdt:

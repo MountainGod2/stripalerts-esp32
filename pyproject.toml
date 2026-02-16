@@ -15,32 +15,36 @@ build-backend = "uv_build"
 module-name = "stripalerts"
 module-root = "modules"
 
-[dependency-groups]
-dev = [
-    "esptool==5.1.0",
-    "mpremote==1.27.0",
-    "pre-commit==4.5.1",
-    "pyserial==3.5",
-    "ruff==0.15.1",
-]
-
 [project.optional-dependencies]
 # uv pip install -r pyproject.toml --extra stubs --target typings
 stubs = ["micropython-esp32-stubs==1.27.0.*"]
+# uv pip install -r pyproject.toml --extra dev
 dev = [
     "esptool==5.1.0",
     "mpremote==1.27.0",
     "pre-commit==4.5.1",
     "pyserial==3.5",
     "ruff==0.15.1",
+    "rich==14.3.2",
+    "typer==0.23.1",
+    "mypy==1.19.1",
 ]
 
 [tool.ruff]
 exclude = ["micropython", "typings"]
 target-version = "py39"
-line-length = 88
-lint.select = ["E", "F", "W", "I", "PYI"]
-lint.per-file-ignores = { "boards/STRIPALERTS/manifest.py" = ["F821"], "boards/STRIPALERTS_S3/manifest.py" = ["F821"] }
+line-length = 100
+lint.select = ["E", "F", "W", "I", "PYI", "PERF", "RUF", "FBT", "D"]
+lint.ignore = ["D203", "D213", "RUF005","RUF037"]
+lint.per-file-ignores = { "boards/*/manifest.py" = [
+    "F821",
+], "tools/*.py" = [
+    "FBT001",
+    "FBT002",
+], "tools/subprocess_utils.py" = [
+    "PERF203",
+] }
+lint.pydocstyle.convention = "google"
 format.quote-style = "double"
 format.indent-style = "space"
 
