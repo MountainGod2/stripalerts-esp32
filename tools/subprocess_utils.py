@@ -22,13 +22,22 @@ def retry(
     delay: float = RetryConfig.RETRY_DELAY,
     exceptions: tuple[type[Exception], ...] = (subprocess.CalledProcessError,),
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
-    """Decorator to retry a function on failure."""
+    """Decorator to retry a function on failure.
+
+    Args:
+        max_attempts: Number of attempts to make (must be >= 1).
+        delay: Seconds to wait between retries.
+        exceptions: Tuple of exceptions to catch and retry.
+
+    Raises:
+        ValueError: If max_attempts < 1.
+    """
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
-            if max_attempts <= 0:
-                return func(*args, **kwargs)
+            if max_attempts < 1:
+                raise ValueError("max_attempts must be >= 1")
             last_exception = None
             for attempt in range(max_attempts):
                 try:
