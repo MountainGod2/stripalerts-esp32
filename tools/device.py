@@ -13,7 +13,7 @@ except ImportError:
     list_ports = None  # type: ignore
 
 from .console import print_info, print_success, print_warning
-from .exceptions import DeviceNotFoundError, PrerequisiteError
+from .exceptions import CommandError, DeviceNotFoundError, OperationTimeoutError, PrerequisiteError
 from .subprocess_utils import check_command_available, get_command_output, run_command
 
 ESP32_VID_PIDS = [(0x10C4, 0xEA60), (0x1A86, 0x7523), (0x303A, None)]
@@ -44,7 +44,7 @@ class ESP32Device:
             time.sleep(1)
             print_success(f"Device on {self.port} reset successfully")
             return True
-        except (subprocess.SubprocessError, OSError) as e:
+        except (subprocess.SubprocessError, OSError, CommandError, OperationTimeoutError) as e:
             print_warning(f"Soft reset failed: {e}")
             return False
 
@@ -64,7 +64,7 @@ class ESP32Device:
                 capture_output=True,
             )
             return True
-        except (subprocess.SubprocessError, OSError):
+        except (subprocess.SubprocessError, OSError, CommandError, OperationTimeoutError):
             return False
 
     def remove_file(self, remote_path: str, timeout: int = 5) -> bool:
@@ -110,31 +110,25 @@ def find_esp32_device() -> str:
                 return port
 
     # Fallback to cross-platform serial port enumeration
-    if list_ports is not None:
-        available_ports = list(list_ports.comports())
-        if available_ports:
-            for port in available_ports:
-                for vid, pid in ESP32_VID_PIDS:
-                    if port.vid == vid and (pid is None or port.pid == pid):
-                        print_success(f"Using port: {port.device}")
-                        return port.device
-    else:
-        if sys.platform != "win32":
-            patterns = ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
-            ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
-            if ports and list_ports is not None:
-                all_ports_info = list(list_ports.comports())
-                for candidate_path in ports:
-                    for port_info in all_ports_info:
-                        if port_info.device == candidate_path:
-                            for vid, pid in ESP32_VID_PIDS:
-                                if port_info.vid == vid and (pid is None or port_info.pid == pid):
-                                    print_success(f"Using port: {candidate_path}")
-                                    return candidate_path
-            elif ports:
-                port = ports[0]
-                print_success(f"Using port: {port}")
-                return port
+    if sys.platform != "win32":
+        patterns = ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
+        ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
+
+        if list_ports is not None:
+            all_ports_info = list(list_ports.comports())
+            for candidate_path in ports:
+                for port_info in all_ports_info:
+                    if port_info.device == candidate_path:
+                        for vid, pid in ESP32_VID_PIDS:
+                            if port_info.vid == vid and (pid is None or port_info.pid == pid):
+                                print_success(f"Using port: {candidate_path}")
+                                return candidate_path
+
+        # Fall back to first globbed port if list_ports is None or no VID/PID match
+        if ports:
+            port = ports[0]
+            print_success(f"Using port: {port}")
+            return port
 
     raise DeviceNotFoundError("No ESP32 device found. Please connect device or specify --port")
 
