@@ -5,21 +5,21 @@ on:
     branches:
       - main
     paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - 'LICENSE'
-      - 'frontend/**'
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
+      - "frontend/**"
   pull_request:
     branches:
       - main
       - develop
     paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - 'LICENSE'
-      - 'frontend/**'
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
+      - "frontend/**"
   workflow_dispatch:
 
 concurrency:
@@ -42,6 +42,9 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.11"
+
+      - name: Install dev dependencies
+        run: uv pip install -r pyproject.toml --extra dev,stubs
 
       - name: Ruff check
         run: uv run ruff check .
