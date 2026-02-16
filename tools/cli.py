@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
+import functools
 import sys
 import time
-from typing import Annotated, Optional
+from typing import Annotated, Callable, Optional, TypeVar
 
 import typer
 from rich.traceback import install as install_rich_traceback
@@ -38,8 +39,31 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
+F = TypeVar("F", bound=Callable)
+
+
+def handle_errors(func: F) -> F:
+    """Decorator to handle common CLI errors with consistent messaging."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except StripAlertsError as e:
+            print_error(str(e))
+            raise typer.Exit(1) from e
+        except KeyboardInterrupt:
+            print_info(f"{func.__name__.capitalize()} stopped by user")
+            raise typer.Exit(130) from None
+        except Exception as e:
+            print_error(f"Unexpected error: {e}")
+            raise typer.Exit(1) from e
+
+    return wrapper
+
 
 @app.command()
+@handle_errors
 def build(
     board: Annotated[
         str,
@@ -55,20 +79,14 @@ def build(
     ] = False,
 ) -> None:
     """Build firmware for ESP32 board."""
-    try:
-        paths = ProjectPaths.from_tools_dir()
-        config = BuildConfig(board=board, clean=clean, verbose=verbose)
-        builder = FirmwareBuilder(config, paths)
-        builder.build()
-    except StripAlertsError as e:
-        print_error(str(e))
-        raise typer.Exit(1) from e
-    except Exception as e:
-        print_error(f"Unexpected error: {e}")
-        raise typer.Exit(1) from e
+    paths = ProjectPaths.from_tools_dir()
+    config = BuildConfig(board=board, clean=clean, verbose=verbose)
+    builder = FirmwareBuilder(config, paths)
+    builder.build()
 
 
 @app.command()
+@handle_errors
 def flash(
     board: Annotated[
         str,
@@ -88,20 +106,14 @@ def flash(
     ] = False,
 ) -> None:
     """Flash firmware to ESP32 device."""
-    try:
-        paths = ProjectPaths.from_tools_dir()
-        config = FlashingConfig(board=board, port=port, baud=baud, erase=erase)
-        uploader = FirmwareUploader(config, paths)
-        uploader.upload()
-    except StripAlertsError as e:
-        print_error(str(e))
-        raise typer.Exit(1) from e
-    except Exception as e:
-        print_error(f"Unexpected error: {e}")
-        raise typer.Exit(1) from e
+    paths = ProjectPaths.from_tools_dir()
+    config = FlashingConfig(board=board, port=port, baud=baud, erase=erase)
+    uploader = FirmwareUploader(config, paths)
+    uploader.upload()
 
 
 @app.command()
+@handle_errors
 def upload(
     port: Annotated[
         Optional[str],
@@ -109,20 +121,14 @@ def upload(
     ] = None,
 ) -> None:
     """Upload application files to ESP32 device."""
-    try:
-        paths = ProjectPaths.from_tools_dir()
-        config = UploadConfig(port=port)
-        uploader = FileUploader(config, paths)
-        uploader.upload_files()
-    except StripAlertsError as e:
-        print_error(str(e))
-        raise typer.Exit(1) from e
-    except Exception as e:
-        print_error(f"Unexpected error: {e}")
-        raise typer.Exit(1) from e
+    paths = ProjectPaths.from_tools_dir()
+    config = UploadConfig(port=port)
+    uploader = FileUploader(config, paths)
+    uploader.upload_files()
 
 
 @app.command()
+@handle_errors
 def monitor(
     port: Annotated[
         Optional[str],
@@ -134,21 +140,13 @@ def monitor(
     ] = FlashConfig.DEFAULT_MONITOR_BAUD,
 ) -> None:
     """Monitor serial output from ESP32 device."""
-    try:
-        config = MonitorConfig(port=port, baud=baud)
-        monitor = SerialMonitor(config)
-        monitor.monitor()
-    except StripAlertsError as e:
-        print_error(str(e))
-        raise typer.Exit(1) from e
-    except KeyboardInterrupt:
-        print_info("Monitoring stopped by user")
-    except Exception as e:
-        print_error(f"Unexpected error: {e}")
-        raise typer.Exit(1) from e
+    config = MonitorConfig(port=port, baud=baud)
+    serial_monitor = SerialMonitor(config)
+    serial_monitor.monitor()
 
 
 @app.command()
+@handle_errors
 def clean(
     all: Annotated[
         bool,
@@ -156,19 +154,13 @@ def clean(
     ] = False,
 ) -> None:
     """Clean build artifacts and caches."""
-    try:
-        paths = ProjectPaths.from_tools_dir()
-        cleaner = BuildCleaner(paths, deep_clean=all)
-        cleaner.clean()
-    except StripAlertsError as e:
-        print_error(str(e))
-        raise typer.Exit(1) from e
-    except Exception as e:
-        print_error(f"Unexpected error: {e}")
-        raise typer.Exit(1) from e
+    paths = ProjectPaths.from_tools_dir()
+    cleaner = BuildCleaner(paths, deep_clean=all)
+    cleaner.clean()
 
 
 @app.command()
+@handle_errors
 def deploy(
     board: Annotated[
         str,
@@ -212,50 +204,43 @@ def deploy(
     ] = RetryConfig.DEVICE_STABILIZE_DELAY,
 ) -> None:
     """Full deployment: build + flash + upload + monitor."""
-    try:
-        paths = ProjectPaths.from_tools_dir()
+    paths = ProjectPaths.from_tools_dir()
+    any_step_run = False
 
-        # Step 1: Build
-        if not skip_build:
-            print_header("STEP 1/4: Building Firmware")
-            build_config = BuildConfig(board=board, clean=clean)
-            builder = FirmwareBuilder(build_config, paths)
-            builder.build()
+    if not skip_build:
+        print_header("STEP 1/4: Building Firmware")
+        build_config = BuildConfig(board=board, clean=clean)
+        builder = FirmwareBuilder(build_config, paths)
+        builder.build()
+        any_step_run = True
 
-        # Step 2: Flash
-        if not skip_flash:
-            print_header("STEP 2/4: Flashing Firmware")
-            flash_config = FlashingConfig(board=board, port=port, baud=baud, erase=erase)
-            firmware_uploader = FirmwareUploader(flash_config, paths)
-            firmware_uploader.upload()
+    if not skip_flash:
+        print_header("STEP 2/4: Flashing Firmware")
+        flash_config = FlashingConfig(board=board, port=port, baud=baud, erase=erase)
+        firmware_uploader = FirmwareUploader(flash_config, paths)
+        firmware_uploader.upload()
+        any_step_run = True
 
-        # Step 3: Upload files
-        if not skip_upload:
-            print_header("STEP 3/4: Uploading Application Files")
-            print_info(f"Waiting {stabilize_seconds}s for device stabilization...")
-            time.sleep(stabilize_seconds)
-            upload_config = UploadConfig(port=port)
-            file_uploader = FileUploader(upload_config, paths)
-            file_uploader.upload_files()
+    if not skip_upload:
+        print_header("STEP 3/4: Uploading Application Files")
+        print_info(f"Waiting {stabilize_seconds}s for device stabilization...")
+        time.sleep(stabilize_seconds)
+        upload_config = UploadConfig(port=port)
+        file_uploader = FileUploader(upload_config, paths)
+        file_uploader.upload_files()
+        any_step_run = True
 
-        # Step 4: Monitor
-        if not skip_monitor:
-            print_header("STEP 4/4: Monitoring Device")
-            monitor_config = MonitorConfig(port=port)
-            serial_monitor = SerialMonitor(monitor_config)
-            serial_monitor.monitor()
+    if not skip_monitor:
+        print_header("STEP 4/4: Monitoring Device")
+        monitor_config = MonitorConfig(port=port)
+        serial_monitor = SerialMonitor(monitor_config)
+        serial_monitor.monitor()
+        any_step_run = True
 
+    if any_step_run:
         print_success("Deployment completed successfully!")
-
-    except StripAlertsError as e:
-        print_error(str(e))
-        raise typer.Exit(1) from e
-    except KeyboardInterrupt:
-        print_info("Deployment interrupted by user")
-        raise typer.Exit(130) from None
-    except Exception as e:
-        print_error(f"Unexpected error: {e}")
-        raise typer.Exit(1) from e
+    else:
+        print_info("No deployment steps were executed.")
 
 
 def main() -> None:
