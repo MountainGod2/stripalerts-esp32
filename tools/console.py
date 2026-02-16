@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from contextlib import contextmanager
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
@@ -95,7 +96,7 @@ def print_table(title: str, headers: list[str], rows: list[list[str]]) -> None:
 
 def print_command(cmd: list[str]) -> None:
     """Print a command being executed."""
-    cmd_str = " ".join(cmd)
+    cmd_str = shlex.join(cmd)
     console.print(f"[dim]$ [code]{cmd_str}[/code][/dim]")
 
 
@@ -106,7 +107,16 @@ def print_keyval(key: str, value: Any) -> None:
 
 @contextmanager
 def progress_bar(description: str) -> Iterator[Progress]:
-    """Create a progress bar context manager."""
+    """Create a progress bar context manager.
+
+    Args:
+        description: Suggested description for the task (caller must use via add_task).
+
+    Example:
+        with progress_bar("Downloading") as progress:
+            task = progress.add_task("Downloading", total=100)
+            ...
+    """
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),

@@ -1,5 +1,5 @@
 # StripAlerts ESP32 Firmware Build System
-.PHONY: help install check build flash upload monitor clean clean-all deploy test lint format
+.PHONY: help install check build flash upload monitor clean clean-all deploy deploy-quick test lint format typecheck watch shell ls reset info version
 .DEFAULT_GOAL := help
 .SILENT: check
 

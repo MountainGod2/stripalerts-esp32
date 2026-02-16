@@ -49,7 +49,7 @@ class CommandError(StripAlertsError):
         return msg
 
 
-class TimeoutError(StripAlertsError):
+class OperationTimeoutError(StripAlertsError):
     """Raised when an operation times out."""
 
 

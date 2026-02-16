@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import time
 from pathlib import Path
+
+try:
+    from serial.tools import list_ports
+except ImportError:
+    list_ports = None  # type: ignore
 
 from .console import print_info, print_success, print_warning
 from .exceptions import DeviceNotFoundError, PrerequisiteError
@@ -36,7 +42,7 @@ class ESP32Device:
             time.sleep(1)
             print_success(f"Device on {self.port} reset successfully")
             return True
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError) as e:
             print_warning(f"Soft reset failed: {e}")
             return False
 
@@ -70,13 +76,13 @@ class ESP32Device:
             True if removal successful
         """
         try:
-            run_command(
+            result = run_command(
                 ["mpremote", "connect", self.port, "fs", "rm", f":{remote_path}"],
                 timeout=timeout,
                 capture_output=True,
                 check=False,
             )
-            return True
+            return result.returncode == 0
         except Exception:
             return False
 
@@ -101,14 +107,22 @@ def find_esp32_device() -> str:
                 print_success(f"Found ESP32 on port: {port}")
                 return port
 
-    # Fallback to scanning /dev for common port patterns
-    patterns = ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
-    ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
-
-    if ports:
-        port = ports[0]
-        print_success(f"Using port: {port}")
-        return port
+    # Fallback to cross-platform serial port enumeration
+    if list_ports is not None:
+        available_ports = list(list_ports.comports())
+        if available_ports:
+            port = available_ports[0].device
+            print_success(f"Using port: {port}")
+            return port
+    else:
+        # Fallback to scanning /dev for common port patterns (Unix-only)
+        if sys.platform != "win32":
+            patterns = ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
+            ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
+            if ports:
+                port = ports[0]
+                print_success(f"Using port: {port}")
+                return port
 
     raise DeviceNotFoundError("No ESP32 device found. Please connect device or specify --port")
 
@@ -149,7 +163,8 @@ def check_esptool() -> None:
     """
     if not check_command_available("esptool.py"):
         # Try as python module
-        if not check_command_available(f"{sys.executable} -m esptool"):
+        output = get_command_output([sys.executable, "-m", "esptool", "version"])
+        if not output:
             raise PrerequisiteError("esptool not found. Install with: uv sync")
 
 
@@ -166,7 +181,10 @@ def check_idf_environment() -> tuple[Path, list[str]]:
 
     esp_idf_path = os.environ.get("IDF_PATH")
     if not esp_idf_path:
-        raise PrerequisiteError("IDF_PATH not set. Run: source $IDF_PATH/export.sh")
+        raise PrerequisiteError(
+            "IDF_PATH not set. Run: source ~/esp/esp-idf/export.sh "
+            "(adjust path to your ESP-IDF installation)"
+        )
 
     idf_path = Path(esp_idf_path)
 
@@ -184,7 +202,10 @@ def check_idf_environment() -> tuple[Path, list[str]]:
             print_success(f"ESP-IDF found at: {idf_path}")
             return idf_path, cmd
 
-    raise PrerequisiteError("idf.py not found. Run: source $IDF_PATH/export.sh")
+    raise PrerequisiteError(
+        "idf.py not found. Run: source ~/esp/esp-idf/export.sh "
+        "(adjust path to your ESP-IDF installation)"
+    )
 
 
 def check_pyserial() -> bool:

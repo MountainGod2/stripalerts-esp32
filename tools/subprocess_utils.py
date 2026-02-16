@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from .config import RetryConfig
 from .console import print_command, print_error, print_warning
-from .exceptions import CommandError, TimeoutError
+from .exceptions import CommandError, OperationTimeoutError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -27,6 +27,8 @@ def retry(
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
+            if max_attempts <= 0:
+                return func(*args, **kwargs)
             last_exception = None
             for attempt in range(max_attempts):
                 try:
@@ -74,7 +76,7 @@ def run_command(
 
     Raises:
         CommandError: If command fails and check=True
-        TimeoutError: If command times out
+        OperationTimeoutError: If command times out
     """
     if verbose:
         print_command(cmd)
@@ -96,7 +98,7 @@ def run_command(
         return result
 
     except subprocess.TimeoutExpired as e:
-        raise TimeoutError(f"Command timed out after {timeout}s: {' '.join(cmd)}") from e
+        raise OperationTimeoutError(f"Command timed out after {timeout}s: {' '.join(cmd)}") from e
 
 
 def run_command_quiet(
@@ -147,7 +149,7 @@ def check_command_available(
     return success
 
 
-@retry(max_attempts=RetryConfig.MAX_RETRIES)
+@retry(max_attempts=RetryConfig.MAX_RETRIES, exceptions=(CommandError,))
 def run_with_retry(
     cmd: list[str],
     cwd: str | Path | None = None,

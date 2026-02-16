@@ -38,7 +38,7 @@ class FirmwareBuilder:
         """Verify ESP-IDF is installed and configured.
 
         Raises:
-            PrerequisiteError: If prerequisites not met
+            BuildError: If prerequisites are not met
         """
         with StatusLogger("Checking prerequisites"):
             idf_path, idf_cmd = check_idf_environment()

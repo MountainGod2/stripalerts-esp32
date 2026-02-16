@@ -10,6 +10,8 @@ except ImportError:
 if TYPE_CHECKING:
     from typing import Optional
 
+import math
+
 import machine
 import neopixel
 
@@ -122,6 +124,16 @@ class LEDController:
         """Stop the LED controller loop."""
         self._running = False
 
+    @property
+    def rainbow_hue(self) -> float:
+        """Get the current rainbow hue position.
+
+        Returns:
+            float: Current hue value (0-360)
+
+        """
+        return self._saved_rainbow_hue
+
 
 def solid_pattern(controller: LEDController, color: "tuple[int, int, int]"):
     """Generate solid color pattern."""
@@ -174,7 +186,8 @@ def pulse_pattern(
         steps: Number of brightness steps (higher = smoother)
 
     """
-    import math
+    if steps < 2:
+        steps = 2
 
     delay = duration / steps
     for i in range(steps):

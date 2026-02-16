@@ -47,11 +47,7 @@ class App:
         self.api: Optional[ChaturbateAPI] = None
         self.ble: Optional[BLEManager] = None
         self.mode = "BOOT"  # BOOT, NORMAL, PROVISIONING
-
-        if TYPE_CHECKING:
-            self._tasks: List[asyncio.Task] = []
-        else:
-            self._tasks = []
+        self._tasks: "List[asyncio.Task]" = []
         self._running = False
         self._current_effect_task = None
         self._current_hold_color: Optional[tuple[int, int, int]] = None
@@ -94,9 +90,6 @@ class App:
     async def _process_tip_effect(self, hold_color: "Optional[tuple[int, int, int]]" = None):
         """Handle the visual sequence for a tip."""
         try:
-            # Save current rainbow position before changing pattern
-            saved_hue = self.led._saved_rainbow_hue
-
             # Pulse Green (Standard Tip Effect)
             self.led.set_pattern(pulse_pattern(self.led, (0, 255, 0), duration=2.0))
             await asyncio.sleep(2.1)  # Slightly longer than pattern duration
@@ -124,7 +117,7 @@ class App:
                         self.led,
                         step=settings["rainbow_step"],
                         delay=settings["rainbow_delay"],
-                        start_hue=saved_hue,
+                        start_hue=self.led.rainbow_hue,
                     )
                 )
 

@@ -94,7 +94,7 @@ class FirmwareUploader:
                 str(self.config.baud),
                 "write-flash",
                 "-z",
-                hex(FlashConfig.BOOTLOADER_ADDR),
+                hex(FlashConfig.get_bootloader_addr(self.config.chip_type)),
                 str(self.paths.dist / "bootloader.bin"),
                 hex(FlashConfig.PARTITION_TABLE_ADDR),
                 str(self.paths.dist / "partition-table.bin"),
@@ -236,7 +236,7 @@ class FileUploader:
         self.prepare_device(device)
         files = self.collect_files()
 
-        print_info(f"Preparing to upload {len(files)} file(s) from {self.paths.src}...")
+        print_info(f"Preparing to upload {len(files)} file(s)...")
 
         with progress_bar("Uploading files") as progress:
             task = progress.add_task("Uploading...", total=len(files))

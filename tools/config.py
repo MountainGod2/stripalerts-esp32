@@ -39,12 +39,33 @@ class ChipType(str, Enum):
 class FlashConfig:
     """Flash memory configuration constants."""
 
-    BOOTLOADER_ADDR: ClassVar[int] = 0x0
+    # Chip-specific bootloader addresses
+    BOOTLOADER_ADDR_MAP: ClassVar[dict[str, int]] = {
+        "esp32": 0x1000,
+        "esp32s2": 0x1000,
+        "esp32s3": 0x0,
+        "esp32c3": 0x0,
+        "esp32c6": 0x0,
+        "esp32h2": 0x0,
+    }
+
     PARTITION_TABLE_ADDR: ClassVar[int] = 0x8000
     FIRMWARE_ADDR: ClassVar[int] = 0x10000
 
     DEFAULT_FLASH_BAUD: ClassVar[int] = 460800
     DEFAULT_MONITOR_BAUD: ClassVar[int] = 115200
+
+    @classmethod
+    def get_bootloader_addr(cls, chip_type: ChipType) -> int:
+        """Get bootloader address for specific chip type.
+
+        Args:
+            chip_type: The ESP32 chip type
+
+        Returns:
+            Bootloader flash address for the chip
+        """
+        return cls.BOOTLOADER_ADDR_MAP.get(chip_type.value, 0x0)
 
 
 @dataclass(frozen=True)
@@ -152,3 +173,8 @@ class DeployConfig:
     skip_upload: bool = False
     skip_monitor: bool = False
     stabilize_seconds: float = RetryConfig.DEVICE_STABILIZE_DELAY
+
+    @property
+    def chip_type(self) -> ChipType:
+        """Get chip type for this board."""
+        return ChipType.from_board(self.board)
