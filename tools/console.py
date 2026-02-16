@@ -52,24 +52,24 @@ def print_header(title: str, subtitle: str | None = None) -> None:
 
 def print_success(message: str) -> None:
     """Print a success message."""
-    console.print(f":white_check_mark: [success]{message}[/success]")
+    console.print(f"[success]{message}[/success]")
 
 
 def print_error(message: str, detail: str | None = None) -> None:
     """Print an error message with optional detail."""
-    console.print(f":x: [error]ERROR:[/error] {message}")
+    console.print(f"[error]ERROR:[/error] {message}")
     if detail:
         console.print(f"  [dim]{detail}[/dim]")
 
 
 def print_warning(message: str) -> None:
     """Print a warning message."""
-    console.print(f":warning: [warning]WARNING:[/warning] {message}")
+    console.print(f"[warning]WARNING:[/warning] {message}")
 
 
 def print_info(message: str) -> None:
     """Print an info message."""
-    console.print(f":information: [info]INFO:[/info] {message}")
+    console.print(f"[info]INFO:[/info] {message}")
 
 
 def print_step(step: str, message: str) -> None:
@@ -79,9 +79,8 @@ def print_step(step: str, message: str) -> None:
 
 def print_file_operation(operation: str, path: str, success: bool = True) -> None:
     """Print a file operation result."""
-    status = ":white_check_mark:" if success else ":x:"
     style = "success" if success else "error"
-    console.print(f"{status} [{style}]{operation}[/{style}] [path]{path}[/path]")
+    console.print(f"[{style}]{operation}[/{style}] [path]{path}[/path]")
 
 
 def print_table(title: str, headers: list[str], rows: list[list[str]]) -> None:

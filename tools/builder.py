@@ -93,6 +93,7 @@ class FirmwareBuilder:
                     ["make", "CC=gcc"],
                     cwd=self.paths.mpy_cross,
                     verbose=self.config.verbose,
+                    timeout=None,  # No timeout for building
                 )
             except Exception as e:
                 raise BuildError(f"Failed to build mpy-cross: {e}") from e
@@ -135,6 +136,7 @@ class FirmwareBuilder:
                     ["make", *make_args, "submodules"],
                     cwd=self.paths.micropython_esp32,
                     verbose=self.config.verbose,
+                    timeout=None,  # No timeout for building
                 )
 
                 # Build firmware
@@ -142,6 +144,7 @@ class FirmwareBuilder:
                     ["make", *make_args],
                     cwd=self.paths.micropython_esp32,
                     verbose=self.config.verbose,
+                    timeout=None,  # No timeout for building
                 )
 
                 self._copy_firmware_artifacts()
