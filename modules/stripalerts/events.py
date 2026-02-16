@@ -13,7 +13,7 @@ class EventManager:
     def __init__(self) -> None:
         """Initialize event manager."""
         self._handlers: dict[str, list] = {}
-        self._queue = deque((), MAX_EVENT_QUEUE_SIZE)
+        self._queue = deque(maxlen=MAX_EVENT_QUEUE_SIZE)
 
     def on(self, event_type: str, handler) -> None:
         """Register event handler.
@@ -63,7 +63,7 @@ class EventManager:
                 for handler in handlers[event_type]:
                     try:
                         await handler(data)
-                    except Exception as e:
+                    except Exception as e:  # noqa: PERF203
                         log_error(f"Error in event handler: {e}")
 
     async def run(self) -> None:

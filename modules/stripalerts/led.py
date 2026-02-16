@@ -1,6 +1,7 @@
 """LED control module."""
 
 import asyncio
+from typing import Optional
 
 import machine
 import neopixel
@@ -54,11 +55,20 @@ class LEDController:
     """Non-blocking LED Controller."""
 
     def __init__(self, pin: int, num_pixels: int, timing: int = 1) -> None:
+        """Initialize LED controller.
+
+        Args:
+            pin: GPIO pin number for LED data
+            num_pixels: Number of LEDs in the strip
+            timing: Timing mode (0 or 1 for different LED types)
+
+        """
         self.num_pixels = num_pixels
         self.np = neopixel.NeoPixel(machine.Pin(pin), num_pixels, timing=timing)
         self._pattern_gen = None
         self._running = False
         self._task = None
+        self._saved_rainbow_hue = 0.0  # Track rainbow position
         self.clear()
 
     def set_pattern(self, pattern_generator) -> None:
@@ -78,7 +88,7 @@ class LEDController:
         self.np.write()
 
     async def run(self) -> None:
-        """Main LED loop."""
+        """Run main LED loop."""
         self._running = True
         while self._running:
             if self._pattern_gen:
@@ -102,30 +112,78 @@ class LEDController:
                 await asyncio.sleep(0.1)
 
     def stop(self) -> None:
+        """Stop the LED controller loop."""
         self._running = False
 
 
 def solid_pattern(controller: LEDController, color: "tuple[int, int, int]"):
-    """Generator for solid color."""
+    """Generate solid color pattern."""
     controller.fill(color)
     while True:
         yield 1.0
 
 
-def rainbow_pattern(controller: LEDController, step: float = 1, delay: float = 0.05):
-    """Generator for rainbow effect."""
-    hue = 0.0
+def rainbow_pattern(
+    controller: LEDController,
+    step: float = 1,
+    delay: float = 0.05,
+    start_hue: Optional[float] = None,
+):
+    """Generate rainbow effect pattern.
+
+    Args:
+        controller: LED controller instance
+        step: Hue increment per iteration
+        delay: Delay between updates in seconds
+        start_hue: Optional starting hue (0-360). If None, uses saved hue from
+            controller.
+
+    """
+    if start_hue is None:
+        hue = controller._saved_rainbow_hue
+    else:
+        hue = start_hue
+
     while True:
         color = hsv_to_rgb(hue)
         controller.fill(color)
         hue = (hue + step) % 360
+        controller._saved_rainbow_hue = hue
+        yield delay
+
+
+def pulse_pattern(
+    controller: LEDController,
+    color: "tuple[int, int, int]",
+    duration: float = 2.0,
+    steps: int = 50,
+):
+    """Generate smooth pulsing effect pattern.
+
+    Args:
+        controller: LED controller instance
+        color: RGB color to pulse
+        duration: Total duration of the pulse effect in seconds
+        steps: Number of brightness steps (higher = smoother)
+
+    """
+    import math
+
+    delay = duration / steps
+    for i in range(steps):
+        # Create a sine wave for smooth brightness (0 to 1 to 0)
+        brightness = math.sin((i / (steps - 1)) * math.pi)
+        r = int(color[0] * brightness)
+        g = int(color[1] * brightness)
+        b = int(color[2] * brightness)
+        controller.fill((r, g, b))
         yield delay
 
 
 def blink_pattern(
     controller: LEDController, color: "tuple[int, int, int]", duration: float = 0.5
 ):
-    """Generator for blink effect."""
+    """Generate blink effect pattern."""
     while True:
         controller.fill(color)
         yield duration

@@ -78,6 +78,7 @@ class WiFiManager:
             ssid: Network SSID
             password: Network password
             timeout: Connection timeout in seconds
+            wdt: Optional watchdog timer to feed during connection
 
         Returns:
             True if connected, False otherwise

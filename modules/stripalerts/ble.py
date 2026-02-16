@@ -33,6 +33,15 @@ _FLAG_APPEND = const(0x02)
 
 
 def decode_utf8(data):
+    """Decode UTF-8 data to string.
+
+    Args:
+        data: Bytes or string data to decode
+
+    Returns:
+        Decoded string or empty string on error
+
+    """
     try:
         if isinstance(data, (bytes, bytearray)):
             return data.decode("utf-8")
@@ -42,7 +51,17 @@ def decode_utf8(data):
 
 
 class BLEManager:
+    """Manages BLE provisioning and WiFi configuration."""
+
     def __init__(self, wifi_manager, name="StripAlerts-Setup", initial_networks=None):
+        """Initialize BLE manager.
+
+        Args:
+            wifi_manager: WiFi manager instance
+            name: BLE device name for advertising
+            initial_networks: Optional list of cached networks
+
+        """
         self.wifi = wifi_manager
         self.name = name
         self.cached_networks = initial_networks if initial_networks else []
@@ -143,7 +162,7 @@ class BLEManager:
                         await connection.disconnected()
                         self._connection = None
                         log_info("BLE Disconnected")
-                except asyncio.CancelledError:
+                except asyncio.CancelledError:  # noqa: PERF203
                     raise
                 except Exception as e:
                     log_error(f"BLE Advertise error: {e}")
@@ -191,7 +210,7 @@ class BLEManager:
 
         while True:
             try:
-                conn, value = await char.written()
+                _conn, value = await char.written()
                 if not value or len(value) < 1:
                     continue
 
@@ -215,7 +234,7 @@ class BLEManager:
         """Listen for WiFi test commands."""
         while True:
             try:
-                conn, value = await self.char_wifitest.written()
+                _conn, value = await self.char_wifitest.written()
                 if not value or len(value) < 1:
                     continue
 
@@ -283,9 +302,8 @@ class BLEManager:
         if self._connection:
             self.char_wifitest.notify(self._connection)
 
-    async def _send_networks(self, allow_cache=False):
+    async def _send_networks(self, *, allow_cache: bool = False):
         """Scan and send networks."""
-
         networks = []  # type: list[dict]
 
         if allow_cache and self.cached_networks:
@@ -304,7 +322,7 @@ class BLEManager:
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
 
                 # Test if adding this keeps us under the limit
-                temp_list = simple_list + [entry]
+                temp_list = [*simple_list, entry]
                 json_str = json.dumps(temp_list)
 
                 # Check length (using 240 as safe limit for default MTU/packet size)

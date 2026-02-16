@@ -10,7 +10,13 @@ from .ble import BLEManager
 from .config import settings
 from .constants import COLOR_MAP, TRIGGER_TOKEN_AMOUNT
 from .events import EventManager
-from .led import LEDController, blink_pattern, rainbow_pattern, solid_pattern
+from .led import (
+    LEDController,
+    blink_pattern,
+    pulse_pattern,
+    rainbow_pattern,
+    solid_pattern,
+)
 from .utils import log_error, log_info
 from .wifi import WiFiManager
 
@@ -27,6 +33,7 @@ class App:
     """Main application controller."""
 
     def __init__(self) -> None:
+        """Initialize the application."""
         gc.collect()
         self.events = EventManager()
 
@@ -93,9 +100,12 @@ class App:
     ):
         """Handle the visual sequence for a tip."""
         try:
-            # Flash Green (Standard Tip Effect)
-            self.led.set_pattern(solid_pattern(self.led, (0, 255, 0)))
-            await asyncio.sleep(2)
+            # Save current rainbow position before changing pattern
+            saved_hue = self.led._saved_rainbow_hue
+
+            # Pulse Green (Standard Tip Effect)
+            self.led.set_pattern(pulse_pattern(self.led, (0, 255, 0), duration=2.0))
+            await asyncio.sleep(2.1)  # Slightly longer than pattern duration
 
             # If it's a color trigger, switch to that color and hold
             if hold_color:
@@ -114,11 +124,13 @@ class App:
             if self._current_hold_color:
                 self.led.set_pattern(solid_pattern(self.led, self._current_hold_color))
             else:
+                # Resume rainbow from saved position
                 self.led.set_pattern(
                     rainbow_pattern(
                         self.led,
                         step=settings["rainbow_step"],
                         delay=settings["rainbow_delay"],
+                        start_hue=saved_hue,
                     )
                 )
 
@@ -184,7 +196,7 @@ class App:
         self.ble = BLEManager(self.wifi, initial_networks=initial_networks)
 
     async def run(self) -> None:
-        """Main loop."""
+        """Run main loop."""
         self._running = True
 
         # LED is always running
@@ -232,6 +244,7 @@ class App:
             await self.shutdown()
 
     async def shutdown(self):
+        """Shut down the application and clean up resources."""
         self._running = False
         log_info("Shutting down...")
         if self.wdt:

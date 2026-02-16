@@ -4,7 +4,7 @@ import time
 
 
 def log(level: str, message: str) -> None:
-    """Logging function.
+    """Log message with timestamp and level.
 
     Args:
         level: Log level (INFO, WARNING, ERROR, DEBUG)
