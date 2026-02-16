@@ -252,6 +252,8 @@ class BLEManager:
                     await self._notify_status("Testing WiFi...")
                     # Notify logic in app.js expects "success" or "failed"
 
+                    self._flush_pending_writes()
+
                     ssid = settings["wifi_ssid"]
                     password = settings["wifi_password"]
 
