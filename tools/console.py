@@ -6,9 +6,7 @@ from contextlib import contextmanager
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
-try:
-    from typing import Self
-except ImportError:
+if TYPE_CHECKING:
     from typing_extensions import Self
 
 from rich.console import Console
@@ -135,7 +133,7 @@ def confirm(prompt: str, default: bool = False) -> bool:
     return Confirm.ask(prompt, default=default, console=console)
 
 
-def prompt(question: str, default: str | None = None) -> str:
+def prompt(question: str, default: str | None = None) -> str | None:
     """Prompt user for input."""
     from rich.prompt import Prompt
 
@@ -170,11 +168,12 @@ class StatusLogger:
 
 def format_size(size_bytes: int) -> str:
     """Format byte size in human-readable format."""
+    size_float = float(size_bytes)
     for unit in ["B", "KB", "MB", "GB"]:
-        if size_bytes < 1024:
-            return f"{size_bytes:.2f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.2f} TB"
+        if size_float < 1024:
+            return f"{size_float:.2f} {unit}"
+        size_float /= 1024
+    return f"{size_float:.2f} TB"
 
 
 def format_duration(seconds: float) -> str:
