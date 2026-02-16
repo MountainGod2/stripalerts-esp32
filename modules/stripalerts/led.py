@@ -180,9 +180,7 @@ def pulse_pattern(
         yield delay
 
 
-def blink_pattern(
-    controller: LEDController, color: "tuple[int, int, int]", duration: float = 0.5
-):
+def blink_pattern(controller: LEDController, color: "tuple[int, int, int]", duration: float = 0.5):
     """Generate blink effect pattern."""
     while True:
         controller.fill(color)

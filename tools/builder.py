@@ -1,171 +1,190 @@
-"""Firmware builder for StripAlerts ESP32."""
+"""Modern firmware builder for StripAlerts ESP32."""
 
 from __future__ import annotations
 
 import re
 import shutil
-import subprocess
-from typing import TYPE_CHECKING
 
-from utils import check_idf_prerequisites, print_header, print_success, run_command
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from .config import BuildConfig, ProjectPaths
+from .console import (
+    StatusLogger,
+    print_file_operation,
+    print_header,
+    print_info,
+    print_keyval,
+    print_success,
+    print_warning,
+)
+from .device import check_idf_environment
+from .exceptions import BuildError
+from .subprocess_utils import run_command
 
 
 class FirmwareBuilder:
     """Builds ESP32 MicroPython firmware with frozen modules."""
 
-    def __init__(self, root_dir: Path, board: str, *, clean: bool = False) -> None:
-        """Initialize firmware builder for ESP32 board variant."""
-        self.root_dir = root_dir
-        self.dist_dir = root_dir / "dist"
-        self.micropython_dir = root_dir / "micropython"
-        self.board = board
-        self.clean = clean
-        self.esp32_port_dir = self.micropython_dir / "ports" / "esp32"
-        self.idf_py_cmd = ["idf.py"]
+    def __init__(self, config: BuildConfig, paths: ProjectPaths) -> None:
+        """Initialize firmware builder.
 
-    def check_prerequisites(self) -> bool:
-        """Verify ESP-IDF is installed and configured."""
-        print("Checking prerequisites...")
+        Args:
+            config: Build configuration
+            paths: Project paths
+        """
+        self.config = config
+        self.paths = paths
+        self.idf_cmd: list[str] = []
 
-        success, idf_path, idf_cmd = check_idf_prerequisites()
-        if not success:
-            print("[ERROR] IDF_PATH not set or ESP-IDF not properly configured")
-            print("Please source ESP-IDF export.sh or export.bat first")
-            return False
+    def check_prerequisites(self) -> None:
+        """Verify ESP-IDF is installed and configured.
 
-        print(f"[OK] ESP-IDF found at: {idf_path}")
+        Raises:
+            PrerequisiteError: If prerequisites not met
+        """
+        with StatusLogger("Checking prerequisites"):
+            idf_path, idf_cmd = check_idf_environment()
+            self.idf_cmd = idf_cmd
+            print_keyval("ESP-IDF Path", idf_path)
+            print_keyval("idf.py Command", " ".join(idf_cmd))
 
-        if idf_cmd:
-            self.idf_py_cmd = idf_cmd
-            print(f"[OK] idf.py command: {' '.join(idf_cmd)}")
-        else:
-            print("[ERROR] idf.py not found")
-            print("Please run: source $IDF_PATH/export.sh")
-            return False
+    def setup_micropython(self) -> None:
+        """Initialize MicroPython git submodule if not populated.
 
-        return True
+        Raises:
+            BuildError: If submodule initialization fails
+        """
+        # Check if submodule is already populated
+        marker_file = self.paths.micropython / "py" / "mpconfig.h"
+        if marker_file.exists():
+            print_info(f"MicroPython submodule already initialized at {self.paths.micropython}")
+            return
 
-    def setup_micropython(self) -> bool:
-        """Initialize MicroPython git submodule if not populated."""
-        # Check if submodule is populated
-        if (self.micropython_dir / "py" / "mpconfig.h").exists():
-            print(
-                f"[OK] MicroPython submodule seems populated at {self.micropython_dir}"
-            )
-            return True
+        with StatusLogger("Initializing MicroPython submodule"):
+            try:
+                run_command(
+                    [
+                        "git",
+                        "submodule",
+                        "update",
+                        "--init",
+                        "--recursive",
+                        "micropython",
+                    ],
+                    cwd=self.paths.root,
+                    verbose=self.config.verbose,
+                )
+            except Exception as e:
+                raise BuildError(f"Failed to initialize MicroPython submodule: {e}") from e
 
-        print("Initializing MicroPython submodule...")
-        try:
-            run_command(
-                [
-                    "git",
-                    "submodule",
-                    "update",
-                    "--init",
-                    "--recursive",
-                    "micropython",
-                ],
-                cwd=self.root_dir,
-            )
-            print("[OK] MicroPython submodule initialized")
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"[ERROR] Failed to initialize MicroPython submodule: {e}")
-            return False
+    def build_mpy_cross(self) -> None:
+        """Build mpy-cross compiler if not already built.
 
-    def build_mpy_cross(self) -> bool:
-        """Build mpy-cross compiler if not already built."""
-        mpy_cross_dir = self.micropython_dir / "mpy-cross"
-        mpy_cross_bin = mpy_cross_dir / "build" / "mpy-cross"
+        Raises:
+            BuildError: If mpy-cross build fails
+        """
+        mpy_cross_bin = self.paths.mpy_cross / "build" / "mpy-cross"
 
         if mpy_cross_bin.exists():
-            print("[OK] mpy-cross already built")
-            return True
+            print_info("mpy-cross already built")
+            return
 
-        print("Building mpy-cross compiler...")
+        with StatusLogger("Building mpy-cross compiler"):
+            try:
+                run_command(
+                    ["make", "CC=gcc"],
+                    cwd=self.paths.mpy_cross,
+                    verbose=self.config.verbose,
+                )
+            except Exception as e:
+                raise BuildError(f"Failed to build mpy-cross: {e}") from e
 
-        try:
-            run_command(["make", "CC=gcc"], cwd=mpy_cross_dir)
-            print("[OK] mpy-cross built successfully")
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"[ERROR] Failed to build mpy-cross: {e}")
-            return False
+    def clean_build_artifacts(self) -> None:
+        """Remove existing build and dist directories."""
+        build_dir = self.paths.build_dir(self.config.board)
 
-    def clean_build(self) -> None:
-        """Remove build and dist directories."""
-        build_dir = self.esp32_port_dir / f"build-{self.board}"
         if build_dir.exists():
-            print(f"Cleaning build directory: {build_dir}")
+            print_info(f"Cleaning build directory: {build_dir}")
             shutil.rmtree(build_dir)
-            print("[OK] Build directory cleaned")
+            print_file_operation("Removed", str(build_dir))
 
-        if self.dist_dir.exists():
-            print(f"Cleaning dist directory: {self.dist_dir}")
-            shutil.rmtree(self.dist_dir)
-            print("[OK] Dist directory cleaned")
+        if self.paths.dist.exists():
+            print_info(f"Cleaning dist directory: {self.paths.dist}")
+            shutil.rmtree(self.paths.dist)
+            print_file_operation("Removed", str(self.paths.dist))
 
-    def build_firmware(self) -> bool:
-        """Build MicroPython firmware with frozen modules for board."""
-        print(f"Building firmware for {self.board}...")
+    def build_firmware(self) -> None:
+        """Build MicroPython firmware with frozen modules.
 
-        if self.clean:
-            self.clean_build()
+        Raises:
+            BuildError: If firmware build fails
+        """
+        with StatusLogger(f"Building firmware for {self.config.board}"):
+            if self.config.clean:
+                self.clean_build_artifacts()
 
-        make_args = [f"BOARD={self.board}"]
+            make_args = [f"BOARD={self.config.board}"]
 
-        custom_board_path = self.root_dir / "boards" / self.board
-        if custom_board_path.exists():
-            print(f"Using custom board definition from: {custom_board_path}")
-            make_args.append(f"BOARD_DIR={custom_board_path}")
+            # Use custom board definition if available
+            board_dir = self.paths.board_dir(self.config.board)
+            if board_dir.exists():
+                print_info(f"Using custom board definition from: {board_dir}")
+                make_args.append(f"BOARD_DIR={board_dir}")
 
-        try:
-            run_command(
-                ["make"] + make_args + ["submodules"],
-                cwd=self.esp32_port_dir,
-            )
-            run_command(
-                ["make"] + make_args,
-                cwd=self.esp32_port_dir,
-            )
-            print("[OK] Firmware built successfully")
-            self.copy_firmware_artifacts()
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"[ERROR] Failed to build firmware: {e}")
-            return False
+            try:
+                # Build submodules first
+                run_command(
+                    ["make", *make_args, "submodules"],
+                    cwd=self.paths.micropython_esp32,
+                    verbose=self.config.verbose,
+                )
 
-    def copy_firmware_artifacts(self) -> None:
+                # Build firmware
+                run_command(
+                    ["make", *make_args],
+                    cwd=self.paths.micropython_esp32,
+                    verbose=self.config.verbose,
+                )
+
+                self._copy_firmware_artifacts()
+
+            except Exception as e:
+                raise BuildError(f"Failed to build firmware: {e}") from e
+
+    def _copy_firmware_artifacts(self) -> None:
         """Copy bootloader, partition table, and firmware to dist/."""
-        self.dist_dir.mkdir(parents=True, exist_ok=True)
+        self.paths.dist.mkdir(parents=True, exist_ok=True)
 
-        board_build_dir = self.esp32_port_dir / f"build-{self.board}"
+        build_dir = self.paths.build_dir(self.config.board)
+
         firmware_files = {
             "micropython.bin": "firmware.bin",
             "bootloader/bootloader.bin": "bootloader.bin",
             "partition_table/partition-table.bin": "partition-table.bin",
         }
 
-        for src_path, dest_name in firmware_files.items():
-            src = board_build_dir / src_path
+        for src_rel, dest_name in firmware_files.items():
+            src = build_dir / src_rel
             if src.exists():
-                dest = self.dist_dir / dest_name
+                dest = self.paths.dist / dest_name
                 shutil.copy2(src, dest)
-                print(f"[OK] Copied {dest_name}")
+                print_file_operation("Copied", dest_name)
+            else:
+                print_warning(f"Firmware file not found: {src_rel}")
 
-        micropython_bin = board_build_dir / "micropython.bin"
+        # Create versioned firmware file
+        micropython_bin = build_dir / "micropython.bin"
         if micropython_bin.exists():
             version = self._get_version()
-            versioned_name = f"stripalerts-{version}-{self.board}.bin"
-            shutil.copy2(micropython_bin, self.dist_dir / versioned_name)
-            print(f"[OK] Created versioned firmware: {versioned_name}")
+            versioned_name = f"stripalerts-{version}-{self.config.board}.bin"
+            shutil.copy2(micropython_bin, self.paths.dist / versioned_name)
+            print_file_operation("Created", versioned_name)
 
     def _get_version(self) -> str:
-        """Extract version from pyproject.toml or return 'dev'."""
-        pyproject_path = self.root_dir / "pyproject.toml"
+        """Extract version from pyproject.toml.
+
+        Returns:
+            Version string or 'dev' if not found
+        """
+        pyproject_path = self.paths.root / "pyproject.toml"
         if pyproject_path.exists():
             content = pyproject_path.read_text()
             match = re.search(r'version\s*=\s*"([^"]+)"', content)
@@ -173,18 +192,18 @@ class FirmwareBuilder:
                 return match.group(1)
         return "dev"
 
-    def build(self) -> bool:
-        """Execute complete build workflow."""
-        print_header("StripAlerts ESP32 Firmware Builder")
+    def build(self) -> None:
+        """Execute complete build workflow.
 
-        if not self.check_prerequisites():
-            return False
-        if not self.setup_micropython():
-            return False
-        if not self.build_mpy_cross():
-            return False
-        if not self.build_firmware():
-            return False
+        Raises:
+            BuildError: If any build step fails
+            PrerequisiteError: If prerequisites not met
+        """
+        print_header("StripAlerts ESP32 Firmware Builder", f"Board: {self.config.board}")
 
-        print_success(f"Build completed - artifacts in {self.dist_dir}")
-        return True
+        self.check_prerequisites()
+        self.setup_micropython()
+        self.build_mpy_cross()
+        self.build_firmware()
+
+        print_success(f"Build completed - artifacts in {self.paths.dist}")

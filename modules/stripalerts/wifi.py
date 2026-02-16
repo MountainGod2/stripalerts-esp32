@@ -52,9 +52,7 @@ class WiFiManager:
         self.ap.active(True)  # noqa: FBT003
 
         if password:
-            self.ap.config(
-                essid=ssid, password=password, authmode=network.AUTH_WPA_WPA2_PSK
-            )
+            self.ap.config(essid=ssid, password=password, authmode=network.AUTH_WPA_WPA2_PSK)
         else:
             self.ap.config(essid=ssid, authmode=network.AUTH_OPEN)
 

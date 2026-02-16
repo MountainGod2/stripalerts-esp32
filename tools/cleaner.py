@@ -1,115 +1,120 @@
-"""Build cleaner for StripAlerts ESP32."""
+"""Modern build cleaner for StripAlerts ESP32."""
 
 from __future__ import annotations
 
 import shutil
-import subprocess
-from typing import TYPE_CHECKING
 
-from utils import print_header, print_success, run_command
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from .config import ProjectPaths
+from .console import (
+    StatusLogger,
+    print_file_operation,
+    print_header,
+    print_info,
+    print_success,
+    print_warning,
+)
+from .subprocess_utils import check_command_available, run_command
 
 
 class BuildCleaner:
     """Cleans build artifacts and caches."""
 
-    def __init__(self, root_dir: Path, *, all_clean: bool = False) -> None:
-        """Initialize build cleaner for project artifacts."""
-        self.root_dir = root_dir
-        self.all_clean = all_clean
-        self.dist_dir = root_dir / "dist"
-        self.micropython_dir = root_dir / "micropython"
+    def __init__(self, paths: ProjectPaths, *, deep_clean: bool = False) -> None:
+        """Initialize build cleaner.
+
+        Args:
+            paths: Project paths
+            deep_clean: Whether to perform deep clean including MicroPython
+        """
+        self.paths = paths
+        self.deep_clean = deep_clean
 
     def clean_build_artifacts(self) -> None:
         """Remove dist/ and build-* directories."""
-        print("Cleaning build artifacts...")
+        with StatusLogger("Cleaning build artifacts"):
+            # Clean dist directory
+            if self.paths.dist.exists():
+                print_info(f"Removing: {self.paths.dist}")
+                try:
+                    shutil.rmtree(self.paths.dist)
+                    print_file_operation("Removed", str(self.paths.dist))
+                except Exception as e:
+                    print_warning(f"Failed to remove {self.paths.dist}: {e}")
 
-        if self.dist_dir.exists():
-            print(f"  Removing: {self.dist_dir}")
-            try:
-                shutil.rmtree(self.dist_dir)
-                print("  [OK] Removed dist directory")
-            except Exception as e:
-                print(f"  [ERROR] Failed to remove {self.dist_dir}: {e}")
-
-        if self.micropython_dir.exists():
-            esp32_port_dir = self.micropython_dir / "ports" / "esp32"
-            if esp32_port_dir.exists():
-                dirs_to_clean = list(esp32_port_dir.glob("build-*"))
-                if (esp32_port_dir / "build").exists():
-                    dirs_to_clean.append(esp32_port_dir / "build")
+            # Clean ESP32 build directories
+            if self.paths.micropython_esp32.exists():
+                dirs_to_clean = list(self.paths.micropython_esp32.glob("build-*"))
+                build_dir = self.paths.micropython_esp32 / "build"
+                if build_dir.exists():
+                    dirs_to_clean.append(build_dir)
 
                 for build_dir in dirs_to_clean:
                     if build_dir.is_dir():
-                        print(f"  Removing: {build_dir.name}")
+                        print_info(f"Removing: {build_dir.name}")
                         try:
                             shutil.rmtree(build_dir)
+                            print_file_operation("Removed", build_dir.name)
                         except Exception as e:
-                            print(f"  [WARNING] Failed to remove {build_dir.name}: {e}")
+                            print_warning(f"Failed to remove {build_dir.name}: {e}")
 
     def clean_python_cache(self) -> None:
         """Remove __pycache__ and *.pyc files."""
-        print("Cleaning Python cache files...")
+        with StatusLogger("Cleaning Python cache files"):
+            patterns = ["**/__pycache__", "**/*.pyc", "**/*.pyo", "**/*.pyd"]
 
-        for pattern in ["**/__pycache__", "**/*.pyc", "**/*.pyo", "**/*.pyd"]:
-            for path in self.root_dir.glob(pattern):
-                if "micropython" in str(path):
-                    continue
-                try:
-                    if path.is_dir():
-                        shutil.rmtree(path)
-                    else:
-                        path.unlink()
-                    print(f"  [OK] Removed {path.relative_to(self.root_dir)}")
-                except Exception as e:
-                    print(f"  [WARNING] Failed to remove {path}: {e}")
+            for pattern in patterns:
+                for path in self.paths.root.glob(pattern):
+                    # Skip micropython submodule
+                    if "micropython" in str(path):
+                        continue
+
+                    try:
+                        if path.is_dir():
+                            shutil.rmtree(path)
+                        else:
+                            path.unlink()
+                        rel_path = path.relative_to(self.paths.root)
+                        print_file_operation("Removed", str(rel_path))
+                    except Exception as e:
+                        print_warning(f"Failed to remove {path}: {e}")
 
     def clean_micropython(self) -> None:
         """Run 'make clean' in mpy-cross and esp32 port directories."""
-        if not self.micropython_dir.exists():
+        if not self.paths.micropython.exists():
+            print_info("MicroPython directory not found, skipping")
             return
 
-        print(f"Cleaning MicroPython artifacts in: {self.micropython_dir}")
-
-        mpy_cross_dir = self.micropython_dir / "mpy-cross"
-        if (mpy_cross_dir / "Makefile").exists():
-            try:
-                print("  Cleaning mpy-cross...")
-                run_command(
-                    ["make", "clean"],
-                    cwd=mpy_cross_dir,
-                )
-                print("  [OK] Cleaned mpy-cross")
-            except subprocess.CalledProcessError as e:
-                print(f"  [WARNING] Failed to clean mpy-cross: {e}")
-
-        esp32_dir = self.micropython_dir / "ports" / "esp32"
-        if (esp32_dir / "Makefile").exists():
-            if shutil.which("idf.py") is None:
-                print("  [INFO] idf.py not found, artifacts removed manually.")
-            else:
+        with StatusLogger("Cleaning MicroPython artifacts"):
+            # Clean mpy-cross
+            if (self.paths.mpy_cross / "Makefile").exists():
                 try:
-                    print("  Cleaning esp32 port...")
-                    run_command(
-                        ["make", "clean"],
-                        cwd=esp32_dir,
-                    )
-                    print("  [OK] Cleaned esp32 port")
-                except subprocess.CalledProcessError as e:
-                    print(f"  [WARNING] Failed to clean esp32 port: {e}")
+                    print_info("Cleaning mpy-cross...")
+                    run_command(["make", "clean"], cwd=self.paths.mpy_cross)
+                    print_file_operation("Cleaned", "mpy-cross")
+                except Exception as e:
+                    print_warning(f"Failed to clean mpy-cross: {e}")
 
-    def clean(self) -> bool:
+            # Clean ESP32 port
+            if (self.paths.micropython_esp32 / "Makefile").exists():
+                if not check_command_available("idf.py"):
+                    print_info("idf.py not found, skipping ESP32 port clean")
+                else:
+                    try:
+                        print_info("Cleaning ESP32 port...")
+                        run_command(["make", "clean"], cwd=self.paths.micropython_esp32)
+                        print_file_operation("Cleaned", "esp32 port")
+                    except Exception as e:
+                        print_warning(f"Failed to clean ESP32 port: {e}")
+
+    def clean(self) -> None:
         """Execute full cleaning workflow."""
         print_header("StripAlerts ESP32 Build Cleaner")
 
         self.clean_build_artifacts()
         self.clean_python_cache()
 
-        if self.all_clean:
-            print("\nPerforming deep clean (including MicroPython)...")
+        if self.deep_clean:
+            print_info("Performing deep clean (including MicroPython)...")
             self.clean_micropython()
 
         print_success("Clean completed")
-        return True

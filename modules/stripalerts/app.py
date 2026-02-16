@@ -81,13 +81,9 @@ class App:
         if self._current_effect_task and not self._current_effect_task.done():
             self._current_effect_task.cancel()
 
-        self._current_effect_task = asyncio.create_task(
-            self._process_tip_effect(found_color)
-        )
+        self._current_effect_task = asyncio.create_task(self._process_tip_effect(found_color))
 
-    def _parse_color_trigger(
-        self, tokens: int, message: str
-    ) -> Optional[tuple[int, int, int]]:
+    def _parse_color_trigger(self, tokens: int, message: str) -> Optional[tuple[int, int, int]]:
         """Check if tip triggers a specific color hold."""
         if tokens == TRIGGER_TOKEN_AMOUNT:
             for name, color in COLOR_MAP.items():
@@ -95,9 +91,7 @@ class App:
                     return color
         return None
 
-    async def _process_tip_effect(
-        self, hold_color: "Optional[tuple[int, int, int]]" = None
-    ):
+    async def _process_tip_effect(self, hold_color: "Optional[tuple[int, int, int]]" = None):
         """Handle the visual sequence for a tip."""
         try:
             # Save current rainbow position before changing pattern
@@ -262,9 +256,7 @@ class App:
             if self.wdt:
                 self.wdt.feed()
 
-            gather_task = asyncio.create_task(
-                asyncio.gather(*self._tasks, return_exceptions=True)
-            )
+            gather_task = asyncio.create_task(asyncio.gather(*self._tasks, return_exceptions=True))
 
             feeder_task = None
             if self.wdt:

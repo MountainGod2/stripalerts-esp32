@@ -12,10 +12,7 @@ def log(level: str, message: str) -> None:
 
     """
     timestamp = time.localtime()
-    print(
-        f"[{timestamp[3]:02d}:{timestamp[4]:02d}:{timestamp[5]:02d}] "
-        f"[{level}] {message}"
-    )
+    print(f"[{timestamp[3]:02d}:{timestamp[4]:02d}:{timestamp[5]:02d}] [{level}] {message}")
 
 
 def log_info(message: str) -> None:

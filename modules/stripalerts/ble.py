@@ -78,18 +78,10 @@ class BLEManager:
         # Service Definition
         self.service = aioble.Service(_SERVICE_UUID)
 
-        self.char_ssid = aioble.Characteristic(
-            self.service, _CHAR_SSID, write=True, capture=True
-        )
-        self.char_pass = aioble.Characteristic(
-            self.service, _CHAR_PASS, write=True, capture=True
-        )
-        self.char_api = aioble.Characteristic(
-            self.service, _CHAR_API, write=True, capture=True
-        )
-        self.char_status = aioble.Characteristic(
-            self.service, _CHAR_STATUS, read=True, notify=True
-        )
+        self.char_ssid = aioble.Characteristic(self.service, _CHAR_SSID, write=True, capture=True)
+        self.char_pass = aioble.Characteristic(self.service, _CHAR_PASS, write=True, capture=True)
+        self.char_api = aioble.Characteristic(self.service, _CHAR_API, write=True, capture=True)
+        self.char_status = aioble.Characteristic(self.service, _CHAR_STATUS, read=True, notify=True)
         self.char_networks = aioble.Characteristic(
             self.service, _CHAR_NETWORKS, read=True, notify=True
         )

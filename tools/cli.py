@@ -1,209 +1,266 @@
 #!/usr/bin/env python3
-"""StripAlerts ESP32 Development CLI.
-
-Consolidated tool for building, uploading, monitoring, and managing
-the StripAlerts ESP32 firmware and application files.
-"""
+"""Modern StripAlerts ESP32 Development CLI with typer and rich."""
 
 from __future__ import annotations
 
-import argparse
 import sys
 import time
-import traceback
+from typing import Annotated, Optional
 
-from builder import FirmwareBuilder
-from cleaner import BuildCleaner
-from monitor import SerialMonitor
-from uploader import FileUploader, FirmwareUploader
-from utils import get_root_dir, print_header, print_success
+import typer
+from rich.traceback import install as install_rich_traceback
 
+from .builder import FirmwareBuilder
+from .cleaner import BuildCleaner
+from .config import (
+    BuildConfig,
+    FlashConfig,
+    FlashingConfig,
+    MonitorConfig,
+    ProjectPaths,
+    RetryConfig,
+    UploadConfig,
+)
+from .console import print_error, print_header, print_info, print_success
+from .exceptions import StripAlertsError
+from .monitor import SerialMonitor
+from .uploader import FileUploader, FirmwareUploader
 
-# Command handlers
-def cmd_build(args) -> int:
-    """Build command handler."""
-    root_dir = get_root_dir()
-    builder = FirmwareBuilder(root_dir, args.board, clean=args.clean)
-    return 0 if builder.build() else 1
+# Install rich traceback handler for better error messages
+install_rich_traceback(show_locals=True)
 
-
-def cmd_flash(args) -> int:
-    """Flash firmware command handler."""
-    root_dir = get_root_dir()
-    uploader = FirmwareUploader(
-        root_dir, args.board, args.port, args.baud, erase=args.erase
-    )
-    return 0 if uploader.upload() else 1
-
-
-def cmd_upload(args) -> int:
-    """Upload application files command handler."""
-    root_dir = get_root_dir()
-    uploader = FileUploader(root_dir, args.port)
-    return 0 if uploader.upload_files() else 1
-
-
-def cmd_monitor(args) -> int:
-    """Monitor command handler."""
-    monitor = SerialMonitor(args.port, args.baud)
-    return 0 if monitor.monitor() else 1
+# Create Typer app
+app = typer.Typer(
+    name="stripalerts",
+    help="StripAlerts ESP32 Firmware Development CLI",
+    add_completion=False,
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+)
 
 
-def cmd_clean(args) -> int:
-    """Clean command handler."""
-    root_dir = get_root_dir()
-    cleaner = BuildCleaner(root_dir, all_clean=args.all)
-    return 0 if cleaner.clean() else 1
-
-
-def cmd_deploy(args) -> int:
-    """Deploy command handler (build + flash + upload + monitor)."""
-    root_dir = get_root_dir()
-
-    if not args.skip_build:
-        print_header("STEP 1: Building Firmware")
-        builder = FirmwareBuilder(root_dir, args.board, clean=args.clean)
-        if not builder.build():
-            print("\n[ERROR] Build failed")
-            return 1
-
-    if not args.skip_flash:
-        print_header("STEP 2: Flashing Firmware")
-        uploader = FirmwareUploader(
-            root_dir, args.board, args.port, args.baud, erase=args.erase
-        )
-        if not uploader.upload():
-            print("\n[ERROR] Flash failed")
-            return 1
-
-    if not args.skip_upload:
-        print_header("STEP 3: Uploading Application Files")
-        time.sleep(args.stabilize_seconds)
-        file_uploader = FileUploader(root_dir, args.port)
-        if not file_uploader.upload_files():
-            print("\n[ERROR] File upload failed")
-            return 1
-
-    if not args.skip_monitor:
-        print_header("STEP 4: Monitoring Device")
-        monitor = SerialMonitor(args.port, 115200)
-        monitor.monitor()
-
-    print_success("Deployment completed")
-    return 0
-
-
-def main() -> int:
-    """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="StripAlerts ESP32 Development CLI",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
-
-    # Build command
-    build_parser = subparsers.add_parser("build", help="Build firmware")
-    build_parser.add_argument(
-        "--board",
-        default="STRIPALERTS_S3",
-        help="ESP32 board variant (default: STRIPALERTS_S3)",
-    )
-    build_parser.add_argument(
-        "--clean", action="store_true", help="Clean before building"
-    )
-    build_parser.set_defaults(func=cmd_build)
-
-    # Flash command
-    flash_parser = subparsers.add_parser("flash", help="Flash firmware to device")
-    flash_parser.add_argument(
-        "--port", "-p", help="Serial port (auto-detect if not set)"
-    )
-    flash_parser.add_argument(
-        "--baud", "-b", type=int, default=460800, help="Baud rate"
-    )
-    flash_parser.add_argument(
-        "--board",
-        default="STRIPALERTS_S3",
-        help="ESP32 board variant (default: STRIPALERTS_S3)",
-    )
-    flash_parser.add_argument("--erase", action="store_true", help="Erase flash first")
-    flash_parser.set_defaults(func=cmd_flash)
-
-    # Upload command
-    upload_parser = subparsers.add_parser("upload", help="Upload application files")
-    upload_parser.add_argument(
-        "--port", "-p", help="Serial port (auto-detect if not set)"
-    )
-    upload_parser.set_defaults(func=cmd_upload)
-
-    # Monitor command
-    monitor_parser = subparsers.add_parser("monitor", help="Monitor serial output")
-    monitor_parser.add_argument(
-        "--port", "-p", help="Serial port (auto-detect if not set)"
-    )
-    monitor_parser.add_argument(
-        "--baud", "-b", type=int, default=115200, help="Baud rate"
-    )
-    monitor_parser.set_defaults(func=cmd_monitor)
-
-    # Clean command
-    clean_parser = subparsers.add_parser("clean", help="Clean build artifacts")
-    clean_parser.add_argument(
-        "--all", action="store_true", help="Clean everything including MicroPython"
-    )
-    clean_parser.set_defaults(func=cmd_clean)
-
-    # Deploy command
-    deploy_parser = subparsers.add_parser(
-        "deploy", help="Full deployment (build + flash + upload + monitor)"
-    )
-    deploy_parser.add_argument(
-        "--port", "-p", help="Serial port (auto-detect if not set)"
-    )
-    deploy_parser.add_argument(
-        "--board",
-        default="STRIPALERTS_S3",
-        help="ESP32 board variant (default: STRIPALERTS_S3)",
-    )
-    deploy_parser.add_argument(
-        "--baud", type=int, default=460800, help="Flash baud rate"
-    )
-    deploy_parser.add_argument(
-        "--clean", action="store_true", help="Clean before building"
-    )
-    deploy_parser.add_argument("--erase", action="store_true", help="Erase flash first")
-    deploy_parser.add_argument(
-        "--skip-build", action="store_true", help="Skip build step"
-    )
-    deploy_parser.add_argument(
-        "--skip-flash", action="store_true", help="Skip flash step"
-    )
-    deploy_parser.add_argument(
-        "--skip-upload", action="store_true", help="Skip upload step"
-    )
-    deploy_parser.add_argument(
-        "--skip-monitor", action="store_true", help="Skip monitor step"
-    )
-    deploy_parser.add_argument(
-        "--stabilize-seconds",
-        type=float,
-        default=5.0,
-        help="Seconds to wait for device stabilization after flash (default: 5.0)",
-    )
-    deploy_parser.set_defaults(func=cmd_deploy)
-
-    args = parser.parse_args()
-
-    if not hasattr(args, "func"):
-        parser.print_help()
-        return 1
-
+@app.command()
+def build(
+    board: Annotated[
+        str,
+        typer.Option("--board", "-b", help="ESP32 board variant"),
+    ] = "STRIPALERTS_S3",
+    clean: Annotated[
+        bool,
+        typer.Option("--clean", "-c", help="Clean before building"),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Show verbose output"),
+    ] = False,
+) -> None:
+    """Build firmware for ESP32 board."""
     try:
-        return args.func(args)
+        paths = ProjectPaths.from_tools_dir()
+        config = BuildConfig(board=board, clean=clean, verbose=verbose)
+        builder = FirmwareBuilder(config, paths)
+        builder.build()
+    except StripAlertsError as e:
+        print_error(str(e))
+        raise typer.Exit(1) from e
     except Exception as e:
-        print(f"[ERROR] Unexpected error: {e}")
-        traceback.print_exc()
-        return 1
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(1) from e
+
+
+@app.command()
+def flash(
+    board: Annotated[
+        str,
+        typer.Option("--board", "-b", help="ESP32 board variant"),
+    ] = "STRIPALERTS_S3",
+    port: Annotated[
+        Optional[str],
+        typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
+    ] = None,
+    baud: Annotated[
+        int,
+        typer.Option("--baud", help="Baud rate for flashing"),
+    ] = FlashConfig.DEFAULT_FLASH_BAUD,
+    erase: Annotated[
+        bool,
+        typer.Option("--erase", "-e", help="Erase flash before flashing"),
+    ] = False,
+) -> None:
+    """Flash firmware to ESP32 device."""
+    try:
+        paths = ProjectPaths.from_tools_dir()
+        config = FlashingConfig(board=board, port=port, baud=baud, erase=erase)
+        uploader = FirmwareUploader(config, paths)
+        uploader.upload()
+    except StripAlertsError as e:
+        print_error(str(e))
+        raise typer.Exit(1) from e
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(1) from e
+
+
+@app.command()
+def upload(
+    port: Annotated[
+        Optional[str],
+        typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
+    ] = None,
+) -> None:
+    """Upload application files to ESP32 device."""
+    try:
+        paths = ProjectPaths.from_tools_dir()
+        config = UploadConfig(port=port)
+        uploader = FileUploader(config, paths)
+        uploader.upload_files()
+    except StripAlertsError as e:
+        print_error(str(e))
+        raise typer.Exit(1) from e
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(1) from e
+
+
+@app.command()
+def monitor(
+    port: Annotated[
+        Optional[str],
+        typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
+    ] = None,
+    baud: Annotated[
+        int,
+        typer.Option("--baud", help="Baud rate for monitoring"),
+    ] = FlashConfig.DEFAULT_MONITOR_BAUD,
+) -> None:
+    """Monitor serial output from ESP32 device."""
+    try:
+        config = MonitorConfig(port=port, baud=baud)
+        monitor = SerialMonitor(config)
+        monitor.monitor()
+    except StripAlertsError as e:
+        print_error(str(e))
+        raise typer.Exit(1) from e
+    except KeyboardInterrupt:
+        print_info("Monitoring stopped by user")
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(1) from e
+
+
+@app.command()
+def clean(
+    all: Annotated[
+        bool,
+        typer.Option("--all", "-a", help="Deep clean including MicroPython artifacts"),
+    ] = False,
+) -> None:
+    """Clean build artifacts and caches."""
+    try:
+        paths = ProjectPaths.from_tools_dir()
+        cleaner = BuildCleaner(paths, deep_clean=all)
+        cleaner.clean()
+    except StripAlertsError as e:
+        print_error(str(e))
+        raise typer.Exit(1) from e
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(1) from e
+
+
+@app.command()
+def deploy(
+    board: Annotated[
+        str,
+        typer.Option("--board", "-b", help="ESP32 board variant"),
+    ] = "STRIPALERTS_S3",
+    port: Annotated[
+        Optional[str],
+        typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
+    ] = None,
+    baud: Annotated[
+        int,
+        typer.Option("--baud", help="Baud rate for flashing"),
+    ] = FlashConfig.DEFAULT_FLASH_BAUD,
+    clean: Annotated[
+        bool,
+        typer.Option("--clean", "-c", help="Clean before building"),
+    ] = False,
+    erase: Annotated[
+        bool,
+        typer.Option("--erase", "-e", help="Erase flash before flashing"),
+    ] = False,
+    skip_build: Annotated[
+        bool,
+        typer.Option("--skip-build", help="Skip build step"),
+    ] = False,
+    skip_flash: Annotated[
+        bool,
+        typer.Option("--skip-flash", help="Skip flash step"),
+    ] = False,
+    skip_upload: Annotated[
+        bool,
+        typer.Option("--skip-upload", help="Skip upload step"),
+    ] = False,
+    skip_monitor: Annotated[
+        bool,
+        typer.Option("--skip-monitor", help="Skip monitor step"),
+    ] = False,
+    stabilize_seconds: Annotated[
+        float,
+        typer.Option("--stabilize-seconds", help="Seconds to wait after flash"),
+    ] = RetryConfig.DEVICE_STABILIZE_DELAY,
+) -> None:
+    """Full deployment: build + flash + upload + monitor."""
+    try:
+        paths = ProjectPaths.from_tools_dir()
+
+        # Step 1: Build
+        if not skip_build:
+            print_header("STEP 1/4: Building Firmware")
+            build_config = BuildConfig(board=board, clean=clean)
+            builder = FirmwareBuilder(build_config, paths)
+            builder.build()
+
+        # Step 2: Flash
+        if not skip_flash:
+            print_header("STEP 2/4: Flashing Firmware")
+            flash_config = FlashingConfig(board=board, port=port, baud=baud, erase=erase)
+            firmware_uploader = FirmwareUploader(flash_config, paths)
+            firmware_uploader.upload()
+
+        # Step 3: Upload files
+        if not skip_upload:
+            print_header("STEP 3/4: Uploading Application Files")
+            print_info(f"Waiting {stabilize_seconds}s for device stabilization...")
+            time.sleep(stabilize_seconds)
+            upload_config = UploadConfig(port=port)
+            file_uploader = FileUploader(upload_config, paths)
+            file_uploader.upload_files()
+
+        # Step 4: Monitor
+        if not skip_monitor:
+            print_header("STEP 4/4: Monitoring Device")
+            monitor_config = MonitorConfig(port=port)
+            serial_monitor = SerialMonitor(monitor_config)
+            serial_monitor.monitor()
+
+        print_success("Deployment completed successfully!")
+
+    except StripAlertsError as e:
+        print_error(str(e))
+        raise typer.Exit(1) from e
+    except KeyboardInterrupt:
+        print_info("Deployment interrupted by user")
+        raise typer.Exit(130) from None
+    except Exception as e:
+        print_error(f"Unexpected error: {e}")
+        raise typer.Exit(1) from e
+
+
+def main() -> None:
+    """CLI entry point."""
+    app()
 
 
 if __name__ == "__main__":
