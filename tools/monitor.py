@@ -35,7 +35,8 @@ class SerialMonitor:
 
     def _monitor_mpremote(self, port: str) -> None:
         """Monitor serial output using mpremote."""
-        print_header("Serial Monitor (mpremote)", f"Port: {port} | Baud: {self.config.baud}")
+        # mpremote uses a fixed baud rate (115200), so self.config.baud is ignored
+        print_header("Serial Monitor (mpremote)", f"Port: {port}")
         print_info("Press Ctrl+C to exit\n")
 
         try:
