@@ -16,6 +16,8 @@ from .console import print_info, print_success, print_warning
 from .exceptions import DeviceNotFoundError, PrerequisiteError
 from .subprocess_utils import check_command_available, get_command_output, run_command
 
+ESP32_VID_PIDS = [(0x10C4, 0xEA60), (0x1A86, 0x7523), (0x303A, None)]
+
 
 class ESP32Device:
     """Represents an ESP32 device connection."""
@@ -62,7 +64,7 @@ class ESP32Device:
                 capture_output=True,
             )
             return True
-        except Exception:
+        except (subprocess.SubprocessError, OSError):
             return False
 
     def remove_file(self, remote_path: str, timeout: int = 5) -> bool:
@@ -111,15 +113,25 @@ def find_esp32_device() -> str:
     if list_ports is not None:
         available_ports = list(list_ports.comports())
         if available_ports:
-            port = available_ports[0].device
-            print_success(f"Using port: {port}")
-            return port
+            for port in available_ports:
+                for vid, pid in ESP32_VID_PIDS:
+                    if port.vid == vid and (pid is None or port.pid == pid):
+                        print_success(f"Using port: {port.device}")
+                        return port.device
     else:
-        # Fallback to scanning /dev for common port patterns (Unix-only)
         if sys.platform != "win32":
             patterns = ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
             ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
-            if ports:
+            if ports and list_ports is not None:
+                all_ports_info = list(list_ports.comports())
+                for candidate_path in ports:
+                    for port_info in all_ports_info:
+                        if port_info.device == candidate_path:
+                            for vid, pid in ESP32_VID_PIDS:
+                                if port_info.vid == vid and (pid is None or port_info.pid == pid):
+                                    print_success(f"Using port: {candidate_path}")
+                                    return candidate_path
+            elif ports:
                 port = ports[0]
                 print_success(f"Using port: {port}")
                 return port
@@ -211,12 +223,9 @@ def check_idf_environment() -> tuple[Path, list[str]]:
 def check_pyserial() -> bool:
     """Check if pyserial is available.
 
+    Uses the module-level list_ports import as the single source of truth.
+
     Returns:
         True if pyserial is available
     """
-    try:
-        import serial  # noqa: F401
-
-        return True
-    except ImportError:
-        return False
+    return list_ports is not None
