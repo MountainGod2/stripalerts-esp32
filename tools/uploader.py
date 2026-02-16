@@ -16,7 +16,7 @@ from .console import (
     progress_bar,
 )
 from .device import ESP32Device, check_mpremote, get_or_find_port
-from .exceptions import FlashError, UploadError
+from .exceptions import CommandError, FlashError, UploadError
 from .subprocess_utils import retry, run_command
 
 
@@ -138,7 +138,7 @@ class FileUploader:
         self.config = config
         self.paths = paths
 
-    @retry()
+    @retry(exceptions=(CommandError, UploadError))
     def upload_file(self, device: ESP32Device, local_path: Path, remote_path: str) -> None:
         """Upload single file with automatic retry.
 
