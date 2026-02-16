@@ -312,9 +312,7 @@ class BLEManager:
             simple_list = []  # type: list[dict]
             for n in networks:
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
-
-                # Test if adding this keeps us under the limit
-                temp_list = [*simple_list, entry]
+                temp_list = simple_list + [entry]
                 json_str = json.dumps(temp_list)
 
                 # Check length (using 240 as safe limit for default MTU/packet size)
