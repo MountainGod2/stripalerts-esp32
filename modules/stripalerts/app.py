@@ -3,6 +3,14 @@
 import asyncio
 import gc
 
+try:
+    from typing import TYPE_CHECKING
+except ImportError:
+    TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    from typing import List, Optional
+
 import machine
 
 from .api import ChaturbateAPI
@@ -19,14 +27,6 @@ from .led import (
 )
 from .utils import log_error, log_info
 from .wifi import WiFiManager
-
-try:
-    from typing import TYPE_CHECKING
-except ImportError:
-    TYPE_CHECKING = False
-
-if TYPE_CHECKING:
-    from typing import List, Optional
 
 
 class App:

@@ -1,7 +1,14 @@
 """LED control module."""
 
 import asyncio
-from typing import Optional
+
+try:
+    from typing import TYPE_CHECKING
+except ImportError:
+    TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    from typing import Optional
 
 import machine
 import neopixel

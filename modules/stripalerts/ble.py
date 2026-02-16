@@ -3,14 +3,6 @@
 import asyncio
 import json
 
-import aioble
-import bluetooth
-
-from micropython import const
-
-from .config import settings
-from .utils import log_error, log_info
-
 try:
     from typing import TYPE_CHECKING
 except ImportError:
@@ -19,6 +11,13 @@ except ImportError:
 if TYPE_CHECKING:
     pass
 
+import aioble
+import bluetooth
+
+from micropython import const
+
+from .config import settings
+from .utils import log_error, log_info
 
 _SERVICE_UUID = bluetooth.UUID("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_SSID = bluetooth.UUID("6e400002-b5a3-f393-e0a9-e50e24dcca9e")
