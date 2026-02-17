@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import functools
-import sys
 import time
 from typing import Annotated, Callable, Optional, TypeVar
 
@@ -148,14 +147,14 @@ def monitor(
 @app.command()
 @handle_errors
 def clean(
-    all: Annotated[
+    deep: Annotated[
         bool,
         typer.Option("--all", "-a", help="Deep clean including MicroPython artifacts"),
     ] = False,
 ) -> None:
     """Clean build artifacts and caches."""
     paths = ProjectPaths.from_tools_dir()
-    cleaner = BuildCleaner(paths, deep_clean=all)
+    cleaner = BuildCleaner(paths, deep_clean=deep)
     cleaner.clean()
 
 
@@ -223,8 +222,9 @@ def deploy(
 
     if not skip_upload:
         print_header("STEP 3/4: Uploading Application Files")
-        print_info(f"Waiting {stabilize_seconds}s for device stabilization...")
-        time.sleep(stabilize_seconds)
+        if not skip_flash:
+            print_info(f"Waiting {stabilize_seconds}s for device stabilization...")
+            time.sleep(stabilize_seconds)
         upload_config = UploadConfig(port=port)
         file_uploader = FileUploader(upload_config, paths)
         file_uploader.upload_files()
@@ -249,4 +249,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
