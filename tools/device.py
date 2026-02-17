@@ -109,22 +109,22 @@ def find_esp32_device() -> str:
                 print_success(f"Found ESP32 on port: {port}")
                 return port
 
-    # Fallback to cross-platform serial port enumeration
+    if list_ports is not None:
+        all_ports_info = list(list_ports.comports())
+        for port_info in all_ports_info:
+            for vid, pid in ESP32_VID_PIDS:
+                if port_info.vid == vid and (pid is None or port_info.pid == pid):
+                    print_success(f"Found ESP32 on port: {port_info.device}")
+                    return port_info.device
+
+        if all_ports_info:
+            port = all_ports_info[0].device
+            print_success(f"Using port: {port}")
+            return port
+
     if sys.platform != "win32":
         patterns = ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
         ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
-
-        if list_ports is not None:
-            all_ports_info = list(list_ports.comports())
-            for candidate_path in ports:
-                for port_info in all_ports_info:
-                    if port_info.device == candidate_path:
-                        for vid, pid in ESP32_VID_PIDS:
-                            if port_info.vid == vid and (pid is None or port_info.pid == pid):
-                                print_success(f"Using port: {candidate_path}")
-                                return candidate_path
-
-        # Fall back to first globbed port if list_ports is None or no VID/PID match
         if ports:
             port = ports[0]
             print_success(f"Using port: {port}")
@@ -167,11 +167,14 @@ def check_esptool() -> None:
     Raises:
         PrerequisiteError: If esptool not available
     """
+    output = get_command_output([sys.executable, "-m", "esptool", "version"])
+    if output:
+        return
+
     if not check_command_available("esptool.py"):
-        # Try as python module
-        output = get_command_output([sys.executable, "-m", "esptool", "version"])
-        if not output:
-            raise PrerequisiteError("esptool not found. Install with: uv sync")
+        raise PrerequisiteError(
+            "esptool not found. Install with: uv sync or python -m pip install esptool"
+        )
 
 
 def check_idf_environment() -> tuple[Path, list[str]]:
@@ -194,12 +197,10 @@ def check_idf_environment() -> tuple[Path, list[str]]:
 
     idf_path = Path(esp_idf_path)
 
-    # Try idf.py in PATH first
     if check_command_available("idf.py"):
         print_success(f"ESP-IDF found at: {idf_path}")
         return idf_path, ["idf.py"]
 
-    # Try idf.py from IDF_PATH
     idf_py_path = idf_path / "tools" / "idf.py"
     if idf_py_path.exists():
         cmd = [sys.executable, str(idf_py_path)]
