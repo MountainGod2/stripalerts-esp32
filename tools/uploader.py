@@ -178,7 +178,10 @@ class FileUploader:
         device.interrupt_program()
 
         print_info("Clearing old application files...")
-        old_files = ["/boot.py", "/main.py", "/config.json"]
+
+        old_files = [f"/{filename}" for filename in self.config.files]
+        old_files.append("/config.json")
+
         for file_path in old_files:
             device.remove_file(file_path)
 
