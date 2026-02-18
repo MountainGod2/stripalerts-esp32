@@ -5,13 +5,14 @@ from __future__ import annotations
 import subprocess
 import time
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from .config import RetryConfig
 from .console import print_command, print_error, print_warning
 from .exceptions import CommandError, OperationTimeoutError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 T = TypeVar("T")
@@ -54,7 +55,9 @@ def retry(
                         print_error(f"All {max_attempts} attempts failed")
 
             # Raise the last exception if all retries failed
-            assert last_exception is not None
+            if last_exception is None:
+                msg = "Retry logic failed without capturing an exception"
+                raise RuntimeError(msg)
             raise last_exception
 
         return wrapper
@@ -62,7 +65,7 @@ def retry(
     return decorator
 
 
-def run_command(
+def run_command(  # noqa: PLR0913
     cmd: list[str],
     cwd: str | Path | None = None,
     env: dict[str, str] | None = None,

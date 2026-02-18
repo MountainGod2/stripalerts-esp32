@@ -87,7 +87,7 @@ class ESP32Device:
                 capture_output=True,
                 check=False,
             )
-        except (subprocess.SubprocessError, OSError):
+        except (subprocess.SubprocessError, OSError, CommandError, OperationTimeoutError):
             return False
         else:
             return result.returncode == 0
@@ -147,7 +147,7 @@ def _find_esp32_via_dev_patterns() -> str | None:
     ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
     if ports:
         port = ports[0]
-        print_success(f"Using port: {port}")
+        print_warning(f"Using port: {port} (pattern-based guess)")
         return port
     return None
 
@@ -163,11 +163,11 @@ def find_esp32_device() -> str:
     """
     print_info("Auto-detecting ESP32 device...")
 
-    # Try multiple detection strategies
+    # Try multiple detection strategies (esptool last to avoid device reset)
     for finder in [
-        _find_esp32_via_esptool,
         _find_esp32_via_serial_ports,
         _find_esp32_via_dev_patterns,
+        _find_esp32_via_esptool,
     ]:
         port = finder()
         if port:

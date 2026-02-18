@@ -12,6 +12,12 @@ from .subprocess_utils import check_command_available, run_interactive
 if TYPE_CHECKING:
     from .config import MonitorConfig
 
+try:
+    import serial
+except ImportError as e:
+    msg = "pyserial is required for serial monitoring"
+    raise ImportError(msg) from e
+
 
 class SerialMonitor:
     """Monitors ESP32 serial output."""
@@ -49,12 +55,6 @@ class SerialMonitor:
 
     def _monitor_pyserial(self, port: str) -> None:
         """Monitor serial output using pyserial library."""
-        try:
-            import serial
-        except ImportError as e:
-            msg = "pyserial is required for serial monitoring"
-            raise ImportError(msg) from e
-
         print_header("Serial Monitor (pyserial)", f"Port: {port} | Baud: {self.config.baud}")
         print_info("Press Ctrl+C to exit\n")
 

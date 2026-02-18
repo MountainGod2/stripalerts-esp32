@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import functools
 import time
-from typing import Annotated, Callable, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Annotated, ParamSpec, TypeVar
 
 import typer
 from rich.traceback import install as install_rich_traceback
@@ -25,6 +25,9 @@ from .console import print_error, print_header, print_info, print_success
 from .exceptions import StripAlertsError
 from .monitor import SerialMonitor
 from .uploader import FileUploader, FirmwareUploader
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Install rich traceback handler for better error messages
 install_rich_traceback(show_locals=True)
@@ -161,7 +164,7 @@ def clean(
 
 @app.command()
 @handle_errors
-def deploy(
+def deploy(  # noqa: PLR0913
     board: Annotated[
         str,
         typer.Option("--board", "-b", help="ESP32 board variant"),

@@ -26,7 +26,7 @@ dev = [
 exclude = ["micropython", "typings"]
 target-version = "py310"
 line-length = 100
-lint.select = ["E", "F", "W", "I", "PYI", "PERF", "RUF", "FBT", "D"]
+lint.select = ["E", "F", "W", "I", "PYI", "PERF", "RUF", "FBT", "D", "ANN", "PLR","ARG"]
 lint.ignore = ["D203", "D213", "RUF005", "RUF037"]
 lint.per-file-ignores = { "boards/*/manifest.py" = [
     "F821",
@@ -36,7 +36,10 @@ lint.per-file-ignores = { "boards/*/manifest.py" = [
     "FBT002",
 ], "tools/subprocess_utils.py" = [
     "PERF203",
-] }
+], "modules/stripalerts/*.py" = [
+    "ANN",
+    "PLR",
+]}
 lint.pydocstyle.convention = "google"
 format.quote-style = "double"
 format.indent-style = "space"

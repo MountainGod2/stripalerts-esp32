@@ -39,7 +39,10 @@ TIP_PULSE_DURATION = 2.0
 COLOR_HOLD_DURATION = const(600)  # 10 minutes
 
 # BLE Protocol constants
-BLE_MAX_PAYLOAD_SIZE = const(240)  # Default MTU is 23 bytes with ~20 bytes payload
+# BLE_MAX_PAYLOAD_SIZE is the payload size when using a negotiated MTU (≥247).
+# Note: The default BLE MTU is 23 bytes (~20 byte payload) unless the central/peripheral
+# negotiate a larger MTU. This value assumes MTU negotiation has occurred.
+BLE_MAX_PAYLOAD_SIZE = const(240)
 BLE_MAX_NETWORKS_LIST = const(5)
 
 

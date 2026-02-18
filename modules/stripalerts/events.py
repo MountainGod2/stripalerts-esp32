@@ -9,7 +9,8 @@ except ImportError:
     TYPE_CHECKING = False
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Coroutine, Optional
+    from collections.abc import Callable, Coroutine
+    from typing import Any
 
 from .constants import MAX_EVENT_QUEUE_SIZE
 from .utils import log_error
@@ -20,7 +21,8 @@ class EventManager:
 
     def __init__(self) -> None:
         """Initialize event manager."""
-        self._handlers: "dict[str, list[Callable[[Any], Coroutine[Any, Any, None]]]]" = {}
+        self._handlers: dict[str, list[Callable[[Any], Coroutine[Any, Any, None]]]] = {}
+        # MicroPython's deque stub lacks generic subscripts, so type: ignore is needed
         self._queue: deque = deque((), MAX_EVENT_QUEUE_SIZE)  # type: ignore[type-arg]
 
     def on(self, event_type: str, handler: "Callable[[Any], Coroutine[Any, Any, None]]") -> None:
@@ -49,7 +51,7 @@ class EventManager:
             except ValueError:
                 log_error(f"Handler not found for event '{event_type}'")
 
-    def emit(self, event_type: str, data: "Optional[Any]" = None) -> None:
+    def emit(self, event_type: str, data: "Any | None" = None) -> None:
         """Emit an event.
 
         Args:
@@ -64,7 +66,7 @@ class EventManager:
         queue = self._queue
         handlers = self._handlers
         while queue:
-            event_tuple: "tuple[str, Any]" = queue.popleft()
+            event_tuple: tuple[str, Any] = queue.popleft()
             event_type: str = event_tuple[0]
             data = event_tuple[1]
             if event_type in handlers:

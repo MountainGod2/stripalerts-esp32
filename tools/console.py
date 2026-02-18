@@ -106,7 +106,7 @@ def print_keyval(key: str, value: Any) -> None:
 
 
 @contextmanager
-def progress_bar(description: str) -> Iterator[Progress]:
+def progress_bar(description: str) -> Iterator[Progress]:  # noqa: ARG001
     """Create a progress bar context manager.
 
     Args:
@@ -175,7 +175,7 @@ def format_size(size_bytes: int) -> str:
     """Format byte size in human-readable format."""
     size_float = float(size_bytes)
     for unit in ["B", "KB", "MB", "GB"]:
-        if size_float < 1024:  # 1 KB = 1024 B
+        if size_float < 1024:  # 1 KB = 1024 B  # noqa: PLR2004
             return f"{size_float:.2f} {unit}"
         size_float /= 1024
     return f"{size_float:.2f} TB"
@@ -183,10 +183,10 @@ def format_size(size_bytes: int) -> str:
 
 def format_duration(seconds: float) -> str:
     """Format duration in human-readable format."""
-    if seconds < 60:
+    if seconds < 60:  # noqa: PLR2004
         return f"{seconds:.1f}s"
     minutes, secs = divmod(int(seconds), 60)
-    if minutes < 60:
+    if minutes < 60:  # noqa: PLR2004
         return f"{minutes}m {secs}s"
     hours, mins = divmod(minutes, 60)
     return f"{hours}h {mins}m {secs}s"
