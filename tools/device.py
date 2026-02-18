@@ -118,19 +118,11 @@ def _find_esp32_via_serial_ports() -> str | None:
     if list_ports is None:
         return None
 
-    all_ports_info = list(list_ports.comports())
-    for port_info in all_ports_info:
+    for port_info in list_ports.comports():
         for vid, pid in ESP32_VID_PIDS:
             if port_info.vid == vid and (pid is None or port_info.pid == pid):
                 print_success(f"Found ESP32 on port: {port_info.device}")
                 return port_info.device
-
-    if all_ports_info:
-        port = all_ports_info[0].device
-        print_warning(
-            f"No ESP32 VID/PID match found; using first available port as fallback: {port}"
-        )
-        return port
     return None
 
 
@@ -146,8 +138,7 @@ def _find_esp32_via_dev_patterns() -> str | None:
     patterns = ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
     ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
     if ports:
-        sorted_ports = sorted(ports)
-        port = sorted_ports[0]
+        port = sorted(ports)[0]
         print_warning(f"Using port: {port} (pattern-based guess)")
         return port
     return None
@@ -172,6 +163,15 @@ def find_esp32_device() -> str:
     ]:
         port = finder()
         if port:
+            return port
+
+    if list_ports is not None:
+        all_ports_info = list(list_ports.comports())
+        if all_ports_info:
+            port = all_ports_info[0].device
+            print_warning(
+                f"No ESP32 VID/PID match found; using first available port as fallback: {port}"
+            )
             return port
 
     msg = "No ESP32 device found. Please connect device or specify --port"
