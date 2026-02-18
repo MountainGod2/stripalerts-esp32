@@ -34,7 +34,7 @@ class CleanError(StripAlertsError):
 class CommandError(StripAlertsError):
     """Raised when a command execution fails."""
 
-    def __init__(self, cmd: list[str], returncode: int, stderr: str | None = None):
+    def __init__(self, cmd: list[str], returncode: int, stderr: str | None = None) -> None:
         """Initialize command error with details."""
         self.cmd = cmd
         self.returncode = returncode

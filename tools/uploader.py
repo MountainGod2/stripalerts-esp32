@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .config import FlashConfig, FlashingConfig, ProjectPaths, UploadConfig
 from .console import (
@@ -18,6 +18,9 @@ from .console import (
 from .device import ESP32Device, check_mpremote, get_or_find_port
 from .exceptions import CommandError, FlashError, UploadError
 from .subprocess_utils import retry, run_command
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class FirmwareUploader:
@@ -40,17 +43,15 @@ class FirmwareUploader:
             FlashError: If firmware files are missing
         """
         if not self.paths.dist.exists():
-            raise FlashError(
-                f"Dist directory not found: {self.paths.dist}\nRun 'build' command first"
-            )
+            msg = f"Dist directory not found: {self.paths.dist}\nRun 'build' command first"
+            raise FlashError(msg)
 
         required_files = ["bootloader.bin", "partition-table.bin", "firmware.bin"]
         missing = [f for f in required_files if not (self.paths.dist / f).exists()]
 
         if missing:
-            raise FlashError(
-                f"Missing firmware files: {', '.join(missing)}\nPlease rebuild firmware"
-            )
+            msg = f"Missing firmware files: {', '.join(missing)}\nPlease rebuild firmware"
+            raise FlashError(msg)
 
         print_success("All firmware files found")
 
@@ -70,7 +71,8 @@ class FirmwareUploader:
                     verbose=True,
                 )
             except Exception as e:
-                raise FlashError(f"Failed to erase flash: {e}") from e
+                msg = f"Failed to erase flash: {e}"
+                raise FlashError(msg) from e
 
     def upload_firmware(self, port: str) -> None:
         """Flash bootloader, partition table, and firmware to device.
@@ -105,7 +107,8 @@ class FirmwareUploader:
             try:
                 run_command(cmd, verbose=True)
             except Exception as e:
-                raise FlashError(f"Failed to upload firmware: {e}") from e
+                msg = f"Failed to upload firmware: {e}"
+                raise FlashError(msg) from e
 
     def upload(self) -> None:
         """Execute complete firmware upload workflow.
@@ -166,7 +169,8 @@ class FileUploader:
             run_command(cmd, timeout=30, capture_output=True)
             print_file_operation("Uploaded", f"{local_path.name} → {remote_path}")
         except Exception as e:
-            raise UploadError(f"Failed to upload {local_path.name}: {e}") from e
+            msg = f"Failed to upload {local_path.name}: {e}"
+            raise UploadError(msg) from e
 
     def prepare_device(self, device: ESP32Device) -> None:
         """Prepare device by interrupting program and clearing old files.
@@ -195,7 +199,8 @@ class FileUploader:
             UploadError: If no files to upload
         """
         if not self.paths.src.exists():
-            raise UploadError(f"Source directory not found: {self.paths.src}")
+            msg = f"Source directory not found: {self.paths.src}"
+            raise UploadError(msg)
 
         files_to_upload: list[tuple[Path, str]] = []
 
@@ -220,7 +225,8 @@ class FileUploader:
             print_warning("No config file found, skipping")
 
         if not files_to_upload:
-            raise UploadError("No files to upload")
+            msg = "No files to upload"
+            raise UploadError(msg)
 
         return files_to_upload
 

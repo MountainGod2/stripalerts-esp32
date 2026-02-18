@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import shlex
 from contextlib import contextmanager
-from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from typing_extensions import Self
 
 from rich.console import Console
@@ -20,6 +21,7 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.theme import Theme
 
@@ -137,15 +139,11 @@ def spinner(description: str) -> Iterator[None]:
 
 def confirm(prompt: str, default: bool = False) -> bool:
     """Ask user for confirmation."""
-    from rich.prompt import Confirm
-
     return Confirm.ask(prompt, default=default, console=console)
 
 
 def prompt(question: str, default: str | None = None) -> str | None:
     """Prompt user for input."""
-    from rich.prompt import Prompt
-
     return Prompt.ask(question, default=default, console=console)
 
 
@@ -179,7 +177,7 @@ def format_size(size_bytes: int) -> str:
     """Format byte size in human-readable format."""
     size_float = float(size_bytes)
     for unit in ["B", "KB", "MB", "GB"]:
-        if size_float < 1024:
+        if size_float < 1024:  # 1 KB = 1024 B
             return f"{size_float:.2f} {unit}"
         size_float /= 1024
     return f"{size_float:.2f} TB"

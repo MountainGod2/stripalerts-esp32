@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import functools
 import time
-from typing import Annotated, Callable, Optional, TypeVar
+from typing import Annotated, Any, Callable, TypeVar
 
 import typer
 from rich.traceback import install as install_rich_traceback
@@ -45,7 +45,7 @@ def handle_errors(func: F) -> F:
     """Decorator to handle common CLI errors with consistent messaging."""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
         except StripAlertsError as e:
@@ -92,7 +92,7 @@ def flash(
         typer.Option("--board", "-b", help="ESP32 board variant"),
     ] = "STRIPALERTS_S3",
     port: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
     ] = None,
     baud: Annotated[
@@ -115,7 +115,7 @@ def flash(
 @handle_errors
 def upload(
     port: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
     ] = None,
 ) -> None:
@@ -130,7 +130,7 @@ def upload(
 @handle_errors
 def monitor(
     port: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
     ] = None,
     baud: Annotated[
@@ -166,7 +166,7 @@ def deploy(
         typer.Option("--board", "-b", help="ESP32 board variant"),
     ] = "STRIPALERTS_S3",
     port: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
     ] = None,
     baud: Annotated[

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 import shutil
+from typing import TYPE_CHECKING
 
-from .config import BuildConfig, ProjectPaths
 from .console import (
     StatusLogger,
     print_file_operation,
@@ -18,6 +18,9 @@ from .console import (
 from .device import check_idf_environment
 from .exceptions import BuildError
 from .subprocess_utils import run_command
+
+if TYPE_CHECKING:
+    from .config import BuildConfig, ProjectPaths
 
 
 class FirmwareBuilder:
@@ -73,7 +76,8 @@ class FirmwareBuilder:
                     verbose=self.config.verbose,
                 )
             except Exception as e:
-                raise BuildError(f"Failed to initialize MicroPython submodule: {e}") from e
+                msg = f"Failed to initialize MicroPython submodule: {e}"
+                raise BuildError(msg) from e
 
     def build_mpy_cross(self) -> None:
         """Build mpy-cross compiler if not already built.
@@ -96,7 +100,8 @@ class FirmwareBuilder:
                     timeout=None,  # No timeout for building
                 )
             except Exception as e:
-                raise BuildError(f"Failed to build mpy-cross: {e}") from e
+                msg = f"Failed to build mpy-cross: {e}"
+                raise BuildError(msg) from e
 
     def clean_build_artifacts(self) -> None:
         """Remove existing build and dist directories."""
@@ -150,7 +155,8 @@ class FirmwareBuilder:
                 self._copy_firmware_artifacts()
 
             except Exception as e:
-                raise BuildError(f"Failed to build firmware: {e}") from e
+                msg = f"Failed to build firmware: {e}"
+                raise BuildError(msg) from e
 
     def _copy_firmware_artifacts(self) -> None:
         """Copy bootloader, partition table, and firmware to dist/."""
