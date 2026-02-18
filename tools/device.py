@@ -146,7 +146,8 @@ def _find_esp32_via_dev_patterns() -> str | None:
     patterns = ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
     ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
     if ports:
-        port = ports[0]
+        sorted_ports = sorted(ports)
+        port = sorted_ports[0]
         print_warning(f"Using port: {port} (pattern-based guess)")
         return port
     return None
@@ -251,6 +252,12 @@ def check_idf_environment() -> tuple[Path, list[str]]:
         if output:
             print_success(f"ESP-IDF found at: {idf_path}")
             return idf_path, cmd
+        msg = (
+            f"idf.py found at {idf_py_path} but could not be executed. "
+            "Check file permissions and that Python can run it. "
+            "You may need to run: source ~/esp/esp-idf/export.sh"
+        )
+        raise PrerequisiteError(msg)
 
     msg = (
         "idf.py not found. Run: source ~/esp/esp-idf/export.sh "

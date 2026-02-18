@@ -14,9 +14,8 @@ if TYPE_CHECKING:
 
 try:
     import serial
-except ImportError as e:
-    msg = "pyserial is required for serial monitoring"
-    raise ImportError(msg) from e
+except ImportError:
+    serial = None
 
 
 class SerialMonitor:

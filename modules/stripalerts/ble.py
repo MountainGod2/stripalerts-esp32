@@ -58,14 +58,14 @@ class BLEManager:
         self,
         wifi_manager: "WiFiManager",
         name: str = "StripAlerts-Setup",
-        initial_networks: list[str] | None = None,
+        initial_networks: list[dict[str, str | int]] | None = None,
     ) -> None:
         """Initialize BLE manager.
 
         Args:
             wifi_manager: WiFi manager instance
             name: BLE device name for advertising
-            initial_networks: Optional list of cached networks
+            initial_networks: Optional list of cached networks from WiFiManager.scan()
 
         """
         self.wifi = wifi_manager
@@ -198,8 +198,8 @@ class BLEManager:
                         settings[config_key] = decoded
                         val_log = "***" if "password" in config_key else decoded[:10]
                         log_info(f"Updated {config_key}: {val_log}...")
-                    except Exception:
-                        log_error(f"Error applying config for {config_key}")
+                    except Exception as e:
+                        log_error(f"Error applying config for {config_key}: {e}")
             except asyncio.CancelledError:
                 pass
 
@@ -298,9 +298,12 @@ class BLEManager:
 
     async def _write_test_result(self, result: str) -> None:
         """Write result to wifiTest char and notify."""
-        self.char_wifitest.write(result.encode("utf-8"))
-        if self._connection:
-            self.char_wifitest.notify(self._connection)
+        try:
+            self.char_wifitest.write(result.encode("utf-8"))
+            if self._connection:
+                self.char_wifitest.notify(self._connection)
+        except Exception as e:
+            log_error(f"Notify error: {e}")
 
     async def _send_networks(self, *, allow_cache: bool = False) -> None:
         """Scan and send networks."""
@@ -317,7 +320,7 @@ class BLEManager:
 
         try:
             # Prepare networks list, fitting into one BLE packet
-            simple_list = []  # type: list[dict]
+            simple_list: list[dict[str, str | int]] = []
             for n in networks:
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
                 temp_list = simple_list + [entry]
