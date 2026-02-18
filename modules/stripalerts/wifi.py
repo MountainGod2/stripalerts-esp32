@@ -8,7 +8,16 @@ except ImportError:
     TYPE_CHECKING = False
 
 if TYPE_CHECKING:
-    from typing import Optional
+    from typing import Optional, TypedDict
+
+    class NetworkInfo(TypedDict):
+        """WiFi network information."""
+
+        ssid: str
+        rssi: int
+        auth: int
+else:
+    NetworkInfo = dict
 
 import machine
 import network
@@ -32,12 +41,12 @@ class WiFiManager:
 
     def enable_sta(self) -> None:
         """Enable station mode."""
-        self.sta.active(True)  # noqa: FBT003
+        self.sta.active(True)  # noqa: FBT003 - MicroPython API requires positional bool
         log_info("WiFi station mode enabled")
 
     def disable_sta(self) -> None:
         """Disable station mode."""
-        self.sta.active(False)  # noqa: FBT003
+        self.sta.active(False)  # noqa: FBT003 - MicroPython API requires positional bool
         log_info("WiFi station mode disabled")
 
     def enable_ap(self, ssid: str, password: str = "") -> None:
@@ -48,7 +57,7 @@ class WiFiManager:
             password: Password (optional)
 
         """
-        self.ap.active(True)  # noqa: FBT003
+        self.ap.active(True)  # noqa: FBT003 - MicroPython API requires positional bool
 
         if password:
             self.ap.config(essid=ssid, password=password, authmode=network.AUTH_WPA_WPA2_PSK)
@@ -59,7 +68,7 @@ class WiFiManager:
 
     def disable_ap(self) -> None:
         """Disable access point mode."""
-        self.ap.active(False)  # noqa: FBT003
+        self.ap.active(False)  # noqa: FBT003 - MicroPython API requires positional bool
         log_info("WiFi AP mode disabled")
 
     async def connect(
@@ -114,11 +123,11 @@ class WiFiManager:
             self._connected = False
             log_info("Disconnected from WiFi")
 
-    async def scan(self) -> list:
+    async def scan(self) -> "list[NetworkInfo]":
         """Scan for available WiFi networks.
 
         Returns:
-            List of dictionaries containing network info:
+            List of NetworkInfo dictionaries containing network info:
             [{'ssid': 'name', 'rssi': -60, 'auth': 3}, ...]
 
         """
@@ -128,7 +137,7 @@ class WiFiManager:
             # scan() blocks for a bit, but that's usually okay in MP if not too long
             # async scan is not always available or consistent across ports
             networks = self.sta.scan()
-            unique_nets: dict[str, dict] = {}
+            unique_nets: "dict[str, NetworkInfo]" = {}
 
             for n in networks:
                 ssid = n[0].decode("utf-8")

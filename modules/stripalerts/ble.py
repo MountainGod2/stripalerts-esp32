@@ -17,6 +17,7 @@ import bluetooth
 from micropython import const
 
 from .config import settings
+from .constants import BLE_MAX_NETWORKS_LIST, BLE_MAX_PAYLOAD_SIZE
 from .utils import log_error, log_info
 
 _SERVICE_UUID = bluetooth.UUID("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
@@ -153,7 +154,7 @@ class BLEManager:
                         await connection.disconnected()
                         self._connection = None
                         log_info("BLE Disconnected")
-                except asyncio.CancelledError:  # noqa: PERF203
+                except asyncio.CancelledError:  # noqa: PERF203 - Must re-raise to properly cancel
                     raise
                 except Exception as e:
                     log_error(f"BLE Advertise error: {e}")
@@ -309,19 +310,19 @@ class BLEManager:
             networks = await self.wifi.scan()
 
         try:
-            # Prepare networks list, fitting into one BLE packet (max ~250 bytes)
+            # Prepare networks list, fitting into one BLE packet
             simple_list = []  # type: list[dict]
             for n in networks:
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
                 temp_list = simple_list + [entry]
                 json_str = json.dumps(temp_list)
 
-                # Check length (using 240 as safe limit for default MTU/packet size)
-                if len(json_str) > 240:
+                # Check length using safe BLE payload limit
+                if len(json_str) > BLE_MAX_PAYLOAD_SIZE:
                     break
 
                 simple_list.append(entry)
-                if len(simple_list) >= 5:
+                if len(simple_list) >= BLE_MAX_NETWORKS_LIST:
                     break
 
             json_str = json.dumps(simple_list)
