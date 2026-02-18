@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import functools
 import time
-from typing import Annotated, Any, Callable, TypeVar
+from typing import Annotated, Callable, ParamSpec, TypeVar
 
 import typer
 from rich.traceback import install as install_rich_traceback
@@ -38,14 +38,15 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
-F = TypeVar("F", bound=Callable)
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
-def handle_errors(func: F) -> F:
+def handle_errors(func: Callable[P, R]) -> Callable[P, R]:
     """Decorator to handle common CLI errors with consistent messaging."""
 
     @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         try:
             return func(*args, **kwargs)
         except StripAlertsError as e:

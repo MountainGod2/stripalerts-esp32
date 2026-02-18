@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from types import TracebackType
 
     from typing_extensions import Self
@@ -24,9 +25,6 @@ from rich.progress import (
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.theme import Theme
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 # Custom theme for StripAlerts branding
 STRIPALERTS_THEME = Theme(

@@ -133,7 +133,17 @@ class App:
 
         except asyncio.CancelledError:
             # Task was cancelled (new tip came in)
-            pass
+            # Clear any hold color state to prevent stale state from affecting subsequent tips
+            self._current_hold_color = None
+            # Restore rainbow pattern
+            self.led.set_pattern(
+                rainbow_pattern(
+                    self.led,
+                    step=settings["rainbow_step"],
+                    delay=settings["rainbow_delay"],
+                    start_hue=self.led.rainbow_hue,
+                )
+            )
         except Exception as e:
             log_error(f"Effect error: {e}")
 

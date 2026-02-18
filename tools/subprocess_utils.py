@@ -54,6 +54,7 @@ def retry(
                         print_error(f"All {max_attempts} attempts failed")
 
             # Raise the last exception if all retries failed
+            assert last_exception is not None
             raise last_exception
 
         return wrapper
@@ -190,7 +191,8 @@ def run_interactive(
     except KeyboardInterrupt:
         print_warning("Interrupted by user")
         return 130  # SIGINT
-    return result.returncode
+    else:
+        return result.returncode
 
 
 def get_command_output(

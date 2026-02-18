@@ -5,8 +5,6 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-import serial
-
 from .console import console, print_header, print_info, print_warning
 from .device import check_pyserial, get_or_find_port
 from .subprocess_utils import check_command_available, run_interactive
@@ -51,6 +49,12 @@ class SerialMonitor:
 
     def _monitor_pyserial(self, port: str) -> None:
         """Monitor serial output using pyserial library."""
+        try:
+            import serial
+        except ImportError as e:
+            msg = "pyserial is required for serial monitoring"
+            raise ImportError(msg) from e
+
         print_header("Serial Monitor (pyserial)", f"Port: {port} | Baud: {self.config.baud}")
         print_info("Press Ctrl+C to exit\n")
 

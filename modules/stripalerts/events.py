@@ -9,7 +9,7 @@ except ImportError:
     TYPE_CHECKING = False
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Coroutine
+    from typing import Any, Callable, Coroutine, Optional
 
 from .constants import MAX_EVENT_QUEUE_SIZE
 from .utils import log_error
@@ -49,7 +49,7 @@ class EventManager:
             except ValueError:
                 log_error(f"Handler not found for event '{event_type}'")
 
-    def emit(self, event_type: str, data=None) -> None:
+    def emit(self, event_type: str, data: "Optional[Any]" = None) -> None:
         """Emit an event.
 
         Args:

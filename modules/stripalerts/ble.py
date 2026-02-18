@@ -8,9 +8,6 @@ try:
 except ImportError:
     TYPE_CHECKING = False
 
-if TYPE_CHECKING:
-    pass
-
 import aioble
 import bluetooth
 
