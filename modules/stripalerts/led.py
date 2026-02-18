@@ -18,7 +18,7 @@ import neopixel
 import micropython
 from micropython import const
 
-from .constants import LED_BRIGHTNESS
+from .constants import LED_BRIGHTNESS, RGB
 from .utils import log_error
 
 _HUE_MAX = const(360)
@@ -88,7 +88,7 @@ class LEDController:
         """Clear the strip."""
         self.fill((0, 0, 0))
 
-    def fill(self, color: "tuple[int, int, int]") -> None:
+    def fill(self, color: RGB) -> None:
         """Fill strip with color immediately."""
         r = int(color[0] * LED_BRIGHTNESS)
         g = int(color[1] * LED_BRIGHTNESS)
@@ -135,7 +135,7 @@ class LEDController:
         return self._saved_rainbow_hue
 
 
-def solid_pattern(controller: LEDController, color: "tuple[int, int, int]"):
+def solid_pattern(controller: LEDController, color: RGB):
     """Generate solid color pattern."""
     controller.fill(color)
     while True:
@@ -173,7 +173,7 @@ def rainbow_pattern(
 
 def pulse_pattern(
     controller: LEDController,
-    color: "tuple[int, int, int]",
+    color: RGB,
     duration: float = 2.0,
     steps: int = 50,
 ):
@@ -200,7 +200,7 @@ def pulse_pattern(
         yield delay
 
 
-def blink_pattern(controller: LEDController, color: "tuple[int, int, int]", duration: float = 0.5):
+def blink_pattern(controller: LEDController, color: RGB, duration: float = 0.5):
     """Generate blink effect pattern."""
     while True:
         controller.fill(color)

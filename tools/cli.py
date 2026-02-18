@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import functools
 import time
-from typing import Annotated, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Annotated, ParamSpec, TypeVar
 
 import typer
 from rich.traceback import install as install_rich_traceback
@@ -26,6 +26,9 @@ from .exceptions import StripAlertsError
 from .monitor import SerialMonitor
 from .uploader import FileUploader, FirmwareUploader
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 # Install rich traceback handler for better error messages
 install_rich_traceback(show_locals=True)
 
@@ -38,14 +41,15 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
-F = TypeVar("F", bound=Callable)
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
-def handle_errors(func: F) -> F:
+def handle_errors(func: Callable[P, R]) -> Callable[P, R]:
     """Decorator to handle common CLI errors with consistent messaging."""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         try:
             return func(*args, **kwargs)
         except StripAlertsError as e:
@@ -92,7 +96,7 @@ def flash(
         typer.Option("--board", "-b", help="ESP32 board variant"),
     ] = "STRIPALERTS_S3",
     port: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
     ] = None,
     baud: Annotated[
@@ -115,7 +119,7 @@ def flash(
 @handle_errors
 def upload(
     port: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
     ] = None,
 ) -> None:
@@ -130,7 +134,7 @@ def upload(
 @handle_errors
 def monitor(
     port: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
     ] = None,
     baud: Annotated[
@@ -160,13 +164,13 @@ def clean(
 
 @app.command()
 @handle_errors
-def deploy(
+def deploy(  # noqa: PLR0913
     board: Annotated[
         str,
         typer.Option("--board", "-b", help="ESP32 board variant"),
     ] = "STRIPALERTS_S3",
     port: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--port", "-p", help="Serial port (auto-detect if not set)"),
     ] = None,
     baud: Annotated[

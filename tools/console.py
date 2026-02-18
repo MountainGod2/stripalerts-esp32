@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import shlex
 from contextlib import contextmanager
-from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from types import TracebackType
+
     from typing_extensions import Self
 
 from rich.console import Console
@@ -20,11 +22,9 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.theme import Theme
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 # Custom theme for StripAlerts branding
 STRIPALERTS_THEME = Theme(
@@ -106,7 +106,7 @@ def print_keyval(key: str, value: Any) -> None:
 
 
 @contextmanager
-def progress_bar(description: str) -> Iterator[Progress]:
+def progress_bar(description: str) -> Iterator[Progress]:  # noqa: ARG001
     """Create a progress bar context manager.
 
     Args:
@@ -137,15 +137,11 @@ def spinner(description: str) -> Iterator[None]:
 
 def confirm(prompt: str, default: bool = False) -> bool:
     """Ask user for confirmation."""
-    from rich.prompt import Confirm
-
     return Confirm.ask(prompt, default=default, console=console)
 
 
 def prompt(question: str, default: str | None = None) -> str | None:
     """Prompt user for input."""
-    from rich.prompt import Prompt
-
     return Prompt.ask(question, default=default, console=console)
 
 
@@ -179,7 +175,7 @@ def format_size(size_bytes: int) -> str:
     """Format byte size in human-readable format."""
     size_float = float(size_bytes)
     for unit in ["B", "KB", "MB", "GB"]:
-        if size_float < 1024:
+        if size_float < 1024:  # 1 KB = 1024 B  # noqa: PLR2004
             return f"{size_float:.2f} {unit}"
         size_float /= 1024
     return f"{size_float:.2f} TB"
@@ -187,10 +183,10 @@ def format_size(size_bytes: int) -> str:
 
 def format_duration(seconds: float) -> str:
     """Format duration in human-readable format."""
-    if seconds < 60:
+    if seconds < 60:  # noqa: PLR2004
         return f"{seconds:.1f}s"
     minutes, secs = divmod(int(seconds), 60)
-    if minutes < 60:
+    if minutes < 60:  # noqa: PLR2004
         return f"{minutes}m {secs}s"
     hours, mins = divmod(minutes, 60)
     return f"{hours}h {mins}m {secs}s"

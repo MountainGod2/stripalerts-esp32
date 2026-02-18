@@ -16,7 +16,13 @@ import machine
 from .api import ChaturbateAPI
 from .ble import BLEManager
 from .config import settings
-from .constants import COLOR_MAP, TRIGGER_TOKEN_AMOUNT
+from .constants import (
+    COLOR_HOLD_DURATION,
+    COLOR_MAP,
+    RGB,
+    TIP_PULSE_DURATION,
+    TRIGGER_TOKEN_AMOUNT,
+)
 from .events import EventManager
 from .led import (
     LEDController,
@@ -49,8 +55,8 @@ class App:
         self.mode = "BOOT"  # BOOT, NORMAL, PROVISIONING
         self._tasks: "List[asyncio.Task]" = []
         self._running = False
-        self._current_effect_task = None
-        self._current_hold_color: Optional[tuple[int, int, int]] = None
+        self._current_effect_task: "Optional[asyncio.Task]" = None
+        self._current_hold_color: "Optional[RGB]" = None
         self.wdt: Optional[machine.WDT] = None
 
     async def _handle_api_event(self, event: dict):
@@ -76,10 +82,14 @@ class App:
         # Launch effect as background task to avoid blocking event loop
         if self._current_effect_task and not self._current_effect_task.done():
             self._current_effect_task.cancel()
+            try:
+                await self._current_effect_task
+            except asyncio.CancelledError:
+                pass
 
         self._current_effect_task = asyncio.create_task(self._process_tip_effect(found_color))
 
-    def _parse_color_trigger(self, tokens: int, message: str) -> Optional[tuple[int, int, int]]:
+    def _parse_color_trigger(self, tokens: int, message: str) -> "Optional[RGB]":
         """Check if tip triggers a specific color hold."""
         if tokens == TRIGGER_TOKEN_AMOUNT:
             for name, color in COLOR_MAP.items():
@@ -87,12 +97,12 @@ class App:
                     return color
         return None
 
-    async def _process_tip_effect(self, hold_color: "Optional[tuple[int, int, int]]" = None):
+    async def _process_tip_effect(self, hold_color: "Optional[RGB]" = None):
         """Handle the visual sequence for a tip."""
         try:
             # Pulse Green (Standard Tip Effect)
-            self.led.set_pattern(pulse_pattern(self.led, (0, 255, 0), duration=2.0))
-            await asyncio.sleep(2.1)  # Slightly longer than pattern duration
+            self.led.set_pattern(pulse_pattern(self.led, (0, 255, 0), duration=TIP_PULSE_DURATION))
+            await asyncio.sleep(TIP_PULSE_DURATION + 0.1)  # Slightly longer than pattern duration
 
             # If it's a color trigger, switch to that color and hold
             if hold_color:
@@ -100,8 +110,8 @@ class App:
                 self._current_hold_color = hold_color
                 self.led.set_pattern(solid_pattern(self.led, hold_color))
 
-                # Hold for 10 minutes
-                await asyncio.sleep(600)
+                # Hold for configured duration
+                await asyncio.sleep(COLOR_HOLD_DURATION)
 
                 # Revert after hold
                 log_info("Hold complete, reverting to rainbow")
@@ -123,54 +133,64 @@ class App:
 
         except asyncio.CancelledError:
             # Task was cancelled (new tip came in)
-            pass
+            # Clear any hold color state to prevent stale state from affecting subsequent tips
+            self._current_hold_color = None
+            # Restore rainbow pattern
+            self.led.set_pattern(
+                rainbow_pattern(
+                    self.led,
+                    step=settings["rainbow_step"],
+                    delay=settings["rainbow_delay"],
+                    start_hue=self.led.rainbow_hue,
+                )
+            )
         except Exception as e:
             log_error(f"Effect error: {e}")
 
-    async def setup(self) -> None:
-        """Initialize components."""
+    def _feed_watchdog(self) -> None:
+        """Feed watchdog if enabled."""
         if self.wdt:
             self.wdt.feed()
-        log_info("Setting up...")
 
-        # Set default pattern (Rainbow)
+    def _set_default_led_pattern(self) -> None:
+        """Set default LED rainbow pattern."""
         self.led.set_pattern(
             rainbow_pattern(
                 self.led, step=settings["rainbow_step"], delay=settings["rainbow_delay"]
             )
         )
 
-        # Check Configuration
-        ssid = settings["wifi_ssid"]
-        password = settings["wifi_password"]
-        api_url = settings["api_url"]
+    async def _setup_normal_mode(self, ssid: str, password: str, api_url: str) -> bool:
+        """Configure normal operation mode with WiFi and API.
 
-        if self.wdt:
-            self.wdt.feed()
-        if ssid and api_url:
-            log_info(f"Config found. Connecting to {ssid}...")
-            if await self.wifi.connect(ssid, password, wdt=self.wdt):
-                if self.wdt:
-                    self.wdt.feed()
-                log_info("WiFi Connected.")
-                self.mode = "NORMAL"
-                self.api = ChaturbateAPI(api_url, self.events)
-                self.events.on("api_event", self._handle_api_event)
-                return
-            if self.wdt:
-                self.wdt.feed()
-            log_info("WiFi Connect Failed.")
-        else:
-            log_info("Missing Configuration (SSID or API URL).")
+        Args:
+            ssid: WiFi SSID
+            password: WiFi password
+            api_url: Chaturbate API URL
 
-        # Fallback to Provisioning
+        Returns:
+            True if setup successful, False otherwise
+        """
+        log_info(f"Config found. Connecting to {ssid}...")
+        if await self.wifi.connect(ssid, password, wdt=self.wdt):
+            self._feed_watchdog()
+            log_info("WiFi Connected.")
+            self.mode = "NORMAL"
+            self.api = ChaturbateAPI(api_url, self.events)
+            self.events.on("api_event", self._handle_api_event)
+            return True
+
+        self._feed_watchdog()
+        log_info("WiFi Connect Failed.")
+        return False
+
+    async def _setup_provisioning_mode(self) -> None:
+        """Configure provisioning mode with BLE."""
         self.mode = "PROVISIONING"
         log_info("Entering Provisioning Mode...")
 
         self.led.set_pattern(blink_pattern(self.led, (0, 0, 255)))
-
-        if self.wdt:
-            self.wdt.feed()
+        self._feed_watchdog()
 
         # Perform initial scan before starting BLE loop to avoid blocking connection
         log_info("Performing initial WiFi scan...")
@@ -181,6 +201,30 @@ class App:
             log_error(f"Initial scan failed: {e}")
 
         self.ble = BLEManager(self.wifi, initial_networks=initial_networks)
+
+    async def setup(self) -> None:
+        """Initialize components."""
+        self._feed_watchdog()
+        log_info("Setting up...")
+
+        self._set_default_led_pattern()
+
+        # Check Configuration
+        ssid = settings["wifi_ssid"]
+        password = settings["wifi_password"]
+        api_url = settings["api_url"]
+
+        self._feed_watchdog()
+
+        # Try normal mode if we have valid configuration
+        if ssid and api_url:
+            if await self._setup_normal_mode(ssid, password, api_url):
+                return
+        else:
+            log_info("Missing Configuration (SSID or API URL).")
+
+        # Fallback to Provisioning
+        await self._setup_provisioning_mode()
 
     async def run(self) -> None:
         """Run main loop."""

@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
 
-from .config import MonitorConfig
 from .console import console, print_header, print_info, print_warning
 from .device import check_pyserial, get_or_find_port
 from .subprocess_utils import check_command_available, run_interactive
+
+if TYPE_CHECKING:
+    from .config import MonitorConfig
+
+try:
+    import serial
+except ImportError:
+    serial = None
 
 
 class SerialMonitor:
@@ -46,8 +54,6 @@ class SerialMonitor:
 
     def _monitor_pyserial(self, port: str) -> None:
         """Monitor serial output using pyserial library."""
-        import serial
-
         print_header("Serial Monitor (pyserial)", f"Port: {port} | Baud: {self.config.baud}")
         print_info("Press Ctrl+C to exit\n")
 
@@ -58,11 +64,11 @@ class SerialMonitor:
                         try:
                             line = ser.readline().decode("utf-8", errors="replace").rstrip()
                             console.print(line)
-                        except Exception as e:
+                        except (serial.SerialException, UnicodeDecodeError) as e:
                             print_warning(f"Read error: {e}")
                     else:
                         time.sleep(0.01)
         except KeyboardInterrupt:
             print_info("Monitoring stopped")
-        except Exception as e:
+        except (serial.SerialException, OSError) as e:
             print_warning(f"Monitor error: {e}")

@@ -3,6 +3,14 @@
 import json
 import os
 
+try:
+    from typing import TYPE_CHECKING
+except ImportError:
+    TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    from typing import Any
+
 from micropython import const
 
 from .utils import log_error, log_warning
@@ -36,7 +44,7 @@ class Config:
 
     def __init__(self) -> None:
         """Initialize configuration manager and load settings."""
-        self._data = DEFAULTS.copy()
+        self._data: "dict[str, Any]" = DEFAULTS.copy()
         self.load()
 
     def load(self) -> None:
@@ -55,15 +63,15 @@ class Config:
         except OSError as e:
             log_error(f"Save failed: {e}")
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> "Any":
         """Get configuration value by key."""
         return self._data.get(key, DEFAULTS.get(key))
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: "Any") -> None:
         """Set configuration value by key."""
         self._data[key] = value
 
-    def get(self, key, default=None):
+    def get(self, key: str, default: "Any" = None) -> "Any":
         """Get configuration value with optional default."""
         return self._data.get(key, default)
 

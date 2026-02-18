@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import shutil
+from typing import TYPE_CHECKING
 
-from .config import ProjectPaths
 from .console import (
     StatusLogger,
     print_file_operation,
@@ -13,7 +13,11 @@ from .console import (
     print_success,
     print_warning,
 )
+from .exceptions import CommandError
 from .subprocess_utils import check_command_available, run_command
+
+if TYPE_CHECKING:
+    from .config import ProjectPaths
 
 
 class BuildCleaner:
@@ -38,7 +42,7 @@ class BuildCleaner:
                 try:
                     shutil.rmtree(self.paths.dist)
                     print_file_operation("Removed", str(self.paths.dist))
-                except Exception as e:
+                except OSError as e:
                     print_warning(f"Failed to remove {self.paths.dist}: {e}")
 
             # Clean ESP32 build directories
@@ -54,7 +58,7 @@ class BuildCleaner:
                         try:
                             shutil.rmtree(build_dir)
                             print_file_operation("Removed", build_dir.name)
-                        except Exception as e:
+                        except OSError as e:
                             print_warning(f"Failed to remove {build_dir.name}: {e}")
 
     def clean_python_cache(self) -> None:
@@ -75,7 +79,7 @@ class BuildCleaner:
                             path.unlink()
                         rel_path = path.relative_to(self.paths.root)
                         print_file_operation("Removed", str(rel_path))
-                    except Exception as e:
+                    except OSError as e:
                         print_warning(f"Failed to remove {path}: {e}")
 
     def clean_micropython(self) -> None:
@@ -91,7 +95,7 @@ class BuildCleaner:
                     print_info("Cleaning mpy-cross...")
                     run_command(["make", "clean"], cwd=self.paths.mpy_cross)
                     print_file_operation("Cleaned", "mpy-cross")
-                except Exception as e:
+                except (CommandError, OSError) as e:
                     print_warning(f"Failed to clean mpy-cross: {e}")
 
             # Clean ESP32 port
@@ -103,7 +107,7 @@ class BuildCleaner:
                         print_info("Cleaning ESP32 port...")
                         run_command(["make", "clean"], cwd=self.paths.micropython_esp32)
                         print_file_operation("Cleaned", "esp32 port")
-                    except Exception as e:
+                    except (CommandError, OSError) as e:
                         print_warning(f"Failed to clean ESP32 port: {e}")
 
     def clean(self) -> None:

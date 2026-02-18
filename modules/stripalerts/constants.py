@@ -4,6 +4,16 @@ Note: Hardware configuration values have been moved to config.py.
 This file is kept for any true constants that should never change.
 """
 
+try:
+    from typing import TYPE_CHECKING
+except ImportError:
+    TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    RGB = tuple[int, int, int]
+else:
+    RGB = tuple
+
 from micropython import const
 
 APP_NAME = "StripAlerts"
@@ -24,9 +34,20 @@ LED_BRIGHTNESS = 0.5
 # Event queue size
 MAX_EVENT_QUEUE_SIZE = const(50)
 
+# Effect durations (in seconds)
+TIP_PULSE_DURATION = 2.0
+COLOR_HOLD_DURATION = const(600)  # 10 minutes
+
+# BLE Protocol constants
+# BLE_MAX_PAYLOAD_SIZE is the payload size when using a negotiated MTU (≥247).
+# Note: The default BLE MTU is 23 bytes (~20 byte payload) unless the central/peripheral
+# negotiate a larger MTU. This value assumes MTU negotiation has occurred.
+BLE_MAX_PAYLOAD_SIZE = const(240)
+BLE_MAX_NETWORKS_LIST = const(5)
+
 
 # Color mapping for tips
-COLOR_MAP = {
+COLOR_MAP: "dict[str, RGB]" = {
     "red": (255, 0, 0),
     "orange": (255, 165, 0),
     "yellow": (255, 255, 0),

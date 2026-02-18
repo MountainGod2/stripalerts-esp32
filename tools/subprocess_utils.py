@@ -5,13 +5,14 @@ from __future__ import annotations
 import subprocess
 import time
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from .config import RetryConfig
 from .console import print_command, print_error, print_warning
 from .exceptions import CommandError, OperationTimeoutError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 T = TypeVar("T")
@@ -37,7 +38,8 @@ def retry(
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
             if max_attempts < 1:
-                raise ValueError("max_attempts must be >= 1")
+                msg = "max_attempts must be >= 1"
+                raise ValueError(msg)
             last_exception = None
             for attempt in range(max_attempts):
                 try:
@@ -53,14 +55,17 @@ def retry(
                         print_error(f"All {max_attempts} attempts failed")
 
             # Raise the last exception if all retries failed
-            raise last_exception  # type: ignore
+            if last_exception is None:
+                msg = "Retry logic failed without capturing an exception"
+                raise RuntimeError(msg)
+            raise last_exception
 
         return wrapper
 
     return decorator
 
 
-def run_command(
+def run_command(  # noqa: PLR0913
     cmd: list[str],
     cwd: str | Path | None = None,
     env: dict[str, str] | None = None,
@@ -104,10 +109,11 @@ def run_command(
             stderr = result.stderr.decode("utf-8", errors="ignore") if capture_output else None
             raise CommandError(cmd, result.returncode, stderr)
 
-        return result
-
     except subprocess.TimeoutExpired as e:
-        raise OperationTimeoutError(f"Command timed out after {timeout}s: {' '.join(cmd)}") from e
+        msg = f"Command timed out after {timeout}s: {' '.join(cmd)}"
+        raise OperationTimeoutError(msg) from e
+    else:
+        return result
 
 
 def run_command_quiet(
@@ -184,15 +190,12 @@ def run_interactive(
         Exit code
     """
     try:
-        result = subprocess.run(
-            cmd,
-            cwd=str(cwd) if cwd else None,
-            env=env,
-        )
-        return result.returncode
+        result = subprocess.run(cmd, cwd=str(cwd) if cwd else None, env=env, check=False)
     except KeyboardInterrupt:
         print_warning("Interrupted by user")
-        return 130  # Standard exit code for SIGINT
+        return 130  # SIGINT
+    else:
+        return result.returncode
 
 
 def get_command_output(

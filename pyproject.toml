@@ -7,14 +7,6 @@ authors = [{ name = "MountainGod2", email = "admin@reid.ca" }]
 requires-python = ">=3.10"
 dependencies = []
 
-[build-system]
-requires = ["uv_build==0.10.4"]
-build-backend = "uv_build"
-
-[tool.uv.build-backend]
-module-name = "stripalerts"
-module-root = "modules"
-
 [project.optional-dependencies]
 # uv pip install -r pyproject.toml --extra stubs --target typings
 stubs = ["micropython-esp32-stubs==1.27.0.*"]
@@ -32,36 +24,29 @@ dev = [
 
 [tool.ruff]
 exclude = ["micropython", "typings"]
-target-version = "py39"
+target-version = "py310"
 line-length = 100
-lint.select = ["E", "F", "W", "I", "PYI", "PERF", "RUF", "FBT", "D"]
-lint.ignore = ["D203", "D213", "RUF005","RUF037"]
+lint.select = ["E", "F", "W", "I", "PYI", "PERF", "RUF", "FBT", "D", "ANN", "PLR","ARG"]
+lint.ignore = ["D203", "D213", "RUF005", "RUF037"]
 lint.per-file-ignores = { "boards/*/manifest.py" = [
     "F821",
 ], "tools/*.py" = [
+    "ANN401",
     "FBT001",
     "FBT002",
 ], "tools/subprocess_utils.py" = [
     "PERF203",
-] }
+], "modules/stripalerts/*.py" = [
+    "ANN",
+    "PLR",
+]}
 lint.pydocstyle.convention = "google"
 format.quote-style = "double"
 format.indent-style = "space"
 
-[tool.pyright]
-include = ["src", "modules"]
-exclude = [".*", "__*", "**/typings"]
-typeCheckingMode = "basic"
-stubPath = "typings"
-typeshedPath = "typings"
-pythonPlatform = "Linux"
-pythonVersion = "3.9"
-reportMissingModuleSource = "none"
-reportUnnecessaryTypeIgnoreComment = "information"
-
 [tool.mypy]
 platform = "linux"
-python_version = "3.9"
+python_version = "3.10"
 mypy_path = "typings"
 custom_typeshed_dir = "typings"
 files = "src, modules"

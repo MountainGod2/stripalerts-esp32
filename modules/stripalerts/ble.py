@@ -8,16 +8,18 @@ try:
 except ImportError:
     TYPE_CHECKING = False
 
-if TYPE_CHECKING:
-    pass
-
 import aioble
 import bluetooth
+import machine
 
 from micropython import const
 
 from .config import settings
+from .constants import BLE_MAX_NETWORKS_LIST, BLE_MAX_PAYLOAD_SIZE
 from .utils import log_error, log_info
+
+if TYPE_CHECKING:
+    from .wifi import WiFiManager
 
 _SERVICE_UUID = bluetooth.UUID("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
 _CHAR_SSID = bluetooth.UUID("6e400002-b5a3-f393-e0a9-e50e24dcca9e")
@@ -31,7 +33,7 @@ _FLAG_START = const(0x01)
 _FLAG_APPEND = const(0x02)
 
 
-def decode_utf8(data):
+def decode_utf8(data: bytes | str) -> str:
     """Decode UTF-8 data to string.
 
     Args:
@@ -52,18 +54,23 @@ def decode_utf8(data):
 class BLEManager:
     """Manages BLE provisioning and WiFi configuration."""
 
-    def __init__(self, wifi_manager, name="StripAlerts-Setup", initial_networks=None):
+    def __init__(
+        self,
+        wifi_manager: "WiFiManager",
+        name: str = "StripAlerts-Setup",
+        initial_networks: list[dict[str, str | int]] | None = None,
+    ) -> None:
         """Initialize BLE manager.
 
         Args:
             wifi_manager: WiFi manager instance
             name: BLE device name for advertising
-            initial_networks: Optional list of cached networks
+            initial_networks: Optional list of cached networks from WiFiManager.scan()
 
         """
         self.wifi = wifi_manager
         self.name = name
-        self.cached_networks = initial_networks if initial_networks else []
+        self.cached_networks = initial_networks or []
         self._connection = None
         self._tasks = []
         self._buffers = {
@@ -96,7 +103,7 @@ class BLEManager:
         aioble.register_services(self.service)
         log_info(f"BLE Service registered: {_SERVICE_UUID}")
 
-    def _apply_buffer_to_settings(self, uuid, config_key) -> None:
+    def _apply_buffer_to_settings(self, uuid: bluetooth.UUID, config_key: str) -> None:
         if not self._buffers[uuid]:
             return
 
@@ -121,7 +128,7 @@ class BLEManager:
     def _has_required_config(self) -> bool:
         return bool(settings["wifi_ssid"]) and bool(settings["api_url"])
 
-    async def start(self):
+    async def start(self) -> None:
         """Start advertising and handling connections."""
         log_info("Starting BLE task...")
         # Start handler tasks
@@ -153,7 +160,7 @@ class BLEManager:
                         await connection.disconnected()
                         self._connection = None
                         log_info("BLE Disconnected")
-                except asyncio.CancelledError:  # noqa: PERF203
+                except asyncio.CancelledError:  # noqa: PERF203 - Must re-raise to properly cancel
                     raise
                 except Exception as e:
                     log_error(f"BLE Advertise error: {e}")
@@ -166,12 +173,12 @@ class BLEManager:
             await asyncio.gather(*self._tasks, return_exceptions=True)
             self._tasks = []
 
-    async def _monitor_write(self, char, config_key):
+    async def _monitor_write(self, char: bluetooth.Characteristic, config_key: str) -> None:
         """Monitor characteristic for writes and update config."""
         uuid = char.uuid
         self._debounce_events[uuid] = asyncio.Event()
 
-        async def _save_worker():
+        async def _save_worker() -> None:
             try:
                 while True:
                     await self._debounce_events[uuid].wait()
@@ -191,8 +198,8 @@ class BLEManager:
                         settings[config_key] = decoded
                         val_log = "***" if "password" in config_key else decoded[:10]
                         log_info(f"Updated {config_key}: {val_log}...")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log_error(f"Error applying config for {config_key}: {e}")
             except asyncio.CancelledError:
                 pass
 
@@ -221,7 +228,7 @@ class BLEManager:
             except Exception as e:
                 log_error(f"Write error on {config_key}: {e}")
 
-    async def _monitor_wifi_test(self):
+    async def _monitor_wifi_test(self) -> None:
         """Listen for WiFi test commands."""
         while True:
             try:
@@ -241,6 +248,7 @@ class BLEManager:
                 try:
                     command = self._buffers[uuid].decode("utf-8").strip().lower()
                 except Exception:
+                    log_error(f"Error decoding WiFi test command: {self._buffers[uuid]}")
                     continue
 
                 log_info(f"Received command: {command}")
@@ -282,22 +290,24 @@ class BLEManager:
                     await self._notify_status("Saved")
                     log_info("Configuration complete. Rebooting in 3s...")
                     await asyncio.sleep(3)
-                    import machine
 
                     machine.reset()
 
             except Exception as e:
                 log_error(f"Command Error: {e}")
 
-    async def _write_test_result(self, result):
+    async def _write_test_result(self, result: str) -> None:
         """Write result to wifiTest char and notify."""
-        self.char_wifitest.write(result.encode("utf-8"))
-        if self._connection:
-            self.char_wifitest.notify(self._connection)
+        try:
+            self.char_wifitest.write(result.encode("utf-8"))
+            if self._connection:
+                self.char_wifitest.notify(self._connection)
+        except Exception as e:
+            log_error(f"Notify error: {e}")
 
-    async def _send_networks(self, *, allow_cache: bool = False):
+    async def _send_networks(self, *, allow_cache: bool = False) -> None:
         """Scan and send networks."""
-        networks = []  # type: list[dict]
+        networks: list[dict[str, str | int]] = []
 
         if allow_cache and self.cached_networks:
             log_info("Using cached networks")
@@ -309,19 +319,19 @@ class BLEManager:
             networks = await self.wifi.scan()
 
         try:
-            # Prepare networks list, fitting into one BLE packet (max ~250 bytes)
-            simple_list = []  # type: list[dict]
+            # Prepare networks list, fitting into one BLE packet
+            simple_list: list[dict[str, str | int]] = []
             for n in networks:
                 entry = {"ssid": n["ssid"], "rssi": n["rssi"]}
                 temp_list = simple_list + [entry]
                 json_str = json.dumps(temp_list)
 
-                # Check length (using 240 as safe limit for default MTU/packet size)
-                if len(json_str) > 240:
+                # Check length using safe BLE payload limit (UTF-8 encoded byte length)
+                if len(json_str.encode("utf-8")) > BLE_MAX_PAYLOAD_SIZE:
                     break
 
                 simple_list.append(entry)
-                if len(simple_list) >= 5:
+                if len(simple_list) >= BLE_MAX_NETWORKS_LIST:
                     break
 
             json_str = json.dumps(simple_list)
@@ -341,7 +351,7 @@ class BLEManager:
             log_error(f"Send networks error: {e}")
             await self._notify_status("Ready")
 
-    async def _notify_status(self, message):
+    async def _notify_status(self, message: str) -> None:
         """Send status update."""
         log_info(f"BLE Status: {message}")
         try:
