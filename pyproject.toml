@@ -36,10 +36,17 @@ lint.per-file-ignores = { "boards/*/manifest.py" = [
     "FBT002",
 ], "tools/subprocess_utils.py" = [
     "PERF203",
+    "S603",
 ], "modules/stripalerts/*.py" = [
     "ANN",
     "PLR",
-]}
+    "UP037",
+    "UP045",
+    "T201",
+    "BLE001",
+    "PTH123",
+    "SIM105",
+] }
 lint.pydocstyle.convention = "google"
 format.quote-style = "double"
 format.indent-style = "space"
