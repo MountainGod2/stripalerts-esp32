@@ -71,7 +71,7 @@ class BLEManager:
         self.wifi = wifi_manager
         self.name = name
         self.cached_networks: "list[NetworkInfo]" = initial_networks or []
-        self._tasks: list[asyncio.Task[object]] = []
+        self._tasks: "list[asyncio.Task[object]]" = []
         self._connection = None
         self._buffers = {
             _CHAR_SSID: bytearray(),
@@ -79,7 +79,7 @@ class BLEManager:
             _CHAR_API: bytearray(),
             _CHAR_WIFITEST: bytearray(),
         }
-        self._debounce_events: dict[bluetooth.UUID, asyncio.Event] = {}
+        self._debounce_events: "dict[bluetooth.UUID, asyncio.Event]" = {}
 
         # Service Definition
         self.service = aioble.Service(_SERVICE_UUID)
@@ -89,7 +89,10 @@ class BLEManager:
         self.char_api = aioble.Characteristic(self.service, _CHAR_API, write=True, capture=True)
         self.char_status = aioble.Characteristic(self.service, _CHAR_STATUS, read=True, notify=True)
         self.char_networks = aioble.Characteristic(
-            self.service, _CHAR_NETWORKS, read=True, notify=True
+            self.service,
+            _CHAR_NETWORKS,
+            read=True,
+            notify=True,
         )
         self.char_wifitest = aioble.Characteristic(
             self.service,
@@ -154,7 +157,7 @@ class BLEManager:
 
                         # On connection, immediately send cached or fresh networks
                         self._tasks.append(
-                            asyncio.create_task(self._send_networks(allow_cache=True))
+                            asyncio.create_task(self._send_networks(allow_cache=True)),
                         )
 
                         await connection.disconnected()
@@ -173,7 +176,7 @@ class BLEManager:
             await asyncio.gather(*self._tasks, return_exceptions=True)
             self._tasks = []
 
-    async def _monitor_write(self, char: aioble.Characteristic, config_key: str) -> None:
+    async def _monitor_write(self, char: "aioble.Characteristic", config_key: str) -> None:
         """Monitor characteristic for writes and update config."""
         uuid = char.uuid
         self._debounce_events[uuid] = asyncio.Event()

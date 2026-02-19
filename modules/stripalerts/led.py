@@ -146,7 +146,7 @@ def rainbow_pattern(
     controller: LEDController,
     step: float = 1,
     delay: float = 0.05,
-    start_hue: Optional[float] = None,
+    start_hue: "Optional[float]" = None,
 ):
     """Generate rainbow effect pattern.
 
@@ -158,10 +158,7 @@ def rainbow_pattern(
             controller.
 
     """
-    if start_hue is None:
-        hue = controller._saved_rainbow_hue
-    else:
-        hue = start_hue
+    hue = controller._saved_rainbow_hue if start_hue is None else start_hue
 
     while True:
         color = hsv_to_rgb(hue)

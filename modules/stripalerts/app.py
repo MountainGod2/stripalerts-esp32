@@ -9,7 +9,7 @@ except ImportError:
     TYPE_CHECKING = False
 
 if TYPE_CHECKING:
-    from typing import List, Optional
+    from typing import Optional
 
 import machine
 
@@ -50,14 +50,14 @@ class App:
         )
 
         self.wifi = WiFiManager()
-        self.api: Optional[ChaturbateAPI] = None
-        self.ble: Optional[BLEManager] = None
+        self.api: "Optional[ChaturbateAPI]" = None
+        self.ble: "Optional[BLEManager]" = None
         self.mode = "BOOT"  # BOOT, NORMAL, PROVISIONING
-        self._tasks: "List[asyncio.Task]" = []
+        self._tasks: "list[asyncio.Task]" = []
         self._running = False
         self._current_effect_task: "Optional[asyncio.Task]" = None
         self._current_hold_color: "Optional[RGB]" = None
-        self.wdt: Optional[machine.WDT] = None
+        self.wdt: "Optional[machine.WDT]" = None
 
     async def _handle_api_event(self, event: dict):
         """Handle API events."""
@@ -128,7 +128,7 @@ class App:
                         step=settings["rainbow_step"],
                         delay=settings["rainbow_delay"],
                         start_hue=self.led.rainbow_hue,
-                    )
+                    ),
                 )
 
         except asyncio.CancelledError:
@@ -142,7 +142,7 @@ class App:
                     step=settings["rainbow_step"],
                     delay=settings["rainbow_delay"],
                     start_hue=self.led.rainbow_hue,
-                )
+                ),
             )
         except Exception as e:
             log_error(f"Effect error: {e}")
@@ -156,8 +156,10 @@ class App:
         """Set default LED rainbow pattern."""
         self.led.set_pattern(
             rainbow_pattern(
-                self.led, step=settings["rainbow_step"], delay=settings["rainbow_delay"]
-            )
+                self.led,
+                step=settings["rainbow_step"],
+                delay=settings["rainbow_delay"],
+            ),
         )
 
     async def _setup_normal_mode(self, ssid: str, password: str, api_url: str) -> bool:

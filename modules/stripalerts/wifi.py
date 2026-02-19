@@ -10,6 +10,8 @@ except ImportError:
 if TYPE_CHECKING:
     from typing import Optional, TypedDict
 
+    import machine
+
     class NetworkInfo(TypedDict):
         """WiFi network information."""
 
@@ -19,7 +21,6 @@ if TYPE_CHECKING:
 else:
     NetworkInfo = dict
 
-import machine
 import network
 
 from micropython import const
@@ -76,7 +77,7 @@ class WiFiManager:
         ssid: str,
         password: str,
         timeout: int = WIFI_CONNECT_TIMEOUT,
-        wdt: Optional[machine.WDT] = None,
+        wdt: "Optional[machine.WDT]" = None,
     ) -> bool:
         """Connect to WiFi network.
 
@@ -178,7 +179,7 @@ class WiFiManager:
                 ip_config = self.sta.ifconfig()
                 return str(ip_config[0])
             except Exception:
-                pass
+                log_error("Failed to get IP address")
         return None
 
     def get_status(self) -> list:
