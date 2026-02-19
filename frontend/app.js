@@ -62,7 +62,10 @@ const showStep = (stepNum) => {
   }
 
   if (stepNum === STEPS.WIFI) {
-    showNetworksLoading();
+    const networksList = document.getElementById("networksList");
+    if (networksList.querySelectorAll(".network-item").length === 0) {
+      showNetworksLoading();
+    }
   }
 };
 
@@ -196,6 +199,7 @@ const onNetworksUpdate = (networks) => {
 
   if (networks.length === 0) {
     list.innerHTML = '<div class="network-empty">No networks found</div>';
+    document.getElementById("rescanBtn").disabled = false;
     return;
   }
 
@@ -221,13 +225,14 @@ const onNetworksUpdate = (networks) => {
     };
     list.appendChild(el);
   });
+  document.getElementById("rescanBtn").disabled = false;
 };
 
 const showNetworksLoading = () => {
   const list = document.getElementById("networksList");
   list.innerHTML = `
     <div class="network-loading">
-      <div class="spinner-sm"></div>
+      <div class="spinner-sm" aria-hidden="true"></div>
       <span>Scanning for networks...</span>
     </div>
   `;
@@ -492,16 +497,22 @@ document
   .getElementById("confirmBackBtn")
   .addEventListener("click", () => showStep(STEPS.API));
 
-document.getElementById("rescanBtn").addEventListener("click", async () => {
-  try {
-    showNetworksLoading();
-    await ble.write("wifiTest", "rescan");
-  } catch (e) {
-    console.error(e);
-    const list = document.getElementById("networksList");
-    list.innerHTML = '<div class="network-error">Failed to scan networks</div>';
-  }
-});
+document
+  .getElementById("rescanBtn")
+  .addEventListener("click", async (event) => {
+    const rescanBtn = event.currentTarget;
+    try {
+      rescanBtn.disabled = true;
+      showNetworksLoading();
+      await ble.write("wifiTest", "rescan");
+    } catch (e) {
+      console.error(e);
+      const list = document.getElementById("networksList");
+      list.innerHTML =
+        '<div class="network-error">Failed to scan networks</div>';
+      rescanBtn.disabled = false;
+    }
+  });
 
 // Window events
 window.addEventListener("pagehide", () => stopQrScan(true));
