@@ -62,7 +62,10 @@ const showStep = (stepNum) => {
   }
 
   if (stepNum === STEPS.WIFI) {
-    showNetworksLoading();
+    const networksList = document.getElementById("networksList");
+    if (networksList.querySelectorAll(".network-item").length === 0) {
+      showNetworksLoading();
+    }
   }
 };
 
@@ -227,7 +230,7 @@ const showNetworksLoading = () => {
   const list = document.getElementById("networksList");
   list.innerHTML = `
     <div class="network-loading">
-      <div class="spinner-sm"></div>
+      <div class="spinner-sm" aria-hidden="true"></div>
       <span>Scanning for networks...</span>
     </div>
   `;
@@ -493,13 +496,17 @@ document
   .addEventListener("click", () => showStep(STEPS.API));
 
 document.getElementById("rescanBtn").addEventListener("click", async () => {
+  const rescanBtn = document.getElementById("rescanBtn");
   try {
+    rescanBtn.disabled = true;
     showNetworksLoading();
     await ble.write("wifiTest", "rescan");
   } catch (e) {
     console.error(e);
     const list = document.getElementById("networksList");
     list.innerHTML = '<div class="network-error">Failed to scan networks</div>';
+  } finally {
+    rescanBtn.disabled = false;
   }
 });
 
