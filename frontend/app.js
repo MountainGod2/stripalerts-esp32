@@ -60,6 +60,10 @@ const showStep = (stepNum) => {
     hideError("confirmError");
     showElement("confirmRebootInfo");
   }
+
+  if (stepNum === STEPS.WIFI) {
+    showNetworksLoading();
+  }
 };
 
 const markStepComplete = (stepNum) => {
@@ -217,6 +221,16 @@ const onNetworksUpdate = (networks) => {
     };
     list.appendChild(el);
   });
+};
+
+const showNetworksLoading = () => {
+  const list = document.getElementById("networksList");
+  list.innerHTML = `
+    <div class="network-loading">
+      <div class="spinner-sm"></div>
+      <span>Scanning for networks...</span>
+    </div>
+  `;
 };
 
 const onWifiTestUpdate = (result) => {
@@ -480,9 +494,12 @@ document
 
 document.getElementById("rescanBtn").addEventListener("click", async () => {
   try {
+    showNetworksLoading();
     await ble.write("wifiTest", "rescan");
   } catch (e) {
     console.error(e);
+    const list = document.getElementById("networksList");
+    list.innerHTML = '<div class="network-error">Failed to scan networks</div>';
   }
 });
 
