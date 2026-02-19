@@ -108,7 +108,7 @@ body {
   position: absolute;
   inset-block-start: 1.125rem;
   inset-inline-start: calc(50% + 1.125rem);
-  inline-size: calc(100% - 2.25rem);
+  inline-size: calc(100% - 1.5rem);
   block-size: 0.125rem;
   background: var(--border-color);
   z-index: 0;
