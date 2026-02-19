@@ -48,7 +48,7 @@ def retry(
                     last_exception = e
                     if attempt < max_attempts - 1:
                         print_warning(
-                            f"Attempt {attempt + 1}/{max_attempts} failed, retrying in {delay}s..."
+                            f"Attempt {attempt + 1}/{max_attempts} failed, retrying in {delay}s...",
                         )
                         time.sleep(delay)
                     else:

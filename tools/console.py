@@ -36,7 +36,7 @@ STRIPALERTS_THEME = Theme(
         "header": "bold magenta",
         "code": "bold blue",
         "path": "italic cyan",
-    }
+    },
 )
 
 # Global console instance

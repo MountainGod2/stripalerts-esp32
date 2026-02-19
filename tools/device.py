@@ -170,7 +170,7 @@ def find_esp32_device() -> str:
         if all_ports_info:
             port = all_ports_info[0].device
             print_warning(
-                f"No ESP32 VID/PID match found; using first available port as fallback: {port}"
+                f"No ESP32 VID/PID match found; using first available port as fallback: {port}",
             )
             return port
 
