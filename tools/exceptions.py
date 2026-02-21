@@ -1,38 +1,36 @@
-"""Custom exceptions for StripAlerts ESP32 tools."""
+"""Tool exceptions."""
 
 from __future__ import annotations
 
+import shlex
+
 
 class StripAlertsError(Exception):
-    """Base exception for all StripAlerts tool errors."""
+    """Base tool exception."""
 
 
 class PrerequisiteError(StripAlertsError):
-    """Raised when prerequisites are not met."""
+    """Prerequisite check failed."""
 
 
 class DeviceNotFoundError(StripAlertsError):
-    """Raised when ESP32 device cannot be found."""
+    """No target device found."""
 
 
 class BuildError(StripAlertsError):
-    """Raised when firmware build fails."""
+    """Build failed."""
 
 
 class FlashError(StripAlertsError):
-    """Raised when flashing firmware fails."""
+    """Flash failed."""
 
 
 class UploadError(StripAlertsError):
-    """Raised when file upload fails."""
-
-
-class CleanError(StripAlertsError):
-    """Raised when cleaning fails."""
+    """Upload failed."""
 
 
 class CommandError(StripAlertsError):
-    """Raised when a command execution fails."""
+    """Command execution failed."""
 
     def __init__(self, cmd: list[str], returncode: int, stderr: str | None = None) -> None:
         """Initialize command error with details."""
@@ -43,15 +41,11 @@ class CommandError(StripAlertsError):
 
     def _format_message(self) -> str:
         """Format error message."""
-        msg = f"Command failed with exit code {self.returncode}: {' '.join(self.cmd)}"
+        msg = f"Command failed with exit code {self.returncode}: {shlex.join(self.cmd)}"
         if self.stderr:
             msg += f"\n{self.stderr}"
         return msg
 
 
 class OperationTimeoutError(StripAlertsError):
-    """Raised when an operation times out."""
-
-
-class ConfigurationError(StripAlertsError):
-    """Raised when configuration is invalid."""
+    """Operation timed out."""

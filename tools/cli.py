@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Modern StripAlerts ESP32 Development CLI with typer and rich."""
+"""StripAlerts CLI."""
 
 from __future__ import annotations
 
@@ -29,10 +29,8 @@ from .uploader import FileUploader, FirmwareUploader
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-# Install rich traceback handler for better error messages
 install_rich_traceback(show_locals=True)
 
-# Create Typer app
 app = typer.Typer(
     name="stripalerts",
     help="StripAlerts ESP32 Firmware Development CLI",
@@ -43,6 +41,11 @@ app = typer.Typer(
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+def _paths() -> ProjectPaths:
+    """Return workspace paths for CLI commands."""
+    return ProjectPaths.from_tools_dir()
 
 
 def handle_errors(func: Callable[P, R]) -> Callable[P, R]:
@@ -82,7 +85,7 @@ def build(
     ] = False,
 ) -> None:
     """Build firmware for ESP32 board."""
-    paths = ProjectPaths.from_tools_dir()
+    paths = _paths()
     config = BuildConfig(board=board, clean=clean, verbose=verbose)
     builder = FirmwareBuilder(config, paths)
     builder.build()
@@ -109,7 +112,7 @@ def flash(
     ] = False,
 ) -> None:
     """Flash firmware to ESP32 device."""
-    paths = ProjectPaths.from_tools_dir()
+    paths = _paths()
     config = FlashingConfig(board=board, port=port, baud=baud, erase=erase)
     uploader = FirmwareUploader(config, paths)
     uploader.upload()
@@ -124,7 +127,7 @@ def upload(
     ] = None,
 ) -> None:
     """Upload application files to ESP32 device."""
-    paths = ProjectPaths.from_tools_dir()
+    paths = _paths()
     config = UploadConfig(port=port)
     uploader = FileUploader(config, paths)
     uploader.upload_files()
@@ -157,7 +160,7 @@ def clean(
     ] = False,
 ) -> None:
     """Clean build artifacts and caches."""
-    paths = ProjectPaths.from_tools_dir()
+    paths = _paths()
     cleaner = BuildCleaner(paths, deep_clean=deep)
     cleaner.clean()
 
@@ -180,6 +183,10 @@ def deploy(  # noqa: PLR0913
     clean: Annotated[
         bool,
         typer.Option("--clean", "-c", help="Clean before building"),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Show verbose output"),
     ] = False,
     erase: Annotated[
         bool,
@@ -207,41 +214,46 @@ def deploy(  # noqa: PLR0913
     ] = RetryConfig.DEVICE_STABILIZE_DELAY,
 ) -> None:
     """Full deployment: build + flash + upload + monitor."""
-    paths = ProjectPaths.from_tools_dir()
-    any_step_run = False
+    paths = _paths()
 
-    if not skip_build:
-        print_header("STEP 1/4: Building Firmware")
-        build_config = BuildConfig(board=board, clean=clean)
-        builder = FirmwareBuilder(build_config, paths)
-        builder.build()
-        any_step_run = True
-
-    if not skip_flash:
-        print_header("STEP 2/4: Flashing Firmware")
-        flash_config = FlashingConfig(board=board, port=port, baud=baud, erase=erase)
-        firmware_uploader = FirmwareUploader(flash_config, paths)
-        firmware_uploader.upload()
-        any_step_run = True
-
-    if not skip_upload:
-        print_header("STEP 3/4: Uploading Application Files")
+    def _upload_step() -> None:
         if not skip_flash:
             print_info(f"Waiting {stabilize_seconds}s for device stabilization...")
             time.sleep(stabilize_seconds)
-        upload_config = UploadConfig(port=port)
-        file_uploader = FileUploader(upload_config, paths)
-        file_uploader.upload_files()
-        any_step_run = True
+        FileUploader(UploadConfig(port=port), paths).upload_files()
 
-    if not skip_monitor:
-        print_header("STEP 4/4: Monitoring Device")
-        monitor_config = MonitorConfig(port=port)
-        serial_monitor = SerialMonitor(monitor_config)
-        serial_monitor.monitor()
-        any_step_run = True
+    steps = [
+        (
+            "Building Firmware",
+            not skip_build,
+            lambda: FirmwareBuilder(
+                BuildConfig(board=board, clean=clean, verbose=verbose),
+                paths,
+            ).build(),
+        ),
+        (
+            "Flashing Firmware",
+            not skip_flash,
+            lambda: FirmwareUploader(
+                FlashingConfig(board=board, port=port, baud=baud, erase=erase),
+                paths,
+            ).upload(),
+        ),
+        ("Uploading Application Files", not skip_upload, _upload_step),
+        (
+            "Monitoring Device",
+            not skip_monitor,
+            lambda: SerialMonitor(MonitorConfig(port=port)).monitor(),
+        ),
+    ]
+    enabled = [(label, action) for label, on, action in steps if on]
+    total = len(enabled)
 
-    if any_step_run:
+    for counter, (label, action) in enumerate(enabled, start=1):
+        print_header(f"STEP {counter}/{total}: {label}")
+        action()
+
+    if total:
         print_success("Deployment completed successfully!")
     else:
         print_info("No deployment steps were executed.")
