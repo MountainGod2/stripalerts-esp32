@@ -184,6 +184,10 @@ def deploy(  # noqa: PLR0913
         bool,
         typer.Option("--clean", "-c", help="Clean before building"),
     ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Show verbose output"),
+    ] = False,
     erase: Annotated[
         bool,
         typer.Option("--erase", "-e", help="Erase flash before flashing"),
@@ -222,7 +226,10 @@ def deploy(  # noqa: PLR0913
         (
             "Building Firmware",
             not skip_build,
-            lambda: FirmwareBuilder(BuildConfig(board=board, clean=clean), paths).build(),
+            lambda: FirmwareBuilder(
+                BuildConfig(board=board, clean=clean, verbose=verbose),
+                paths,
+            ).build(),
         ),
         (
             "Flashing Firmware",
