@@ -1,4 +1,4 @@
-"""Subprocess utilities with retry logic and better error handling."""
+"""Subprocess helpers."""
 
 from __future__ import annotations
 
@@ -23,16 +23,7 @@ def retry(
     delay: float = RetryConfig.RETRY_DELAY,
     exceptions: tuple[type[Exception], ...] = (subprocess.CalledProcessError,),
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
-    """Decorator to retry a function on failure.
-
-    Args:
-        max_attempts: Number of attempts to make (must be >= 1).
-        delay: Seconds to wait between retries.
-        exceptions: Tuple of exceptions to catch and retry.
-
-    Raises:
-        ValueError: If max_attempts < 1.
-    """
+    """Decorator to retry a function on failure."""
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
@@ -40,21 +31,20 @@ def retry(
             if max_attempts < 1:
                 msg = "max_attempts must be >= 1"
                 raise ValueError(msg)
-            last_exception = None
-            for attempt in range(max_attempts):
+            last_exception: Exception | None = None
+            for attempt in range(1, max_attempts + 1):
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
                     last_exception = e
-                    if attempt < max_attempts - 1:
+                    if attempt < max_attempts:
                         print_warning(
-                            f"Attempt {attempt + 1}/{max_attempts} failed, retrying in {delay}s...",
+                            f"Attempt {attempt}/{max_attempts} failed, retrying in {delay}s...",
                         )
                         time.sleep(delay)
                     else:
                         print_error(f"All {max_attempts} attempts failed")
 
-            # Raise the last exception if all retries failed
             if last_exception is None:
                 msg = "Retry logic failed without capturing an exception"
                 raise RuntimeError(msg)
@@ -74,24 +64,7 @@ def run_command(  # noqa: PLR0913
     capture_output: bool = False,
     verbose: bool = False,
 ) -> subprocess.CompletedProcess[bytes]:
-    """Run a command with consistent error handling.
-
-    Args:
-        cmd: Command and arguments as list
-        cwd: Working directory
-        env: Environment variables
-        timeout: Command timeout in seconds
-        check: Raise exception on non-zero exit
-        capture_output: Capture stdout/stderr
-        verbose: Print command before execution
-
-    Returns:
-        CompletedProcess instance
-
-    Raises:
-        CommandError: If command fails and check=True
-        OperationTimeoutError: If command times out
-    """
+    """Run a command with consistent error handling."""
     if verbose:
         print_command(cmd)
 
@@ -121,16 +94,7 @@ def run_command_quiet(
     cwd: str | Path | None = None,
     timeout: int = 5,
 ) -> tuple[bool, str]:
-    """Run command quietly and return success status and output.
-
-    Args:
-        cmd: Command and arguments
-        cwd: Working directory
-        timeout: Timeout in seconds
-
-    Returns:
-        Tuple of (success, output)
-    """
+    """Run command quietly and return `(success, output)`."""
     try:
         result = subprocess.run(
             cmd,
@@ -150,28 +114,9 @@ def check_command_available(
     version_flag: str = "--version",
     timeout: int = 5,
 ) -> bool:
-    """Check if a command-line tool is available.
-
-    Args:
-        command: Command name to check
-        version_flag: Flag to use for version check
-        timeout: Timeout in seconds
-
-    Returns:
-        True if command is available
-    """
+    """Return whether a command-line tool is available."""
     success, _ = run_command_quiet([command, version_flag], timeout=timeout)
     return success
-
-
-@retry(max_attempts=RetryConfig.MAX_RETRIES, exceptions=(CommandError,))
-def run_with_retry(
-    cmd: list[str],
-    cwd: str | Path | None = None,
-    timeout: int | None = RetryConfig.OPERATION_TIMEOUT,
-) -> subprocess.CompletedProcess[bytes]:
-    """Run command with automatic retry on failure."""
-    return run_command(cmd, cwd=cwd, timeout=timeout, check=True)
 
 
 def run_interactive(
@@ -179,21 +124,12 @@ def run_interactive(
     cwd: str | Path | None = None,
     env: dict[str, str] | None = None,
 ) -> int:
-    """Run command interactively (inherit stdin/stdout/stderr).
-
-    Args:
-        cmd: Command and arguments
-        cwd: Working directory
-        env: Environment variables
-
-    Returns:
-        Exit code
-    """
+    """Run command interactively and return exit code."""
     try:
         result = subprocess.run(cmd, cwd=str(cwd) if cwd else None, env=env, check=False)
     except KeyboardInterrupt:
         print_warning("Interrupted by user")
-        return 130  # SIGINT
+        return 130
     else:
         return result.returncode
 
@@ -203,15 +139,6 @@ def get_command_output(
     cwd: str | Path | None = None,
     timeout: int = 5,
 ) -> str | None:
-    """Get command output as string or None if failed.
-
-    Args:
-        cmd: Command and arguments
-        cwd: Working directory
-        timeout: Timeout in seconds
-
-    Returns:
-        Command output or None if failed
-    """
+    """Return command output text or `None` on failure."""
     success, output = run_command_quiet(cmd, cwd=cwd, timeout=timeout)
     return output.strip() if success else None

@@ -1,4 +1,4 @@
-"""Rich console output utilities for StripAlerts ESP32 tools."""
+"""Console output helpers."""
 
 from __future__ import annotations
 
@@ -22,11 +22,8 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from rich.prompt import Confirm, Prompt
-from rich.table import Table
 from rich.theme import Theme
 
-# Custom theme for StripAlerts branding
 STRIPALERTS_THEME = Theme(
     {
         "info": "cyan",
@@ -39,7 +36,6 @@ STRIPALERTS_THEME = Theme(
     },
 )
 
-# Global console instance
 console = Console(theme=STRIPALERTS_THEME)
 
 
@@ -73,25 +69,10 @@ def print_info(message: str) -> None:
     console.print(f"[info]INFO:[/info] {message}")
 
 
-def print_step(step: str, message: str) -> None:
-    """Print a step in a multi-step process."""
-    console.print(f"[bold]{step}[/bold] {message}")
-
-
 def print_file_operation(operation: str, path: str, success: bool = True) -> None:
     """Print a file operation result."""
     style = "success" if success else "error"
     console.print(f"[{style}]{operation}[/{style}] [path]{path}[/path]")
-
-
-def print_table(title: str, headers: list[str], rows: list[list[str]]) -> None:
-    """Print a formatted table."""
-    table = Table(title=title, show_header=True, header_style="bold magenta")
-    for header in headers:
-        table.add_column(header)
-    for row in rows:
-        table.add_row(*row)
-    console.print(table)
 
 
 def print_command(cmd: list[str]) -> None:
@@ -106,17 +87,8 @@ def print_keyval(key: str, value: Any) -> None:
 
 
 @contextmanager
-def progress_bar(description: str) -> Iterator[Progress]:  # noqa: ARG001
-    """Create a progress bar context manager.
-
-    Args:
-        description: Suggested description for the task (caller must use via add_task).
-
-    Example:
-        with progress_bar("Downloading") as progress:
-            task = progress.add_task("Downloading", total=100)
-            ...
-    """
+def progress_bar() -> Iterator[Progress]:
+    """Create a progress bar context manager."""
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -128,25 +100,8 @@ def progress_bar(description: str) -> Iterator[Progress]:  # noqa: ARG001
         yield progress
 
 
-@contextmanager
-def spinner(description: str) -> Iterator[None]:
-    """Create a spinner for long-running operations."""
-    with console.status(f"[info]{description}[/info]", spinner="dots"):
-        yield
-
-
-def confirm(prompt: str, default: bool = False) -> bool:
-    """Ask user for confirmation."""
-    return Confirm.ask(prompt, default=default, console=console)
-
-
-def prompt(question: str, default: str | None = None) -> str | None:
-    """Prompt user for input."""
-    return Prompt.ask(question, default=default, console=console)
-
-
 class StatusLogger:
-    """Context manager for tracking operation status."""
+    """Context manager for operation status."""
 
     def __init__(self, operation: str) -> None:
         """Initialize status logger."""
@@ -169,24 +124,3 @@ class StatusLogger:
             print_success(f"{self.operation} completed")
         else:
             print_error(f"{self.operation} failed")
-
-
-def format_size(size_bytes: int) -> str:
-    """Format byte size in human-readable format."""
-    size_float = float(size_bytes)
-    for unit in ["B", "KB", "MB", "GB"]:
-        if size_float < 1024:  # 1 KB = 1024 B  # noqa: PLR2004
-            return f"{size_float:.2f} {unit}"
-        size_float /= 1024
-    return f"{size_float:.2f} TB"
-
-
-def format_duration(seconds: float) -> str:
-    """Format duration in human-readable format."""
-    if seconds < 60:  # noqa: PLR2004
-        return f"{seconds:.1f}s"
-    minutes, secs = divmod(int(seconds), 60)
-    if minutes < 60:  # noqa: PLR2004
-        return f"{minutes}m {secs}s"
-    hours, mins = divmod(minutes, 60)
-    return f"{hours}h {mins}m {secs}s"

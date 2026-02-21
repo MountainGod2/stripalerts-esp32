@@ -1,9 +1,8 @@
-"""Device detection and management for ESP32."""
+"""ESP32 device detection and control."""
 
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -21,118 +20,99 @@ ESP32_VID_PIDS = [(0x10C4, 0xEA60), (0x1A86, 0x7523), (0x303A, None)]
 
 
 class ESP32Device:
-    """Represents an ESP32 device connection."""
+    """ESP32 serial connection wrapper."""
 
     def __init__(self, port: str) -> None:
         """Initialize device with port."""
         self.port = port
 
     def soft_reset(self, timeout: int = 5) -> bool:
-        """Soft-reset device to restart application.
+        """Restart device so boot.py/main.py run."""
+        commands = [
+            self._mpremote_cmd("exec", "import machine; machine.reset()"),
+            self._mpremote_cmd("soft-reset"),
+        ]
 
-        Args:
-            timeout: Timeout in seconds
-
-        Returns:
-            True if reset successful
-        """
-        try:
-            result = run_command(
-                ["mpremote", "connect", self.port, "exec", "import machine; machine.reset()"],
+        for index, cmd in enumerate(commands):
+            if not self._run_mpremote(
+                cmd,
                 timeout=timeout,
-                capture_output=True,
                 check=False,
-            )
-            if result.returncode != 0:
-                print_warning(
-                    "Full reset command returned non-zero (possible disconnect during reset); "
-                    "continuing as successful reset",
-                )
-            time.sleep(1)
-            print_success(f"Device on {self.port} reset successfully")
-            return True
-        except (subprocess.SubprocessError, OSError, CommandError, OperationTimeoutError):
-            pass
+                allow_disconnect_success=index == 0,
+            ):
+                continue
 
-        try:
-            run_command(
-                ["mpremote", "connect", self.port, "soft-reset"],
-                timeout=timeout,
-                capture_output=True,
-            )
             time.sleep(1)
             print_success(f"Device on {self.port} reset successfully")
-        except (subprocess.SubprocessError, OSError, CommandError, OperationTimeoutError) as e:
-            print_warning(f"Soft reset failed: {e}")
-            return False
-        else:
             return True
+
+        print_warning(f"Reset failed on {self.port}")
+        return False
 
     def interrupt_program(self, timeout: int = 5) -> bool:
-        """Interrupt running program with Ctrl+C.
-
-        Args:
-            timeout: Timeout in seconds
-
-        Returns:
-            True if interrupt successful
-        """
-        try:
-            run_command(
-                ["mpremote", "connect", self.port, "exec", ""],
-                timeout=timeout,
-                capture_output=True,
-            )
-        except (subprocess.SubprocessError, OSError, CommandError, OperationTimeoutError):
-            return False
-        else:
-            return True
+        """Interrupt a running program."""
+        return self._run_mpremote(
+            self._mpremote_cmd("exec", ""),
+            timeout=timeout,
+        )
 
     def remove_file(self, remote_path: str, timeout: int = 5) -> bool:
-        """Remove file from device filesystem.
+        """Remove a file from device filesystem."""
+        cmd = self._mpremote_cmd("fs", "rm", f":{remote_path}")
+        return self._run_mpremote(cmd, timeout=timeout, check=False)
 
-        Args:
-            remote_path: Remote file path
-            timeout: Timeout in seconds
+    def copy_file(self, local_path: str, remote_path: str, timeout: int = 30) -> bool:
+        """Copy a local file to device filesystem."""
+        cmd = self._mpremote_cmd("fs", "cp", local_path, f":{remote_path}")
+        return self._run_mpremote(cmd, timeout=timeout, check=False)
 
-        Returns:
-            True if removal successful
-        """
+    def _mpremote_cmd(self, *args: str) -> list[str]:
+        """Build an mpremote command for this device."""
+        return ["mpremote", "connect", self.port, *args]
+
+    def _run_mpremote(
+        self,
+        cmd: list[str],
+        timeout: int,
+        *,
+        check: bool = True,
+        allow_disconnect_success: bool = False,
+    ) -> bool:
+        """Run an mpremote command and return success."""
         try:
             result = run_command(
-                ["mpremote", "connect", self.port, "fs", "rm", f":{remote_path}"],
+                cmd,
                 timeout=timeout,
                 capture_output=True,
-                check=False,
+                check=check,
             )
-        except (subprocess.SubprocessError, OSError, CommandError, OperationTimeoutError):
+        except (OSError, CommandError, OperationTimeoutError):
             return False
-        else:
+
+        if not check:
+            if result.returncode != 0 and allow_disconnect_success:
+                print_warning("mpremote disconnected during reset; treating as successful reset")
+                return True
             return result.returncode == 0
+        return True
 
 
 def _find_esp32_via_esptool() -> str | None:
-    """Try to find ESP32 device using esptool.
-
-    Returns:
-        Port path or None if not found
-    """
+    """Try to find ESP32 device using esptool."""
     output = get_command_output([sys.executable, "-m", "esptool", "chip_id"])
-    if output:
-        for line in output.split("\n"):
-            if "Serial port" in line:
-                port = line.split()[-1].rstrip(":")
-                print_success(f"Found ESP32 on port: {port}")
-                return port
+    if not output:
+        return None
+
+    for line in output.split("\n"):
+        if "Serial port" in line:
+            port = line.split()[-1].rstrip(":")
+            print_success(f"Found ESP32 on port: {port}")
+            return port
     return None
 
 
 def _find_esp32_via_serial_ports() -> str | None:
-    """Try to find ESP32 device using pyserial list_ports.
-
-    Returns:
-        Port path or None if not found
-    """
+    """Try to find ESP32 device using pyserial list_ports."""
     if list_ports is None:
         return None
 
@@ -145,39 +125,26 @@ def _find_esp32_via_serial_ports() -> str | None:
 
 
 def _find_esp32_via_dev_patterns() -> str | None:
-    """Try to find ESP32 device by searching /dev patterns (Unix-like systems).
-
-    Returns:
-        Port path or None if not found
-    """
+    """Try to find ESP32 device by searching /dev patterns (Unix-like systems)."""
     if sys.platform == "win32":
         return None
 
     patterns = ["ttyUSB*", "ttyACM*", "cu.usb*", "cu.wchusbserial*"]
-    ports = [str(p) for pattern in patterns for p in Path("/dev").glob(pattern)]
+    ports = sorted(str(p) for pattern in patterns for p in Path("/dev").glob(pattern))
     if ports:
-        port = sorted(ports)[0]
+        port = ports[0]
         print_warning(f"Using port: {port} (pattern-based guess)")
         return port
     return None
 
 
 def find_esp32_device() -> str:
-    """Auto-detect ESP32 device serial port.
-
-    Returns:
-        Serial port path
-
-    Raises:
-        DeviceNotFoundError: If no device found
-    """
+    """Auto-detect ESP32 serial port."""
     print_info("Auto-detecting ESP32 device...")
 
-    # Try multiple detection strategies (esptool last to avoid device reset)
     for finder in [
         _find_esp32_via_serial_ports,
         _find_esp32_via_dev_patterns,
-        _find_esp32_via_esptool,
     ]:
         port = finder()
         if port:
@@ -192,22 +159,16 @@ def find_esp32_device() -> str:
             )
             return port
 
+    port = _find_esp32_via_esptool()
+    if port:
+        return port
+
     msg = "No ESP32 device found. Please connect device or specify --port"
     raise DeviceNotFoundError(msg)
 
 
 def get_or_find_port(port: str | None) -> str:
-    """Get specified port or auto-detect.
-
-    Args:
-        port: Optional port specification
-
-    Returns:
-        Port path
-
-    Raises:
-        DeviceNotFoundError: If no device found
-    """
+    """Return specified port or auto-detect one."""
     if port:
         print_info(f"Using specified port: {port}")
         return port
@@ -215,40 +176,14 @@ def get_or_find_port(port: str | None) -> str:
 
 
 def check_mpremote() -> None:
-    """Check if mpremote is installed.
-
-    Raises:
-        PrerequisiteError: If mpremote not available
-    """
+    """Ensure `mpremote` is available."""
     if not check_command_available("mpremote"):
         msg = "mpremote not found. Install with: uv sync"
         raise PrerequisiteError(msg)
 
 
-def check_esptool() -> None:
-    """Check if esptool is installed.
-
-    Raises:
-        PrerequisiteError: If esptool not available
-    """
-    output = get_command_output([sys.executable, "-m", "esptool", "version"])
-    if output:
-        return
-
-    if not check_command_available("esptool.py"):
-        msg = "esptool not found. Install with: uv sync or python -m pip install esptool"
-        raise PrerequisiteError(msg)
-
-
 def check_idf_environment() -> tuple[Path, list[str]]:
-    """Check ESP-IDF installation and configuration.
-
-    Returns:
-        Tuple of (idf_path, idf_py_command)
-
-    Raises:
-        PrerequisiteError: If ESP-IDF not properly configured
-    """
+    """Validate ESP-IDF environment and return `(idf_path, idf_cmd)`."""
     esp_idf_path = os.environ.get("IDF_PATH")
     if not esp_idf_path:
         msg = (
@@ -285,11 +220,5 @@ def check_idf_environment() -> tuple[Path, list[str]]:
 
 
 def check_pyserial() -> bool:
-    """Check if pyserial is available.
-
-    Uses the module-level list_ports import as the single source of truth.
-
-    Returns:
-        True if pyserial is available
-    """
+    """Return whether pyserial is available."""
     return list_ports is not None

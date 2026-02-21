@@ -1,4 +1,4 @@
-"""Modern firmware builder for StripAlerts ESP32."""
+"""Firmware builder."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .console import (
     print_warning,
 )
 from .device import check_idf_environment
-from .exceptions import BuildError
+from .exceptions import BuildError, CommandError, OperationTimeoutError
 from .subprocess_utils import run_command
 
 if TYPE_CHECKING:
@@ -27,35 +27,19 @@ class FirmwareBuilder:
     """Builds ESP32 MicroPython firmware with frozen modules."""
 
     def __init__(self, config: BuildConfig, paths: ProjectPaths) -> None:
-        """Initialize firmware builder.
-
-        Args:
-            config: Build configuration
-            paths: Project paths
-        """
+        """Initialize firmware builder."""
         self.config = config
         self.paths = paths
-        self.idf_cmd: list[str] = []
 
     def check_prerequisites(self) -> None:
-        """Verify ESP-IDF is installed and configured.
-
-        Raises:
-            BuildError: If prerequisites are not met
-        """
+        """Verify ESP-IDF installation and configuration."""
         with StatusLogger("Checking prerequisites"):
             idf_path, idf_cmd = check_idf_environment()
-            self.idf_cmd = idf_cmd
             print_keyval("ESP-IDF Path", idf_path)
             print_keyval("idf.py Command", " ".join(idf_cmd))
 
     def setup_micropython(self) -> None:
-        """Initialize MicroPython git submodule if not populated.
-
-        Raises:
-            BuildError: If submodule initialization fails
-        """
-        # Check if submodule is already populated
+        """Initialize MicroPython git submodule if needed."""
         marker_file = self.paths.micropython / "py" / "mpconfig.h"
         if marker_file.exists():
             print_info(f"MicroPython submodule already initialized at {self.paths.micropython}")
@@ -75,16 +59,12 @@ class FirmwareBuilder:
                     cwd=self.paths.root,
                     verbose=self.config.verbose,
                 )
-            except Exception as e:
+            except (CommandError, OperationTimeoutError, OSError) as e:
                 msg = f"Failed to initialize MicroPython submodule: {e}"
                 raise BuildError(msg) from e
 
     def build_mpy_cross(self) -> None:
-        """Build mpy-cross compiler if not already built.
-
-        Raises:
-            BuildError: If mpy-cross build fails
-        """
+        """Build mpy-cross compiler if missing."""
         mpy_cross_bin = self.paths.mpy_cross / "build" / "mpy-cross"
 
         if mpy_cross_bin.exists():
@@ -97,9 +77,9 @@ class FirmwareBuilder:
                     ["make", "CC=gcc"],
                     cwd=self.paths.mpy_cross,
                     verbose=self.config.verbose,
-                    timeout=None,  # No timeout for building
+                    timeout=None,
                 )
-            except Exception as e:
+            except (CommandError, OperationTimeoutError, OSError) as e:
                 msg = f"Failed to build mpy-cross: {e}"
                 raise BuildError(msg) from e
 
@@ -118,43 +98,36 @@ class FirmwareBuilder:
             print_file_operation("Removed", str(self.paths.dist))
 
     def build_firmware(self) -> None:
-        """Build MicroPython firmware with frozen modules.
-
-        Raises:
-            BuildError: If firmware build fails
-        """
+        """Build MicroPython firmware with frozen modules."""
         with StatusLogger(f"Building firmware for {self.config.board}"):
             if self.config.clean:
                 self.clean_build_artifacts()
 
             make_args = [f"BOARD={self.config.board}"]
 
-            # Use custom board definition if available
             board_dir = self.paths.board_dir(self.config.board)
             if board_dir.exists():
                 print_info(f"Using custom board definition from: {board_dir}")
                 make_args.append(f"BOARD_DIR={board_dir}")
 
             try:
-                # Build submodules first
                 run_command(
                     ["make", *make_args, "submodules"],
                     cwd=self.paths.micropython_esp32,
                     verbose=self.config.verbose,
-                    timeout=None,  # No timeout for building
+                    timeout=None,
                 )
 
-                # Build firmware
                 run_command(
                     ["make", *make_args],
                     cwd=self.paths.micropython_esp32,
                     verbose=self.config.verbose,
-                    timeout=None,  # No timeout for building
+                    timeout=None,
                 )
 
                 self._copy_firmware_artifacts()
 
-            except Exception as e:
+            except (CommandError, OperationTimeoutError, OSError) as e:
                 msg = f"Failed to build firmware: {e}"
                 raise BuildError(msg) from e
 
@@ -179,7 +152,6 @@ class FirmwareBuilder:
             else:
                 print_warning(f"Firmware file not found: {src_rel}")
 
-        # Create versioned firmware file
         micropython_bin = build_dir / "micropython.bin"
         if micropython_bin.exists():
             version = self._get_version()
@@ -188,11 +160,7 @@ class FirmwareBuilder:
             print_file_operation("Created", versioned_name)
 
     def _get_version(self) -> str:
-        """Extract version from pyproject.toml.
-
-        Returns:
-            Version string or 'dev' if not found
-        """
+        """Extract version from `pyproject.toml`."""
         pyproject_path = self.paths.root / "pyproject.toml"
         if pyproject_path.exists():
             content = pyproject_path.read_text()
@@ -202,12 +170,7 @@ class FirmwareBuilder:
         return "dev"
 
     def build(self) -> None:
-        """Execute complete build workflow.
-
-        Raises:
-            BuildError: If any build step fails
-            PrerequisiteError: If prerequisites not met
-        """
+        """Execute complete build workflow."""
         print_header("StripAlerts ESP32 Firmware Builder", f"Board: {self.config.board}")
 
         self.check_prerequisites()

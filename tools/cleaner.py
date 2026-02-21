@@ -1,4 +1,4 @@
-"""Modern build cleaner for StripAlerts ESP32."""
+"""Build artifact cleaner."""
 
 from __future__ import annotations
 
@@ -24,19 +24,13 @@ class BuildCleaner:
     """Cleans build artifacts and caches."""
 
     def __init__(self, paths: ProjectPaths, *, deep_clean: bool = False) -> None:
-        """Initialize build cleaner.
-
-        Args:
-            paths: Project paths
-            deep_clean: Whether to perform deep clean including MicroPython
-        """
+        """Initialize build cleaner."""
         self.paths = paths
         self.deep_clean = deep_clean
 
     def clean_build_artifacts(self) -> None:
         """Remove dist/ and build-* directories."""
         with StatusLogger("Cleaning build artifacts"):
-            # Clean dist directory
             if self.paths.dist.exists():
                 print_info(f"Removing: {self.paths.dist}")
                 try:
@@ -45,7 +39,6 @@ class BuildCleaner:
                 except OSError as e:
                     print_warning(f"Failed to remove {self.paths.dist}: {e}")
 
-            # Clean ESP32 build directories
             if self.paths.micropython_esp32.exists():
                 dirs_to_clean = list(self.paths.micropython_esp32.glob("build-*"))
                 build_dir = self.paths.micropython_esp32 / "build"
@@ -65,11 +58,12 @@ class BuildCleaner:
         """Remove __pycache__ and *.pyc files."""
         with StatusLogger("Cleaning Python cache files"):
             patterns = ["**/__pycache__", "**/*.pyc", "**/*.pyo", "**/*.pyd"]
+            micropython_root = self.paths.micropython.resolve()
 
             for pattern in patterns:
                 for path in self.paths.root.glob(pattern):
-                    # Skip micropython submodule
-                    if "micropython" in str(path):
+                    resolved = path.resolve()
+                    if micropython_root in resolved.parents or resolved == micropython_root:
                         continue
 
                     try:
@@ -83,13 +77,12 @@ class BuildCleaner:
                         print_warning(f"Failed to remove {path}: {e}")
 
     def clean_micropython(self) -> None:
-        """Run 'make clean' in mpy-cross and esp32 port directories."""
+        """Run `make clean` in MicroPython build directories."""
         if not self.paths.micropython.exists():
             print_info("MicroPython directory not found, skipping")
             return
 
         with StatusLogger("Cleaning MicroPython artifacts"):
-            # Clean mpy-cross
             if (self.paths.mpy_cross / "Makefile").exists():
                 try:
                     print_info("Cleaning mpy-cross...")
@@ -98,7 +91,6 @@ class BuildCleaner:
                 except (CommandError, OSError) as e:
                     print_warning(f"Failed to clean mpy-cross: {e}")
 
-            # Clean ESP32 port
             if (self.paths.micropython_esp32 / "Makefile").exists():
                 if not check_command_available("idf.py"):
                     print_info("idf.py not found, skipping ESP32 port clean")

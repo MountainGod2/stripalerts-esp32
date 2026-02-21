@@ -1,4 +1,4 @@
-"""Configuration management for StripAlerts ESP32 tools."""
+"""Tool configuration models."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import ClassVar
 
 
 class ChipType(str, Enum):
-    """ESP32 chip types supported."""
+    """Supported ESP32 chip types."""
 
     ESP32 = "esp32"
     ESP32S2 = "esp32s2"
@@ -37,9 +37,8 @@ class ChipType(str, Enum):
 
 @dataclass(frozen=True)
 class FlashConfig:
-    """Flash memory configuration constants."""
+    """Flash layout constants."""
 
-    # Chip-specific bootloader addresses
     BOOTLOADER_ADDR_MAP: ClassVar[dict[str, int]] = {
         "esp32": 0x1000,
         "esp32s2": 0x1000,
@@ -57,20 +56,13 @@ class FlashConfig:
 
     @classmethod
     def get_bootloader_addr(cls, chip_type: ChipType) -> int:
-        """Get bootloader address for specific chip type.
-
-        Args:
-            chip_type: The ESP32 chip type
-
-        Returns:
-            Bootloader flash address for the chip
-        """
+        """Return bootloader address for chip type."""
         return cls.BOOTLOADER_ADDR_MAP.get(chip_type.value, 0x0)
 
 
 @dataclass(frozen=True)
 class RetryConfig:
-    """Retry configuration for flaky operations."""
+    """Retry and timeout constants."""
 
     MAX_RETRIES: ClassVar[int] = 3
     RETRY_DELAY: ClassVar[float] = 1.0
@@ -80,7 +72,7 @@ class RetryConfig:
 
 @dataclass
 class ChipTypeMixin:
-    """Mixin providing chip_type property based on board name."""
+    """Adds a chip type derived from board name."""
 
     board: str
 
@@ -128,7 +120,7 @@ class ProjectPaths:
 
 @dataclass
 class BuildConfig(ChipTypeMixin):
-    """Configuration for firmware building."""
+    """Build command options."""
 
     board: str = "STRIPALERTS_S3"
     clean: bool = False
@@ -137,7 +129,7 @@ class BuildConfig(ChipTypeMixin):
 
 @dataclass
 class FlashingConfig(ChipTypeMixin):
-    """Configuration for firmware flashing."""
+    """Flash command options."""
 
     board: str = "STRIPALERTS_S3"
     port: str | None = None
@@ -147,7 +139,7 @@ class FlashingConfig(ChipTypeMixin):
 
 @dataclass
 class MonitorConfig:
-    """Configuration for serial monitoring."""
+    """Monitor command options."""
 
     port: str | None = None
     baud: int = FlashConfig.DEFAULT_MONITOR_BAUD
@@ -155,23 +147,7 @@ class MonitorConfig:
 
 @dataclass
 class UploadConfig:
-    """Configuration for file uploading."""
+    """Upload command options."""
 
     port: str | None = None
     files: list[str] = field(default_factory=lambda: ["boot.py", "main.py"])
-
-
-@dataclass
-class DeployConfig(ChipTypeMixin):
-    """Configuration for full deployment workflow."""
-
-    board: str = "STRIPALERTS_S3"
-    port: str | None = None
-    baud: int = FlashConfig.DEFAULT_FLASH_BAUD
-    clean: bool = False
-    erase: bool = False
-    skip_build: bool = False
-    skip_flash: bool = False
-    skip_upload: bool = False
-    skip_monitor: bool = False
-    stabilize_seconds: float = RetryConfig.DEVICE_STABILIZE_DELAY
