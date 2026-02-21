@@ -123,4 +123,4 @@ class StatusLogger:
         if exc_type is None:
             print_success(f"{self.operation} completed")
         else:
-            print_error(f"{self.operation} failed")
+            print_error(f"{self.operation} failed", detail=str(exc_val) if exc_val else None)

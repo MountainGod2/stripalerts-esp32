@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shlex
+
 
 class StripAlertsError(Exception):
     """Base tool exception."""
@@ -39,7 +41,7 @@ class CommandError(StripAlertsError):
 
     def _format_message(self) -> str:
         """Format error message."""
-        msg = f"Command failed with exit code {self.returncode}: {' '.join(self.cmd)}"
+        msg = f"Command failed with exit code {self.returncode}: {shlex.join(self.cmd)}"
         if self.stderr:
             msg += f"\n{self.stderr}"
         return msg
