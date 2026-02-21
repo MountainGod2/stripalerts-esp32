@@ -328,6 +328,9 @@ class App:
 
     async def start(self):
         """Start the application."""
-        self.wdt = machine.WDT(timeout=10000)
         await self.setup()
+
+        if self.mode == "NORMAL":
+            self.wdt = machine.WDT(timeout=10000)
+
         await self.run()
