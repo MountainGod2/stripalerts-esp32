@@ -59,6 +59,14 @@ class SerialMonitor:
 
         try:
             with serial.Serial(port, self.config.baud, timeout=1) as ser:
+                try:
+                    ser.reset_input_buffer()
+                    ser.write(b"\x04")  # Ctrl-D: soft reboot in MicroPython
+                    ser.flush()
+                    time.sleep(0.25)
+                except (serial.SerialException, OSError):
+                    pass
+
                 while True:
                     if ser.in_waiting:
                         try:
