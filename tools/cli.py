@@ -211,39 +211,6 @@ def deploy(  # noqa: PLR0913
 ) -> None:
     """Full deployment: build + flash + upload + monitor."""
     paths = _paths()
-    steps_run = 0
-    enabled_steps = [
-        ("Building Firmware", not skip_build),
-        ("Flashing Firmware", not skip_flash),
-        ("Uploading Application Files", not skip_upload),
-        ("Monitoring Device", not skip_monitor),
-    ]
-    total = sum(1 for _, enabled in enabled_steps if enabled)
-    counter = 0
-
-    def run_step(step_label: str, enabled: bool, action: Callable[[], None]) -> None:
-        nonlocal steps_run, counter
-        if not enabled:
-            return
-        counter += 1
-        print_header(f"STEP {counter}/{total}: {step_label}")
-        action()
-        steps_run += 1
-
-    run_step(
-        "Building Firmware",
-        not skip_build,
-        lambda: FirmwareBuilder(BuildConfig(board=board, clean=clean), paths).build(),
-    )
-
-    run_step(
-        "Flashing Firmware",
-        not skip_flash,
-        lambda: FirmwareUploader(
-            FlashingConfig(board=board, port=port, baud=baud, erase=erase),
-            paths,
-        ).upload(),
-    )
 
     def _upload_step() -> None:
         if not skip_flash:
@@ -251,15 +218,35 @@ def deploy(  # noqa: PLR0913
             time.sleep(stabilize_seconds)
         FileUploader(UploadConfig(port=port), paths).upload_files()
 
-    run_step("Uploading Application Files", not skip_upload, _upload_step)
+    steps = [
+        (
+            "Building Firmware",
+            not skip_build,
+            lambda: FirmwareBuilder(BuildConfig(board=board, clean=clean), paths).build(),
+        ),
+        (
+            "Flashing Firmware",
+            not skip_flash,
+            lambda: FirmwareUploader(
+                FlashingConfig(board=board, port=port, baud=baud, erase=erase),
+                paths,
+            ).upload(),
+        ),
+        ("Uploading Application Files", not skip_upload, _upload_step),
+        (
+            "Monitoring Device",
+            not skip_monitor,
+            lambda: SerialMonitor(MonitorConfig(port=port)).monitor(),
+        ),
+    ]
+    enabled = [(label, action) for label, on, action in steps if on]
+    total = len(enabled)
 
-    run_step(
-        "Monitoring Device",
-        not skip_monitor,
-        lambda: SerialMonitor(MonitorConfig(port=port)).monitor(),
-    )
+    for counter, (label, action) in enumerate(enabled, start=1):
+        print_header(f"STEP {counter}/{total}: {label}")
+        action()
 
-    if steps_run:
+    if total:
         print_success("Deployment completed successfully!")
     else:
         print_info("No deployment steps were executed.")
