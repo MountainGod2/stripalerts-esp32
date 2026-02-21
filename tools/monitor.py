@@ -32,11 +32,11 @@ class SerialMonitor:
     def monitor(self) -> None:
         """Start monitoring serial output (mpremote or pyserial)."""
         port = get_or_find_port(self.config.port)
-
-        if check_command_available("mpremote"):
-            self._monitor_mpremote(port)
-        elif check_pyserial():
+        if check_pyserial():
             self._monitor_pyserial(port)
+        elif check_command_available("mpremote"):
+            print_info("pyserial unavailable, falling back to mpremote interactive monitor")
+            self._monitor_mpremote(port)
         else:
             print_warning("Neither mpremote nor pyserial available")
             print_info("Install with: uv sync")
