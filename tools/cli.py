@@ -212,23 +212,32 @@ def deploy(  # noqa: PLR0913
     """Full deployment: build + flash + upload + monitor."""
     paths = _paths()
     steps_run = 0
+    enabled_steps = [
+        ("Building Firmware", not skip_build),
+        ("Flashing Firmware", not skip_flash),
+        ("Uploading Application Files", not skip_upload),
+        ("Monitoring Device", not skip_monitor),
+    ]
+    total = sum(1 for _, enabled in enabled_steps if enabled)
+    counter = 0
 
     def run_step(step_label: str, enabled: bool, action: Callable[[], None]) -> None:
-        nonlocal steps_run
+        nonlocal steps_run, counter
         if not enabled:
             return
-        print_header(step_label)
+        counter += 1
+        print_header(f"STEP {counter}/{total}: {step_label}")
         action()
         steps_run += 1
 
     run_step(
-        "STEP 1/4: Building Firmware",
+        "Building Firmware",
         not skip_build,
         lambda: FirmwareBuilder(BuildConfig(board=board, clean=clean), paths).build(),
     )
 
     run_step(
-        "STEP 2/4: Flashing Firmware",
+        "Flashing Firmware",
         not skip_flash,
         lambda: FirmwareUploader(
             FlashingConfig(board=board, port=port, baud=baud, erase=erase),
@@ -242,10 +251,10 @@ def deploy(  # noqa: PLR0913
             time.sleep(stabilize_seconds)
         FileUploader(UploadConfig(port=port), paths).upload_files()
 
-    run_step("STEP 3/4: Uploading Application Files", not skip_upload, _upload_step)
+    run_step("Uploading Application Files", not skip_upload, _upload_step)
 
     run_step(
-        "STEP 4/4: Monitoring Device",
+        "Monitoring Device",
         not skip_monitor,
         lambda: SerialMonitor(MonitorConfig(port=port)).monitor(),
     )
