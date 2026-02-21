@@ -37,6 +37,24 @@ class ESP32Device:
             True if reset successful
         """
         try:
+            result = run_command(
+                ["mpremote", "connect", self.port, "exec", "import machine; machine.reset()"],
+                timeout=timeout,
+                capture_output=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                print_warning(
+                    "Full reset command returned non-zero (possible disconnect during reset); "
+                    "continuing as successful reset",
+                )
+            time.sleep(1)
+            print_success(f"Device on {self.port} reset successfully")
+            return True
+        except (subprocess.SubprocessError, OSError, CommandError, OperationTimeoutError):
+            pass
+
+        try:
             run_command(
                 ["mpremote", "connect", self.port, "soft-reset"],
                 timeout=timeout,
