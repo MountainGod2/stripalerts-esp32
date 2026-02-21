@@ -38,3 +38,9 @@ make monitor  # Serial monitor
   "wifi_password": "PASSWORD"
 }
 ```
+
+## Factory reset
+
+- Hold the built-in `BOOT` button while powering on or resetting the board.
+- Keep holding for about 5 seconds until reset confirmation is printed on serial.
+- The device removes `config.json` and reboots into provisioning mode.
