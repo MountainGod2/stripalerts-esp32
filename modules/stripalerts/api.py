@@ -70,7 +70,3 @@ class ChaturbateAPI:
                 log_info(f"Event: {method}")
                 self.events.emit("api_event", event)
                 self.events.emit(f"api:{method}", event)
-
-    def stop(self) -> None:
-        """Stop polling."""
-        self._running = False

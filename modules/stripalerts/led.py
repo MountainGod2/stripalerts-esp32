@@ -120,10 +120,6 @@ class LEDController:
             else:
                 await asyncio.sleep(0.1)
 
-    def stop(self) -> None:
-        """Stop the LED controller loop."""
-        self._running = False
-
     @property
     def rainbow_hue(self) -> float:
         """Get the current rainbow hue position.
