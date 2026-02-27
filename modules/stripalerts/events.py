@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from typing import Any
 
 from .constants import MAX_EVENT_QUEUE_SIZE
-from .utils import log_error
+from .utils import log_error, log_warning
 
 
 class EventManager:
@@ -24,6 +24,7 @@ class EventManager:
         self._handlers: dict[str, list[Callable[[Any], Coroutine[Any, Any, None]]]] = {}
         # MicroPython's deque stub lacks generic subscripts, so type: ignore is needed
         self._queue: deque = deque((), MAX_EVENT_QUEUE_SIZE)  # type: ignore[type-arg]
+        self._queue_ready = asyncio.Event()
 
     def on(self, event_type: str, handler: "Callable[[Any], Coroutine[Any, Any, None]]") -> None:
         """Register event handler.
@@ -59,7 +60,10 @@ class EventManager:
             data: Event data (optional)
 
         """
+        if len(self._queue) >= MAX_EVENT_QUEUE_SIZE:
+            log_warning(f"Event queue full, dropping oldest event before adding '{event_type}'")
         self._queue.append((event_type, data))
+        self._queue_ready.set()
 
     async def process(self) -> None:
         """Process queued events."""
@@ -81,5 +85,6 @@ class EventManager:
     async def run(self) -> None:
         """Run event processing loop."""
         while True:
+            await self._queue_ready.wait()
+            self._queue_ready.clear()
             await self.process()
-            await asyncio.sleep(0.1)
