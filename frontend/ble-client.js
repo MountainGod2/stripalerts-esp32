@@ -13,6 +13,9 @@ const CHAR_UUIDS = {
 const CHUNK_SIZE = 18;
 const CHUNK_DELAY_MS = 50;
 
+const NET_FLAG_START = 0x11;
+const NET_FLAG_CHUNK = 0x12;
+
 // Text Encoding
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -24,6 +27,92 @@ export class BleClient {
     this.characteristics = {};
     this.notifications = {};
     this.eventListeners = {};
+    this._netFrame = {
+      totalChunks: 0,
+      chunks: new Map(),
+    };
+  }
+
+  static _toUint8Array(value) {
+    if (!value) return new Uint8Array();
+    if (value instanceof DataView) {
+      return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    }
+    if (value instanceof ArrayBuffer) {
+      return new Uint8Array(value);
+    }
+    if (value instanceof Uint8Array) {
+      return value;
+    }
+    return new Uint8Array(value);
+  }
+
+  _resetNetworkFrame() {
+    this._netFrame.totalChunks = 0;
+    this._netFrame.chunks.clear();
+  }
+
+  _handleNetworksFrame(rawValue) {
+    const bytes = BleClient._toUint8Array(rawValue);
+    if (bytes.length === 0) return;
+
+    const flag = bytes[0];
+
+    if (flag === NET_FLAG_START) {
+      if (bytes.length < 3) {
+        this._resetNetworkFrame();
+        return;
+      }
+
+      const totalChunks = (bytes[1] << 8) | bytes[2];
+      this._netFrame.totalChunks = totalChunks;
+      this._netFrame.chunks = new Map();
+      return;
+    }
+
+    if (flag !== NET_FLAG_CHUNK) {
+      return;
+    }
+
+    if (bytes.length < 3 || this._netFrame.totalChunks <= 0) {
+      this._resetNetworkFrame();
+      return;
+    }
+
+    const index = (bytes[1] << 8) | bytes[2];
+    const chunk = bytes.slice(3);
+    this._netFrame.chunks.set(index, chunk);
+
+    if (this._netFrame.chunks.size < this._netFrame.totalChunks) {
+      return;
+    }
+
+    const orderedChunks = [];
+    for (let i = 0; i < this._netFrame.totalChunks; i++) {
+      const c = this._netFrame.chunks.get(i);
+      if (!c) {
+        this._resetNetworkFrame();
+        return;
+      }
+      orderedChunks.push(c);
+    }
+
+    const totalLen = orderedChunks.reduce((acc, c) => acc + c.length, 0);
+    const combined = new Uint8Array(totalLen);
+    let offset = 0;
+    orderedChunks.forEach((c) => {
+      combined.set(c, offset);
+      offset += c.length;
+    });
+
+    try {
+      const text = textDecoder.decode(combined);
+      this.emit("networks", JSON.parse(text));
+    } catch (e) {
+      console.error("Invalid framed networks payload", e);
+    } finally {
+      this._resetNetworkFrame();
+    }
   }
 
   /**
@@ -98,12 +187,7 @@ export class BleClient {
     });
 
     await this._enableNotification("networks", (e) => {
-      const val = BleClient.decodeValue(e.target.value);
-      try {
-        this.emit("networks", JSON.parse(val));
-      } catch (e) {
-        console.error("Invalid networks JSON", e);
-      }
+      this._handleNetworksFrame(e.target.value);
     });
 
     await this._enableNotification("wifiTest", (e) => {

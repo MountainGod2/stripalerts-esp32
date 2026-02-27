@@ -16,7 +16,6 @@ const state = {
   password: "",
   apiUrl: "",
   currentStep: STEPS.DEVICE,
-  deviceReady: false,
   isConfigEventsComplete: false,
   waitingForSave: false,
   wifiTestSuccess: false,
@@ -122,8 +121,6 @@ const handleDisconnect = async () => {
   console.log("Device disconnected");
   if (state.isConfigEventsComplete) return;
 
-  state.deviceReady = false;
-
   // Auto-reconnect if within setup flow
   if (state.currentStep >= 1 && state.currentStep <= 4) {
     try {
@@ -146,10 +143,6 @@ const onStatusUpdate = (status) => {
     const sub = document.getElementById("scanSubtitle");
     sub.textContent = `Status: ${status}`;
     sub.style.display = "block";
-  }
-
-  if (status === "Ready") {
-    state.deviceReady = true;
   }
 
   if (status.startsWith("WiFi failed") && state.currentStep === STEPS.WIFI) {
@@ -396,7 +389,7 @@ const sendConfig = async () => {
 
     // Send save command
     state.waitingForSave = true;
-    showElement("confirmInfo"); // Ensure it's visible or keep currently visible
+    showElement("confirmInfo");
     document.getElementById("confirmInfo").textContent = "Saving...";
 
     await ble.write("wifiTest", "save");
