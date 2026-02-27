@@ -156,11 +156,20 @@ class BLEManager:
                         log_info(f"BLE Connected: {connection.device}")
 
                         # On connection, immediately send cached or fresh networks
-                        self._tasks.append(
-                            asyncio.create_task(self._send_networks(allow_cache=True)),
-                        )
+                        networks_task = asyncio.create_task(self._send_networks(allow_cache=True))
+                        self._tasks.append(networks_task)
 
                         await connection.disconnected()
+
+                        if networks_task in self._tasks:
+                            self._tasks.remove(networks_task)
+                        if not networks_task.done():
+                            networks_task.cancel()
+                            try:
+                                await networks_task
+                            except asyncio.CancelledError:
+                                pass
+
                         self._connection = None
                         log_info("BLE Disconnected")
                 except asyncio.CancelledError:  # noqa: PERF203 - Must re-raise to properly cancel
