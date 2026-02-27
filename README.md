@@ -1,6 +1,6 @@
 # StripAlerts
 
-MicroPython firmware for ESP32 LED strip control via WiFi and BLE.
+ESP32 LED strip control via WiFi with BLE provisioning.
 
 ## Hardware
 
@@ -32,7 +32,9 @@ make monitor  # Serial monitor
 {
   "led_pin": 48,
   "num_pixels": 60,
-  "led_pattern": "rainbow",
+  "led_timing": 1,
+  "rainbow_step": 0.05,
+  "rainbow_delay": 0.01,
   "api_url": "https://events.testbed.cb.dev/events/USERNAME/APITOKEN/",
   "wifi_ssid": "SSID",
   "wifi_password": "PASSWORD"
