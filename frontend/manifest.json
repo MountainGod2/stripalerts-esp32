@@ -3,7 +3,7 @@
   "short_name": "StripAlerts",
   "description": "Configure StripAlerts devices over Bluetooth and QR.",
   "id": "stripalerts",
-  "start_url": "./?source=pwa",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "display_override": [
