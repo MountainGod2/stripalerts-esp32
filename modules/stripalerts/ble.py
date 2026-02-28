@@ -271,6 +271,8 @@ class BLEManager:
                         continue
 
                     self._rescan_task = asyncio.create_task(self._send_networks(allow_cache=False))
+                    self._tasks.append(self._rescan_task)
+                    self._rescan_task.add_done_callback(self._on_rescan_done)
 
                 elif command == "test":
                     await self._notify_status("Testing WiFi...")
@@ -312,6 +314,25 @@ class BLEManager:
                 raise
             except Exception as e:
                 log_error(f"Command Error: {e}")
+
+    def _on_rescan_done(self, task: "asyncio.Task[object]") -> None:
+        if task in self._tasks:
+            self._tasks.remove(task)
+
+        if self._rescan_task is task:
+            self._rescan_task = None
+
+        if task.cancelled():
+            return
+
+        try:
+            exc = task.exception()
+        except Exception as e:
+            log_error(f"Rescan task completion check failed: {e}")
+            return
+
+        if exc is not None:
+            log_error(f"Rescan task failed: {exc}")
 
     def _write_test_result(self, result: str) -> None:
         """Write result to wifiTest char and notify."""
