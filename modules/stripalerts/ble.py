@@ -15,7 +15,12 @@ import machine
 from micropython import const
 
 from .config import settings
-from .constants import BLE_MAX_NETWORKS_LIST, BLE_MAX_PAYLOAD_SIZE
+from .constants import (
+    BLE_MAX_NETWORKS_LIST,
+    BLE_NET_CHUNK_DATA_SIZE,
+    BLE_NET_FLAG_CHUNK,
+    BLE_NET_FLAG_START,
+)
 from .utils import log_error, log_info
 
 if TYPE_CHECKING:
@@ -31,24 +36,6 @@ _CHAR_WIFITEST = bluetooth.UUID("6e400007-b5a3-f393-e0a9-e50e24dcca9e")
 
 _FLAG_START = const(0x01)
 _FLAG_APPEND = const(0x02)
-
-
-def decode_utf8(data: bytes | str) -> str:
-    """Decode UTF-8 data to string.
-
-    Args:
-        data: Bytes or string data to decode
-
-    Returns:
-        Decoded string or empty string on error
-
-    """
-    try:
-        if isinstance(data, (bytes, bytearray)):
-            return data.decode("utf-8")
-        return str(data)
-    except Exception:
-        return ""
 
 
 class BLEManager:
@@ -80,6 +67,8 @@ class BLEManager:
             _CHAR_WIFITEST: bytearray(),
         }
         self._debounce_events: "dict[bluetooth.UUID, asyncio.Event]" = {}
+        self._scan_lock = asyncio.Lock()
+        self._rescan_task: "asyncio.Task[object] | None" = None
 
         # Service Definition
         self.service = aioble.Service(_SERVICE_UUID)
@@ -156,11 +145,20 @@ class BLEManager:
                         log_info(f"BLE Connected: {connection.device}")
 
                         # On connection, immediately send cached or fresh networks
-                        self._tasks.append(
-                            asyncio.create_task(self._send_networks(allow_cache=True)),
-                        )
+                        networks_task = asyncio.create_task(self._send_networks(allow_cache=True))
+                        self._tasks.append(networks_task)
 
                         await connection.disconnected()
+
+                        if networks_task in self._tasks:
+                            self._tasks.remove(networks_task)
+                        if not networks_task.done():
+                            networks_task.cancel()
+                            try:
+                                await networks_task
+                            except asyncio.CancelledError:
+                                pass
+
                         self._connection = None
                         log_info("BLE Disconnected")
                 except asyncio.CancelledError:  # noqa: PERF203 - Must re-raise to properly cancel
@@ -171,6 +169,13 @@ class BLEManager:
         except asyncio.CancelledError:
             log_info("BLE task cancelled")
         finally:
+            if self._rescan_task and not self._rescan_task.done():
+                self._rescan_task.cancel()
+                try:
+                    await self._rescan_task
+                except asyncio.CancelledError:
+                    pass
+
             for t in self._tasks:
                 t.cancel()
             await asyncio.gather(*self._tasks, return_exceptions=True)
@@ -261,11 +266,16 @@ class BLEManager:
                 log_info(f"Received command: {command}")
 
                 if command == "rescan":
-                    await self._send_networks(allow_cache=False)
+                    if self._rescan_task and not self._rescan_task.done():
+                        await self._notify_status("Scan already in progress")
+                        continue
+
+                    self._rescan_task = asyncio.create_task(self._send_networks(allow_cache=False))
+                    self._tasks.append(self._rescan_task)
+                    self._rescan_task.add_done_callback(self._on_rescan_done)
 
                 elif command == "test":
                     await self._notify_status("Testing WiFi...")
-                    # Notify logic in app.js expects "success" or "failed"
 
                     self._flush_pending_writes()
 
@@ -305,6 +315,25 @@ class BLEManager:
             except Exception as e:
                 log_error(f"Command Error: {e}")
 
+    def _on_rescan_done(self, task: "asyncio.Task[object]") -> None:
+        if task in self._tasks:
+            self._tasks.remove(task)
+
+        if self._rescan_task is task:
+            self._rescan_task = None
+
+        if task.cancelled():
+            return
+
+        try:
+            exc = task.exception()
+        except Exception as e:
+            log_error(f"Rescan task completion check failed: {e}")
+            return
+
+        if exc is not None:
+            log_error(f"Rescan task failed: {exc}")
+
     def _write_test_result(self, result: str) -> None:
         """Write result to wifiTest char and notify."""
         try:
@@ -314,51 +343,89 @@ class BLEManager:
         except Exception as e:
             log_error(f"Notify error: {e}")
 
+    async def _notify_networks_chunked(self, payload: bytes) -> None:
+        """Send network payload using framed chunk notifications.
+
+        Frame format:
+        - Start frame: [FLAG_START, total_chunks_hi, total_chunks_lo]
+        - Chunk frame: [FLAG_CHUNK, index_hi, index_lo, data...]
+        """
+        if not self._connection:
+            return
+
+        total_len = len(payload)
+        total_chunks = total_len // BLE_NET_CHUNK_DATA_SIZE
+        if total_len % BLE_NET_CHUNK_DATA_SIZE:
+            total_chunks += 1
+        if total_chunks == 0:
+            total_chunks = 1
+
+        start_frame = bytes(
+            (
+                BLE_NET_FLAG_START,
+                (total_chunks >> 8) & 0xFF,
+                total_chunks & 0xFF,
+            ),
+        )
+        self.char_networks.write(start_frame)
+        self.char_networks.notify(self._connection)
+        await asyncio.sleep_ms(15)
+
+        if not payload:
+            frame = bytes((BLE_NET_FLAG_CHUNK, 0, 0))
+            self.char_networks.write(frame)
+            self.char_networks.notify(self._connection)
+            return
+
+        for idx in range(total_chunks):
+            start = idx * BLE_NET_CHUNK_DATA_SIZE
+            end = start + BLE_NET_CHUNK_DATA_SIZE
+            chunk = payload[start:end]
+            frame = bytearray(3 + len(chunk))
+            frame[0] = BLE_NET_FLAG_CHUNK
+            frame[1] = (idx >> 8) & 0xFF
+            frame[2] = idx & 0xFF
+            frame[3:] = chunk
+            self.char_networks.write(frame)
+            self.char_networks.notify(self._connection)
+            await asyncio.sleep_ms(15)
+
     async def _send_networks(self, *, allow_cache: bool = False) -> None:
         """Scan and send networks."""
-        networks: "list[NetworkInfo]" = []
+        async with self._scan_lock:
+            networks: "list[NetworkInfo]" = []
 
-        if allow_cache and self.cached_networks:
-            log_info("Using cached networks")
-            networks = self.cached_networks
-            # Clear cache so next request (e.g. rescan button) forces fresh scan
-            self.cached_networks = []
-        else:
-            await self._notify_status("Scanning Networks...")
-            networks = await self.wifi.scan()
+            if allow_cache and self.cached_networks:
+                log_info("Using cached networks")
+                networks = self.cached_networks
+                # Clear cache so next request (e.g. rescan button) forces fresh scan
+                self.cached_networks = []
+            else:
+                await self._notify_status("Scanning Networks...")
+                networks = await self.wifi.scan()
 
-        try:
-            # Prepare networks list, fitting into one BLE packet
-            simple_list: list[dict[str, str | int]] = []
-            for n in networks:
-                entry: dict[str, str | int] = {"ssid": str(n["ssid"]), "rssi": int(n["rssi"])}
-                temp_list = simple_list + [entry]
-                json_str = json.dumps(temp_list)
+            try:
+                # Build candidates and cap list size.
+                simple_list: list[dict[str, str | int]] = []
+                for n in networks:
+                    simple_list.append({"ssid": str(n["ssid"]), "rssi": int(n["rssi"])})
+                    if len(simple_list) >= BLE_MAX_NETWORKS_LIST:
+                        break
 
-                # Check length using safe BLE payload limit (UTF-8 encoded byte length)
-                if len(json_str.encode("utf-8")) > BLE_MAX_PAYLOAD_SIZE:
-                    break
+                encoded = json.dumps(simple_list).encode("utf-8")
+                await self._notify_networks_chunked(encoded)
 
-                simple_list.append(entry)
-                if len(simple_list) >= BLE_MAX_NETWORKS_LIST:
-                    break
+                if self._connection:
+                    await self._notify_status("Scan Complete")
+                else:
+                    await self._notify_status("Disconnected")
 
-            json_str = json.dumps(simple_list)
-
-            # MTU size varies by device/stack; keep payload small.
-            encoded = json_str.encode("utf-8")
-            self.char_networks.write(encoded)
-            if self._connection:
-                self.char_networks.notify(self._connection)
-
-            await self._notify_status("Scan Complete")
-
-            # Signal that we are ready for user interaction
-            await asyncio.sleep(0.5)
-            await self._notify_status("Ready")
-        except Exception as e:
-            log_error(f"Send networks error: {e}")
-            await self._notify_status("Ready")
+                # Signal that we are ready for user interaction
+                await asyncio.sleep(0.5)
+                await self._notify_status("Ready")
+            except Exception as e:
+                log_error(f"Send networks error: {e}")
+                await self._notify_status("Ready")
 
     async def _notify_status(self, message: str) -> None:
         """Send status update."""

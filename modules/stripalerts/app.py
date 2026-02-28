@@ -295,14 +295,13 @@ class App:
             if self.wdt:
                 self.wdt.feed()
 
-            gather_task = asyncio.create_task(asyncio.gather(*self._tasks, return_exceptions=True))
-
+            gather_done = False
             feeder_task = None
             if self.wdt:
 
                 async def _feed_watchdog_until_done():
                     try:
-                        while not gather_task.done():
+                        while not gather_done:
                             if self.wdt:
                                 self.wdt.feed()
                             await asyncio.sleep(1)
@@ -311,7 +310,8 @@ class App:
 
                 feeder_task = asyncio.create_task(_feed_watchdog_until_done())
 
-            await gather_task
+            await asyncio.gather(*self._tasks, return_exceptions=True)
+            gather_done = True
 
             if feeder_task and not feeder_task.done():
                 feeder_task.cancel()

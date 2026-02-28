@@ -17,8 +17,6 @@ async def main() -> None:
     except Exception as e:
         log_error(f"Fatal error: {e}")
         sys.print_exception(e)
-    finally:
-        await app.shutdown()
 
 
 if __name__ == "__main__":

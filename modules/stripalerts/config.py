@@ -21,7 +21,6 @@ DEFAULTS = {
     "led_pin": 16,
     "num_pixels": 60,
     "led_timing": 1,
-    "led_pattern": "rainbow",
     "rainbow_step": 0.05,
     "rainbow_delay": 0.01,
     "api_url": "https://events.testbed.cb.dev/events/mountaingod2/test/",

@@ -5,6 +5,7 @@ import gc
 
 import aiohttp  # type: ignore
 
+from .constants import HTTP_REQUEST_TIMEOUT
 from .utils import log_error, log_info
 
 
@@ -43,7 +44,7 @@ class ChaturbateAPI:
     async def _poll(self, session) -> None:
         """Execute a single poll request."""
         try:
-            async with session.get(self.current_url) as response:
+            async with session.get(self.current_url, timeout=HTTP_REQUEST_TIMEOUT) as response:
                 if response.status != 200:
                     log_error(f"HTTP Error: {response.status}")
                     await asyncio.sleep(5)
@@ -69,7 +70,3 @@ class ChaturbateAPI:
                 log_info(f"Event: {method}")
                 self.events.emit("api_event", event)
                 self.events.emit(f"api:{method}", event)
-
-    def stop(self) -> None:
-        """Stop polling."""
-        self._running = False
