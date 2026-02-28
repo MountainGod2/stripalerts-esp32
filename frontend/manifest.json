@@ -5,12 +5,11 @@
   "id": "stripalerts",
   "start_url": "./",
   "scope": "./",
-  "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone"
-  ],
   "orientation": "portrait",
+  "dir": "auto",
+  "lang": "en",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#0c6a93",
   "theme_color": "#2f85ac",
   "prefer_related_applications": false,
@@ -131,10 +130,7 @@
       "purpose": "monochrome"
     }
   ],
-  "categories": [
-    "productivity",
-    "utilities"
-  ],
+  "categories": ["productivity", "utilities"],
   "shortcuts": [
     {
       "name": "Scan Device",
