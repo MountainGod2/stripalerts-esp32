@@ -88,7 +88,7 @@ jobs:
 
       - name: Cache mpy-cross
         id: cache-mpy-cross
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: micropython/mpy-cross/build/mpy-cross
           key: ${{ runner.os }}-mpy-cross-${{ hashFiles('micropython/mpy-cross/**/*') }}
@@ -104,7 +104,7 @@ jobs:
 
       - name: Cache ESP-IDF
         id: cache-esp-idf
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: |
             ~/esp/idf
