@@ -84,7 +84,6 @@ jobs:
       - name: Install Python dependencies
         run: |
           uv sync --extra dev --frozen
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Cache mpy-cross
         id: cache-mpy-cross
