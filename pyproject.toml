@@ -14,7 +14,7 @@ stubs = ["micropython-esp32-stubs==1.28.0.*"]
 dev = [
     "esptool==5.2.0",
     "mpremote==1.28.0",
-    "pre-commit==4.5.1",
+    "pre-commit==4.6.0",
     "pyserial==3.5",
     "ruff==0.15.11",
     "rich==15.0.0",
