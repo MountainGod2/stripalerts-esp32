@@ -446,22 +446,22 @@ wheels = [
 
 [[package]]
 name = "micropython-esp32-stubs"
-version = "1.28.0.post2"
+version = "1.28.0.post3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "micropython-stdlib-stubs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fa/57/9711eb8b22fc70b395988c7f95e1bdeb305a74fd7131f4b0dc95fd578a47/micropython_esp32_stubs-1.28.0.post2.tar.gz", hash = "sha256:2e51f2a1cd9697bb5012c0775b241a153f712913bd953c6d8847e3568a56cbdc", size = 100423, upload-time = "2026-04-22T07:35:16.493Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/13/7f5960ec21b73ae17228d1f7261e0d802ffb1c7a9c16218e889da10a1451/micropython_esp32_stubs-1.28.0.post3.tar.gz", hash = "sha256:31ece3d5c85db94a451f2f146c5359af5fe416a92281f8f89155feb3b2e90cfa", size = 100970, upload-time = "2026-04-28T08:09:42.996Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/b1/e788cfa263202372addef023e341c613011ac74626bded85fa9532560855/micropython_esp32_stubs-1.28.0.post2-py2.py3-none-any.whl", hash = "sha256:49d4d5b703e24b3e353586bbb848326b28af4ac62d1d60d9003ead9402001bb6", size = 125448, upload-time = "2026-04-22T07:35:17.691Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/d7/d53786d01fb5d4fd3a0b7f1e8fcace982894f09eb348fbf7f8fb3748a9c2/micropython_esp32_stubs-1.28.0.post3-py2.py3-none-any.whl", hash = "sha256:2aab401b20815f7e9bceb7261e24786caed20246fb7013a7bfd1f4c4ff51cbfe", size = 126000, upload-time = "2026-04-28T08:09:44.812Z" },
 ]
 
 [[package]]
 name = "micropython-stdlib-stubs"
-version = "1.28.0.post2"
+version = "1.28.0.post4"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/8e/155b317e2ade8d076d5b7a6969813bc09937bdcc47c4bb5310cc21365e52/micropython_stdlib_stubs-1.28.0.post2-py3-none-any.whl", hash = "sha256:328e8108dcc31486ed404d6a44f9f2351115d38a5a525683188e7ad2e0fc291e", size = 148375, upload-time = "2026-04-17T20:09:06.864Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/74/2e618ae24f03d5127e7fdc66cc27de73c896ad6b1604c05618736ef4b2ec/micropython_stdlib_stubs-1.28.0.post4-py3-none-any.whl", hash = "sha256:e43714c7562e93b7b309ace202ca1b7a4b2afbdb6a6b10f51e4d91af5ddcbbb5", size = 148957, upload-time = "2026-04-27T20:19:24.241Z" },
 ]
 
 [[package]]
@@ -914,7 +914,7 @@ wheels = [
 
 [[package]]
 name = "virtualenv"
-version = "21.2.4"
+version = "21.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "distlib" },
@@ -923,7 +923,7 @@ dependencies = [
     { name = "python-discovery" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/98/3a7e644e19cb26133488caff231be390579860bbbb3da35913c49a1d0a46/virtualenv-21.2.4.tar.gz", hash = "sha256:b294ef68192638004d72524ce7ef303e9d0cf5a44c95ce2e54a7500a6381cada", size = 5850742, upload-time = "2026-04-14T22:15:31.438Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/8b/6331f7a7fe70131c301106ec1e7cf23e2501bf7d4ca3636805801ca191bb/virtualenv-21.3.0.tar.gz", hash = "sha256:733750db978ec95c2d8eb4feadaa57091002bce404cb39ba69899cf7bd28944e", size = 7614069, upload-time = "2026-04-27T17:05:58.927Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/27/8d/edd0bd910ff803c308ee9a6b7778621af0d10252219ad9f19ef4d4982a61/virtualenv-21.2.4-py3-none-any.whl", hash = "sha256:29d21e941795206138d0f22f4e45ff7050e5da6c6472299fb7103318763861ac", size = 5831232, upload-time = "2026-04-14T22:15:29.342Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/eb/03bfb1299d4c4510329e470f13f9a4ce793df7fcb5a2fd3510f911066f61/virtualenv-21.3.0-py3-none-any.whl", hash = "sha256:4d28ee41f6d9ec8f1f00cd472b9ffbcedda1b3d3b9a575b5c94a2d004fd51bd7", size = 7594690, upload-time = "2026-04-27T17:05:55.468Z" },
 ]
