@@ -247,14 +247,14 @@ wheels = [
 
 [[package]]
 name = "click"
-version = "8.4.0"
+version = "8.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/23/e4/796662cd90cf80e3a363c99db2b88e0e394b988a575f60a17e16440cd011/click-8.4.0.tar.gz", hash = "sha256:638f1338fe1235c8f4e008e4a8a254fb5c5fbdcbb40ece3c9142ebb78e792973", size = 350843, upload-time = "2026-05-17T00:47:58.425Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9b/98/518d8e5081007684232226f475082b30087d0f585e8457db087298259f49/click-8.4.1.tar.gz", hash = "sha256:918b5633eddf6b41c32d4f454bf0de810065c74e3f7dbf8ee5452f8be88d3e96", size = 353007, upload-time = "2026-05-22T04:08:37.769Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/ae/8e92f8058baf87f6c7d86ee7e457668690195cc77efedb8d3797a06e3940/click-8.4.0-py3-none-any.whl", hash = "sha256:40c50b7c6c6adac2823d411041ec84f3f103f1b280d5e9ce0d7f998995832f81", size = 116147, upload-time = "2026-05-17T00:47:56.842Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/0d/67e5b4109ea4a837e80daa87c2c696711955e40449a97e8926672534def2/click-8.4.1-py3-none-any.whl", hash = "sha256:482be17c6991b8c19c5429a1e995d9b0efdbb63172824c41f99965dc0ade8ec2", size = 116639, upload-time = "2026-05-22T04:08:35.26Z" },
 ]
 
 [[package]]
@@ -486,22 +486,22 @@ wheels = [
 
 [[package]]
 name = "micropython-esp32-stubs"
-version = "1.28.0.post3"
+version = "1.28.0.post4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "micropython-stdlib-stubs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d7/13/7f5960ec21b73ae17228d1f7261e0d802ffb1c7a9c16218e889da10a1451/micropython_esp32_stubs-1.28.0.post3.tar.gz", hash = "sha256:31ece3d5c85db94a451f2f146c5359af5fe416a92281f8f89155feb3b2e90cfa", size = 100970, upload-time = "2026-04-28T08:09:42.996Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/3c/e11ddd3b034872ae6a74d0af29f3749717477b280a50ccdb7b79ba6c9e98/micropython_esp32_stubs-1.28.0.post4.tar.gz", hash = "sha256:bc64dbea6d4c6305a1280d8cf484cb9be3fe2b9ece3c514c6d9ef0cf18838c9e", size = 101345, upload-time = "2026-05-20T12:32:51.354Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7f/d7/d53786d01fb5d4fd3a0b7f1e8fcace982894f09eb348fbf7f8fb3748a9c2/micropython_esp32_stubs-1.28.0.post3-py2.py3-none-any.whl", hash = "sha256:2aab401b20815f7e9bceb7261e24786caed20246fb7013a7bfd1f4c4ff51cbfe", size = 126000, upload-time = "2026-04-28T08:09:44.812Z" },
+    { url = "https://files.pythonhosted.org/packages/31/ce/01e397c7ef2593c9127e536734c460ca803890572b97a83616da33169364/micropython_esp32_stubs-1.28.0.post4-py2.py3-none-any.whl", hash = "sha256:75556dcb875eb8324c82e7727d447a7c58dd35fae8a411d5ef65ae8b495cc9ff", size = 126427, upload-time = "2026-05-20T12:32:52.591Z" },
 ]
 
 [[package]]
 name = "micropython-stdlib-stubs"
-version = "1.28.0.post4"
+version = "1.28.0.post5"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/aa/74/2e618ae24f03d5127e7fdc66cc27de73c896ad6b1604c05618736ef4b2ec/micropython_stdlib_stubs-1.28.0.post4-py3-none-any.whl", hash = "sha256:e43714c7562e93b7b309ace202ca1b7a4b2afbdb6a6b10f51e4d91af5ddcbbb5", size = 148957, upload-time = "2026-04-27T20:19:24.241Z" },
+    { url = "https://files.pythonhosted.org/packages/79/35/ed41077c239ad63681fb568817547afb44e7d33be8851af80c2f4934a7b9/micropython_stdlib_stubs-1.28.0.post5-py3-none-any.whl", hash = "sha256:2786030144710958c5a57d11ef1f7aa66ddabc566e2ec16d0fa549eeb9689141", size = 148984, upload-time = "2026-05-20T12:35:25.54Z" },
 ]
 
 [[package]]
