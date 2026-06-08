@@ -337,7 +337,7 @@ wheels = [
 
 [[package]]
 name = "esptool"
-version = "5.2.0"
+version = "5.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bitstring" },
@@ -349,7 +349,7 @@ dependencies = [
     { name = "reedsolo" },
     { name = "rich-click" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/77/25/7b50d81a66f600a60f23258fa134201e97e854271b478ca4e21e9f694355/esptool-5.2.0.tar.gz", hash = "sha256:9c355b7d6331cc92979cc710ae5c41f59830d1ea29ec24c467c6005a092c06d6", size = 463000, upload-time = "2026-02-18T16:10:52.641Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/ca/aa2a6aafe214b3338eb56c5dc941e7e83a0f9e8b9bd05ac91b5d1a6ee9c9/esptool-5.3.0.tar.gz", hash = "sha256:0a077cb3ee8e60e223882c06ab7dae9b3686816c2547904d7472a42e6284e7de", size = 487446, upload-time = "2026-06-01T15:21:45.662Z" }
 
 [[package]]
 name = "filelock"
@@ -825,7 +825,7 @@ stubs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "esptool", marker = "extra == 'dev'", specifier = "==5.2.0" },
+    { name = "esptool", marker = "extra == 'dev'", specifier = "==5.3.0" },
     { name = "micropython-esp32-stubs", marker = "extra == 'stubs'", specifier = "==1.28.0.*" },
     { name = "mpremote", marker = "extra == 'dev'", specifier = "==1.28.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==2.1.0" },
