@@ -12,7 +12,7 @@ dependencies = []
 stubs = ["micropython-esp32-stubs==1.28.0.*"]
 # uv pip install -r pyproject.toml --extra dev
 dev = [
-    "esptool==5.2.0",
+    "esptool==5.3.0",
     "mpremote==1.28.0",
     "pre-commit==4.6.0",
     "pyserial==3.5",
