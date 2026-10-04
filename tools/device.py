@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -200,11 +201,34 @@ def check_idf_environment() -> tuple[Path, list[str]]:
 
     idf_py_path = idf_path / "tools" / "idf.py"
     if idf_py_path.exists():
-        cmd = [sys.executable, str(idf_py_path)]
-        output = get_command_output([*cmd, "--version"])
-        if output:
-            print_success(f"ESP-IDF found at: {idf_path}")
-            return idf_path, cmd
+        candidate_cmds: list[list[str]] = []
+
+        env_python = os.environ.get("IDF_PYTHON_ENV_PATH")
+        if env_python:
+            python_name = "Scripts/python.exe" if os.name == "nt" else "bin/python"
+            python_bin = Path(env_python) / python_name
+            if python_bin.exists():
+                candidate_cmds.append([str(python_bin), str(idf_py_path)])
+
+        for binary in ("python3", "python"):
+            python_bin = shutil.which(binary)
+            if python_bin:
+                candidate_cmds.append([python_bin, str(idf_py_path)])
+
+        candidate_cmds.append([sys.executable, str(idf_py_path)])
+
+        seen: set[tuple[str, ...]] = set()
+        for cmd in candidate_cmds:
+            key = tuple(cmd)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            output = get_command_output([*cmd, "--version"])
+            if output:
+                print_success(f"ESP-IDF found at: {idf_path}")
+                return idf_path, cmd
+
         msg = (
             f"idf.py found at {idf_py_path} but could not be executed. "
             "Check file permissions and that Python can run it. "
