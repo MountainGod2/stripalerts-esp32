@@ -38,6 +38,62 @@ class WiFiManager:
         """Initialize WiFi manager."""
         self.sta = network.WLAN(network.STA_IF)
 
+    async def monitor(
+        self,
+        ssid: str = "",
+        password: str = "",
+        *,
+        timeout: int = WIFI_CONNECT_TIMEOUT,
+        attempts_before_reset: int = 3,
+        wdt=None,
+        max_cycles: int | None = None,
+    ) -> None:
+        """Keep the STA link alive and trigger a reset after repeated failure."""
+        if not ssid:
+            return
+
+        failures = 0
+        cycles = 0
+        while True:
+            if max_cycles is not None and cycles >= max_cycles:
+                return
+
+            await asyncio.sleep(5)
+            cycles += 1
+
+            if self.sta.isconnected():
+                failures = 0
+                continue
+
+            failures += 1
+            log_error(f"WiFi link lost ({failures}/{attempts_before_reset})")
+            if not await self.connect(ssid, password, timeout=timeout, wdt=wdt):
+                if failures >= attempts_before_reset:
+                    log_error("Too many WiFi failures; resetting device")
+                    try:
+                        import machine
+
+                        if hasattr(machine, "reset"):
+                            machine.reset()
+                        else:
+                            raise RuntimeError("No reset available")
+                    except Exception as exc:
+                        log_error(f"WiFi recovery reset failed: {exc}")
+                        raise RuntimeError("WiFi recovery failed")
+                continue
+
+            failures = 0
+
+    def _current_ssid(self) -> str:
+        """Return the currently connected SSID when available."""
+        try:
+            value = self.sta.config("essid")
+        except Exception:
+            return ""
+        if isinstance(value, bytes):
+            return value.decode("utf-8")
+        return str(value or "")
+
     def enable_sta(self) -> None:
         """Enable station mode."""
         self.sta.active(True)  # noqa: FBT003 - MicroPython API requires positional bool
@@ -59,14 +115,19 @@ class WiFiManager:
             wdt: Optional watchdog timer to feed during connection
 
         Returns:
-            True if connected, False otherwise
+            True if connected to the requested SSID, False otherwise
 
         """
         self.enable_sta()
 
-        if self.sta.isconnected():
-            log_info("Already connected to WiFi")
+        current_ssid = self._current_ssid()
+        if self.sta.isconnected() and current_ssid == ssid:
+            log_info(f"Already connected to WiFi: {ssid}")
             return True
+
+        if self.sta.isconnected() and current_ssid:
+            log_info(f"Disconnecting from {current_ssid} before connecting to {ssid}")
+            self.sta.disconnect()
 
         log_info(f"Connecting to WiFi: {ssid}")
         self.sta.config(reconnects=3)
@@ -76,11 +137,11 @@ class WiFiManager:
         for _ in range(iterations):
             if wdt:
                 wdt.feed()
-            if self.sta.isconnected():
+            if self.sta.isconnected() and self._current_ssid() == ssid:
                 ip_addr = self.sta.ifconfig()[0]
                 log_info(f"Connected! IP: {ip_addr}")
                 return True
-            await asyncio.sleep_ms(_CONNECT_CHECK_INTERVAL_MS)
+            await asyncio.sleep(_CONNECT_CHECK_INTERVAL_MS / 1000)
 
         log_error(f"Failed to connect to WiFi: {ssid}")
         return False

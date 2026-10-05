@@ -26,7 +26,7 @@ make monitor  # Serial monitor
 
 ## Configuration
 
-`config.json`:
+Copy `config.json.example` to `config.json` and fill in your private values.
 
 ```json
 {

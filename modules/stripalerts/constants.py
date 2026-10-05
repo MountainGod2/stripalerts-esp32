@@ -23,7 +23,7 @@ MIN_PIN = const(0)
 MAX_PIN = const(48)
 
 WIFI_CONNECT_TIMEOUT = const(10)
-HTTP_REQUEST_TIMEOUT = const(5)
+HTTP_REQUEST_TIMEOUT = const(10)
 
 # Trigger Tokens
 TRIGGER_TOKEN_AMOUNT = const(35)
@@ -40,6 +40,9 @@ COLOR_HOLD_DURATION = const(600)  # 10 minutes
 
 # BLE Protocol constants
 BLE_MAX_NETWORKS_LIST = const(30)
+MAX_WIFI_SSID_LEN = const(32)
+MAX_WIFI_PASSWORD_LEN = const(63)
+MAX_API_URL_LEN = const(512)
 
 # Notification framing for chunked transfer of network lists.
 # Uses sizing compatible with default BLE MTU payload (~20 bytes).

@@ -2,6 +2,7 @@
 
 import asyncio
 import gc
+import sys
 
 try:
     from typing import TYPE_CHECKING
@@ -61,19 +62,33 @@ class App:
 
     async def _handle_api_event(self, event: dict):
         """Handle API events."""
+        if not isinstance(event, dict):
+            return
+
         method = event.get("method")
         if method == "tip":
-            await self._handle_tip(event.get("object", {}).get("tip", {}))
+            payload = event.get("object")
+            if not isinstance(payload, dict):
+                payload = {}
 
-    async def _handle_tip(self, tip_data: dict):
+            tip_data: dict | None = payload.get("tip")
+            if not isinstance(tip_data, dict):
+                tip_data = {}
+
+            await self._handle_tip(tip_data)
+
+    async def _handle_tip(self, tip_data: dict | None):
         """Handle individual tip events."""
+        if not isinstance(tip_data, dict):
+            tip_data = {}
+
         try:
             tokens = int(tip_data.get("tokens", 0))
         except (ValueError, TypeError) as e:
             log_error(f"Invalid token amount: {tip_data.get('tokens')} ({e})")
             tokens = 0
 
-        message = tip_data.get("message", "").lower()
+        message = str(tip_data.get("message") or "").lower()
         log_info(f"Tip received: {tokens}")
 
         # Check for color trigger (35 tokens + color in message)
@@ -147,10 +162,26 @@ class App:
         except Exception as e:
             log_error(f"Effect error: {e}")
 
+    async def _supervised(self, name: str, coro) -> None:
+        """Run a task and log failures without depending on Task.exception()."""
+        try:
+            await coro
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # pragma: no cover - exercised via task failures in runtime
+            log_error(f"{name} failed: {exc}")
+            sys.print_exception(exc)
+
     def _feed_watchdog(self) -> None:
         """Feed watchdog if enabled."""
         if self.wdt:
             self.wdt.feed()
+
+    def _prune_done_tasks(self) -> None:
+        """Remove completed tasks without depending on MicroPython's Task API."""
+        for task in self._tasks[:]:
+            if task.done():
+                self._tasks.remove(task)
 
     def _set_default_led_pattern(self) -> None:
         """Set default LED rainbow pattern."""
@@ -233,16 +264,30 @@ class App:
         self._running = True
 
         # LED is always running
-        self._tasks.append(asyncio.create_task(self.led.run()))
+        self._tasks.append(asyncio.create_task(self._supervised("LED", self.led.run())))
 
         if self.mode == "NORMAL":
-            self._tasks.append(asyncio.create_task(self.events.run()))
+            self._tasks.append(asyncio.create_task(self._supervised("Events", self.events.run())))
             if self.api:
-                self._tasks.append(asyncio.create_task(self.api.start()))
+                self._tasks.append(asyncio.create_task(self._supervised("API", self.api.start())))
+            self._tasks.append(
+                asyncio.create_task(
+                    self._supervised(
+                        "WiFi",
+                        self.wifi.monitor(
+                            settings["wifi_ssid"],
+                            settings["wifi_password"],
+                            timeout=10,
+                            attempts_before_reset=3,
+                            wdt=self.wdt,
+                        ),
+                    ),
+                ),
+            )
 
         elif self.mode == "PROVISIONING":
             if self.ble:
-                self._tasks.append(asyncio.create_task(self.ble.start()))
+                self._tasks.append(asyncio.create_task(self._supervised("BLE", self.ble.start())))
             else:
                 log_error("BLE failed, staying in error mode")
 
@@ -256,14 +301,8 @@ class App:
                 # Basic monitoring
                 await asyncio.sleep(1)
 
-                # Prune finished tasks
-                for t in self._tasks[:]:
-                    if t.done():
-                        if not t.cancelled():
-                            exc = t.exception()
-                            if exc:
-                                log_error(f"Task failed: {exc}")
-                        self._tasks.remove(t)
+                # Prune finished tasks without relying on MicroPython-only Task helpers.
+                self._prune_done_tasks()
 
                 if not self._tasks:
                     log_info("All tasks finished.")
@@ -328,9 +367,9 @@ class App:
 
     async def start(self):
         """Start the application."""
-        await self.setup()
+        if not self.wdt and hasattr(machine, "WDT"):
+            self.wdt = machine.WDT(timeout=15000)
 
-        if self.mode == "NORMAL":
-            self.wdt = machine.WDT(timeout=10000)
+        await self.setup()
 
         await self.run()

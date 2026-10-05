@@ -20,6 +20,9 @@ from .constants import (
     BLE_NET_CHUNK_DATA_SIZE,
     BLE_NET_FLAG_CHUNK,
     BLE_NET_FLAG_START,
+    MAX_API_URL_LEN,
+    MAX_WIFI_PASSWORD_LEN,
+    MAX_WIFI_SSID_LEN,
 )
 from .utils import log_error, log_info
 
@@ -95,6 +98,25 @@ class BLEManager:
         aioble.register_services(self.service)
         log_info(f"BLE Service registered: {_SERVICE_UUID}")
 
+    @staticmethod
+    def _max_value_length(config_key: str) -> int:
+        """Return the max allowed size for a provisioning field."""
+        if config_key == "wifi_ssid":
+            return MAX_WIFI_SSID_LEN
+        if config_key == "wifi_password":
+            return MAX_WIFI_PASSWORD_LEN
+        if config_key == "api_url":
+            return MAX_API_URL_LEN
+        return 4096
+
+    @classmethod
+    def _sanitize_config_value(cls, config_key: str, value: str) -> str:
+        """Trim a provisioned setting to the accepted field length."""
+        if not isinstance(value, str):
+            return value
+        max_len = cls._max_value_length(config_key)
+        return value[:max_len]
+
     def _apply_buffer_to_settings(self, uuid: bluetooth.UUID, config_key: str) -> None:
         if not self._buffers[uuid]:
             return
@@ -104,7 +126,7 @@ class BLEManager:
         except Exception:
             return
 
-        settings[config_key] = decoded
+        settings[config_key] = self._sanitize_config_value(config_key, decoded)
 
     def _flush_pending_writes(self) -> None:
         """Apply latest buffered values immediately."""
@@ -159,6 +181,7 @@ class BLEManager:
                             except asyncio.CancelledError:
                                 pass
 
+                        await self._cancel_rescan_task()
                         self._connection = None
                         log_info("BLE Disconnected")
                 except asyncio.CancelledError:  # noqa: PERF203 - Must re-raise to properly cancel
@@ -169,12 +192,7 @@ class BLEManager:
         except asyncio.CancelledError:
             log_info("BLE task cancelled")
         finally:
-            if self._rescan_task and not self._rescan_task.done():
-                self._rescan_task.cancel()
-                try:
-                    await self._rescan_task
-                except asyncio.CancelledError:
-                    pass
+            await self._cancel_rescan_task()
 
             for t in self._tasks:
                 t.cancel()
@@ -202,7 +220,10 @@ class BLEManager:
 
                     # Update setting
                     try:
-                        decoded = self._buffers[uuid].decode("utf-8")
+                        decoded = self._sanitize_config_value(
+                            config_key,
+                            self._buffers[uuid].decode("utf-8"),
+                        )
                         settings[config_key] = decoded
                         val_log = "***" if "password" in config_key else decoded[:10]
                         log_info(f"Updated {config_key}: {val_log}...")
@@ -222,11 +243,15 @@ class BLEManager:
 
                 flag = value[0]
                 data = value[1:]
+                max_len = self._max_value_length(config_key)
 
                 if flag == _FLAG_START:
-                    self._buffers[uuid] = bytearray(data)
+                    self._buffers[uuid] = bytearray(data[:max_len])
                 elif flag == _FLAG_APPEND:
-                    self._buffers[uuid].extend(data)
+                    remaining = max_len - len(self._buffers[uuid])
+                    if remaining <= 0:
+                        continue
+                    self._buffers[uuid].extend(data[:remaining])
                 else:
                     continue
 
@@ -271,8 +296,8 @@ class BLEManager:
                         continue
 
                     self._rescan_task = asyncio.create_task(self._send_networks(allow_cache=False))
-                    self._tasks.append(self._rescan_task)
                     self._rescan_task.add_done_callback(self._on_rescan_done)
+                    self._tasks.append(self._rescan_task)
 
                 elif command == "test":
                     await self._notify_status("Testing WiFi...")
@@ -315,24 +340,25 @@ class BLEManager:
             except Exception as e:
                 log_error(f"Command Error: {e}")
 
+    async def _cancel_rescan_task(self) -> None:
+        """Cancel and clear any in-flight WiFi rescan task."""
+        task = self._rescan_task
+        self._rescan_task = None
+
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
     def _on_rescan_done(self, task: "asyncio.Task[object]") -> None:
+        """Clean up a completed rescan task without calling unsupported Task APIs."""
         if task in self._tasks:
             self._tasks.remove(task)
 
         if self._rescan_task is task:
             self._rescan_task = None
-
-        if task.cancelled():
-            return
-
-        try:
-            exc = task.exception()
-        except Exception as e:
-            log_error(f"Rescan task completion check failed: {e}")
-            return
-
-        if exc is not None:
-            log_error(f"Rescan task failed: {exc}")
 
     def _write_test_result(self, result: str) -> None:
         """Write result to wifiTest char and notify."""
@@ -369,7 +395,7 @@ class BLEManager:
         )
         self.char_networks.write(start_frame)
         self.char_networks.notify(self._connection)
-        await asyncio.sleep_ms(15)
+        await asyncio.sleep(0.015)
 
         if not payload:
             frame = bytes((BLE_NET_FLAG_CHUNK, 0, 0))
@@ -388,7 +414,7 @@ class BLEManager:
             frame[3:] = chunk
             self.char_networks.write(frame)
             self.char_networks.notify(self._connection)
-            await asyncio.sleep_ms(15)
+            await asyncio.sleep(0.015)
 
     async def _send_networks(self, *, allow_cache: bool = False) -> None:
         """Scan and send networks."""

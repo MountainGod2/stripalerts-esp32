@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 from micropython import const
 
+from .constants import MAX_API_URL_LEN, MAX_WIFI_PASSWORD_LEN, MAX_WIFI_SSID_LEN
 from .utils import log_error, log_warning
 
 CONFIG_FILE = const("/config.json")
@@ -41,6 +42,37 @@ except Exception as e:
 class Config:
     """Simple configuration manager."""
 
+    @staticmethod
+    def _sanitize_value(key: str, value: "Any") -> "Any":
+        """Normalize user-provided config values to safe runtime types."""
+        if key in {"wifi_ssid", "wifi_password", "api_url"}:
+            if not isinstance(value, str):
+                return ""
+            value = value.strip()
+            if key == "wifi_ssid":
+                return value[:MAX_WIFI_SSID_LEN]
+            if key == "wifi_password":
+                return value[:MAX_WIFI_PASSWORD_LEN]
+            if key == "api_url":
+                if not value.startswith(("http://", "https://")):
+                    return ""
+                return value[:MAX_API_URL_LEN]
+            return value
+
+        if key in {"led_pin", "num_pixels"}:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return DEFAULTS.get(key)
+
+        if key in {"led_timing", "rainbow_step", "rainbow_delay"}:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return DEFAULTS.get(key)
+
+        return value
+
     def __init__(self) -> None:
         """Initialize configuration manager and load settings."""
         self._data: "dict[str, Any]" = DEFAULTS.copy()
@@ -50,29 +82,43 @@ class Config:
         """Load configuration from disk."""
         try:
             with open(CONFIG_FILE) as f:
-                self._data.update(json.load(f))
-        except (OSError, ValueError) as e:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                for key, value in loaded.items():
+                    self._data[key] = self._sanitize_value(key, value)
+            else:
+                log_warning("Using default config (config file does not contain an object)")
+        except (OSError, TypeError, ValueError) as e:
             log_warning(f"Using default config ({e})")
 
     def save(self) -> None:
-        """Save configuration to disk."""
+        """Save configuration to disk atomically."""
+        tmp_path = f"{CONFIG_FILE}.tmp"
         try:
-            with open(CONFIG_FILE, "w") as f:
+            with open(tmp_path, "w") as f:
                 json.dump(self._data, f)
+            os.rename(tmp_path, CONFIG_FILE)
         except OSError as e:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
             log_error(f"Save failed: {e}")
 
     def __getitem__(self, key: str) -> "Any":
         """Get configuration value by key."""
-        return self._data.get(key, DEFAULTS.get(key))
+        if key in self._data:
+            return self._sanitize_value(key, self._data[key])
+        return self._sanitize_value(key, DEFAULTS.get(key))
 
     def __setitem__(self, key: str, value: "Any") -> None:
         """Set configuration value by key."""
-        self._data[key] = value
+        self._data[key] = self._sanitize_value(key, value)
 
     def get(self, key: str, default: "Any" = None) -> "Any":
         """Get configuration value with optional default."""
-        return self._data.get(key, default)
+        value = self._data.get(key, default)
+        return self._sanitize_value(key, value)
 
 
 # Singleton instance
