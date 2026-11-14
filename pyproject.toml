@@ -16,7 +16,7 @@ dev = [
     "mpremote==1.29.0",
     "pre-commit==4.6.2",
     "pyserial==3.5",
-    "ruff==0.17.4",
+    "ruff==0.17.5",
     "rich==15.0.0",
     "typer==0.29.1",
     "mypy==2.4.1",
